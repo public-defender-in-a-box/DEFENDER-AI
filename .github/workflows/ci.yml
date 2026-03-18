@@ -31,7 +31,7 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install black ruff
-      - run: black --check src/ tests/
+      - run: black --check --target-version py311 src/ tests/
       - run: ruff check src/
 
   frontend-lint:

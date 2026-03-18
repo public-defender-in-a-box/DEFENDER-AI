@@ -20,9 +20,12 @@ class RightsScannerAgent(BaseAgent):
         Input: arrest report and/or client narrative
         Output: rights violation flags, discrepancy report, suppression viability
         """
-        self.log_action("rights_scan_started", {
-            "pass": input_data.get("pass_number", 1),
-        })
+        self.log_action(
+            "rights_scan_started",
+            {
+                "pass": input_data.get("pass_number", 1),
+            },
+        )
 
         arrest_report = input_data.get("arrest_report", "")
         client_narrative = input_data.get("client_narrative", "")

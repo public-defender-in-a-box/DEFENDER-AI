@@ -39,9 +39,12 @@ class EthicsMonitorAgent(BaseAgent):
         Input: agent output to validate, agent_id, is_client_facing
         Output: ethical flags, blocked status, audit entries
         """
-        self.log_action("ethics_check_started", {
-            "target_agent": input_data.get("agent_id"),
-        })
+        self.log_action(
+            "ethics_check_started",
+            {
+                "target_agent": input_data.get("agent_id"),
+            },
+        )
 
         flags: list[dict[str, Any]] = []
         output = input_data.get("output", {})
@@ -51,57 +54,68 @@ class EthicsMonitorAgent(BaseAgent):
         # Check 1: Confidence threshold
         confidence = output.get("confidence", "UNRATED")
         if confidence == ConfidenceLevel.LOW.value:
-            flags.append(self._create_flag(
-                agent_id,
-                "COMPETENCE",
-                "MEDIUM",
-                f"Agent {agent_id} output has LOW confidence. Flagged for attorney review.",
-                blocked=False,
-            ))
+            flags.append(
+                self._create_flag(
+                    agent_id,
+                    "COMPETENCE",
+                    "MEDIUM",
+                    f"Agent {agent_id} output has LOW confidence. Flagged for attorney review.",
+                    blocked=False,
+                )
+            )
 
         # Check 2: UPL violations in client-facing outputs
         if is_client_facing:
             content = str(output.get("data", "")).lower()
             for phrase in UPL_VIOLATION_PHRASES:
                 if phrase in content:
-                    flags.append(self._create_flag(
-                        agent_id,
-                        "UPL",
-                        "CRITICAL",
-                        f"Potential UPL violation: client-facing output contains '{phrase}'",
-                        blocked=True,
-                    ))
+                    flags.append(
+                        self._create_flag(
+                            agent_id,
+                            "UPL",
+                            "CRITICAL",
+                            f"Potential UPL violation: client-facing output contains '{phrase}'",
+                            blocked=True,
+                        )
+                    )
 
         # Check 3: Privilege warning present
         if not is_client_facing:
             data_str = str(output.get("data", ""))
             if "DRAFT" in data_str and "ATTORNEY REVIEW REQUIRED" not in data_str:
-                flags.append(self._create_flag(
-                    agent_id,
-                    "PRIVILEGE",
-                    "LOW",
-                    "Draft output missing ATTORNEY REVIEW REQUIRED disclaimer.",
-                    blocked=False,
-                ))
+                flags.append(
+                    self._create_flag(
+                        agent_id,
+                        "PRIVILEGE",
+                        "LOW",
+                        "Draft output missing ATTORNEY REVIEW REQUIRED disclaimer.",
+                        blocked=False,
+                    )
+                )
 
         # Check 4: Decision support disclaimer on plea/trial outputs
         if agent_id == "plea_trial_analyst":
             recommendation = str(output.get("data", {}).get("recommendation", ""))
             if recommendation and "DECISION SUPPORT ONLY" not in recommendation:
-                flags.append(self._create_flag(
-                    agent_id,
-                    "IAC",
-                    "HIGH",
-                    "Plea/trial recommendation missing DECISION SUPPORT ONLY disclaimer.",
-                    blocked=True,
-                ))
+                flags.append(
+                    self._create_flag(
+                        agent_id,
+                        "IAC",
+                        "HIGH",
+                        "Plea/trial recommendation missing DECISION SUPPORT ONLY disclaimer.",
+                        blocked=True,
+                    )
+                )
 
         blocked = any(f["blocked"] for f in flags)
 
-        self.log_action("ethics_check_completed", {
-            "flags_count": len(flags),
-            "blocked": blocked,
-        })
+        self.log_action(
+            "ethics_check_completed",
+            {
+                "flags_count": len(flags),
+                "blocked": blocked,
+            },
+        )
 
         return {
             "flags": flags,

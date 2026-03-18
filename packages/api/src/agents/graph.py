@@ -24,11 +24,13 @@ async def charge_processing_node(state: GraphState) -> GraphState:
         state["error"] = "No documents to process"
         return state
 
-    result = await agent.run({
-        "document_text": documents[0].get("extracted_text", ""),
-        "document_type": documents[0].get("type", "COMPLAINT"),
-        "jurisdiction": state["case_state"].get("jurisdiction", "IL"),
-    })
+    result = await agent.run(
+        {
+            "document_text": documents[0].get("extracted_text", ""),
+            "document_type": documents[0].get("type", "COMPLAINT"),
+            "jurisdiction": state["case_state"].get("jurisdiction", "IL"),
+        }
+    )
 
     state["case_state"]["charge_processing"] = result
     state["current_stage"] = "CHARGES_PROCESSED"
@@ -40,9 +42,11 @@ async def pre_interview_node(state: GraphState) -> GraphState:
     from src.agents.tier1.pre_interview import PreInterviewResearchAgent
 
     agent = PreInterviewResearchAgent()
-    result = await agent.run({
-        "charge_processing": state["case_state"].get("charge_processing"),
-    })
+    result = await agent.run(
+        {
+            "charge_processing": state["case_state"].get("charge_processing"),
+        }
+    )
 
     state["case_state"]["pre_interview_research"] = result
     state["current_stage"] = "PRE_INTERVIEW_COMPLETE"
@@ -61,9 +65,11 @@ async def case_prep_node(state: GraphState) -> GraphState:
     from src.agents.tier1.case_prep import CasePrepAgent
 
     agent = CasePrepAgent()
-    result = await agent.run({
-        "case_state": state["case_state"],
-    })
+    result = await agent.run(
+        {
+            "case_state": state["case_state"],
+        }
+    )
 
     state["case_state"]["case_prep_memo"] = result
     state["current_stage"] = "CASE_PREP_COMPLETE"

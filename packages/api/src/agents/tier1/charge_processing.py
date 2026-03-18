@@ -53,11 +53,14 @@ class ChargeProcessingAgent(BaseAgent):
         Input: document_text, document_type, jurisdiction
         Output: ChargeProcessingOutput
         """
-        self.log_action("charge_processing_started", {
-            "document_type": input_data.get("document_type"),
-            "jurisdiction": input_data.get("jurisdiction"),
-            "text_length": len(input_data.get("document_text", "")),
-        })
+        self.log_action(
+            "charge_processing_started",
+            {
+                "document_type": input_data.get("document_type"),
+                "jurisdiction": input_data.get("jurisdiction"),
+                "text_length": len(input_data.get("document_text", "")),
+            },
+        )
 
         prompt = CHARGE_PROCESSING_PROMPT.format(
             document_type=input_data.get("document_type", "COMPLAINT"),

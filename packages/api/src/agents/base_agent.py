@@ -48,9 +48,7 @@ class BaseAgent(ABC):
         """Return the agent's audit log."""
         return self._audit_log
 
-    def wrap_output(
-        self, data: dict[str, Any], confidence: float
-    ) -> dict[str, Any]:
+    def wrap_output(self, data: dict[str, Any], confidence: float) -> dict[str, Any]:
         """Wrap agent output with confidence rating and metadata."""
         return {
             "data": data,
