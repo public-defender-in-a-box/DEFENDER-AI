@@ -13,7 +13,10 @@ client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
 
 async def call_llm(
     prompt: str,
-    system: str = "You are a legal analysis AI assistant for a public defender's office. Always return valid JSON.",
+    system: str = (
+        "You are a legal analysis AI assistant for a public defender's office."
+        " Always return valid JSON."
+    ),
     max_tokens: int = 4096,
 ) -> dict[str, Any]:
     """Call Claude and parse the JSON response.
