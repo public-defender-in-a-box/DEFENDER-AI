@@ -1,0 +1,16 @@
+/** Format a pipeline stage for display */
+export function formatStage(stage: string): string {
+  return stage
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** Format a confidence level with color hint */
+export function confidenceColor(level: string): string {
+  switch (level) {
+    case "HIGH": return "#16a34a";
+    case "MEDIUM": return "#f59e0b";
+    case "LOW": return "#ef4444";
+    default: return "#6b7280";
+  }
+}

@@ -1,0 +1,178 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Users ---
+
+enum UserRole {
+  ATTORNEY
+  ADMIN
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  role      UserRole @default(ATTORNEY)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cases          Case[]
+  reviewActions  ReviewAction[]
+}
+
+// --- Cases ---
+
+enum PipelineStage {
+  CREATED
+  CHARGES_PROCESSING
+  CHARGES_PROCESSED
+  PRE_INTERVIEW_RESEARCH
+  PRE_INTERVIEW_COMPLETE
+  INTAKE_IN_PROGRESS
+  INTAKE_COMPLETE
+  CASE_PREP_IN_PROGRESS
+  CASE_PREP_COMPLETE
+  ATTORNEY_REVIEW
+  ATTORNEY_APPROVED
+}
+
+model Case {
+  id           String        @id @default(cuid())
+  caseNumber   String?
+  jurisdiction String        @default("IL")
+  stage        PipelineStage @default(CREATED)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  // The full CaseState as flexible JSONB
+  caseState    Json          @default("{}")
+
+  // Relations
+  attorneyId   String
+  attorney     User          @relation(fields: [attorneyId], references: [id])
+  charges      Charge[]
+  documents    Document[]
+  intakeSessions IntakeSession[]
+  auditLogs    AuditLog[]
+  reviewActions ReviewAction[]
+
+  @@index([attorneyId])
+  @@index([stage])
+}
+
+// --- Charges ---
+
+model Charge {
+  id              String   @id @default(cuid())
+  caseId          String
+  statuteSection  String
+  offenseTitle    String
+  degree          String
+  elements        Json     @default("[]")    // String array
+  penaltyRange    Json     @default("{}")    // PenaltyRange object
+  enhancements    Json     @default("[]")    // Enhancement array
+  createdAt       DateTime @default(now())
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId])
+}
+
+// --- Documents ---
+
+enum DocumentType {
+  COMPLAINT
+  INDICTMENT
+  ARREST_REPORT
+  DISCOVERY
+  OTHER
+}
+
+model Document {
+  id           String       @id @default(cuid())
+  caseId       String
+  type         DocumentType
+  fileName     String
+  storageUrl   String
+  extractedText String?     @db.Text
+  uploadedAt   DateTime     @default(now())
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId])
+}
+
+// --- Intake ---
+
+model IntakeSession {
+  id              String   @id @default(cuid())
+  caseId          String
+  language        String   @default("en")
+  status          String   @default("ACTIVE")  // ACTIVE, PAUSED, COMPLETED
+  transcript      Json     @default("[]")       // IntakeMessage array
+  summary         Json?                          // IntakeSummaryOutput
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId])
+}
+
+// --- Attorney Review ---
+
+enum ReviewTier {
+  HIGH_STAKES       // Written annotation required
+  MEDIUM_STAKES     // Substantive edit required
+  LOWER_STAKES      // Active confirmation required
+}
+
+enum ReviewStatus {
+  PENDING_REVIEW
+  IN_REVIEW
+  ATTORNEY_APPROVED
+}
+
+model ReviewAction {
+  id            String       @id @default(cuid())
+  caseId        String
+  attorneyId    String
+  sectionId     String       // Which part of the case memo
+  tier          ReviewTier
+  status        ReviewStatus @default(PENDING_REVIEW)
+  annotation    String?      @db.Text
+  editsMade     Boolean      @default(false)
+  comprehensionCheckPassed Boolean?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  case     Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  attorney User @relation(fields: [attorneyId], references: [id])
+
+  @@index([caseId])
+  @@index([attorneyId])
+}
+
+// --- Audit ---
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  caseId      String
+  agentId     String
+  action      String
+  details     Json     @default("{}")
+  ethicalCheck Boolean @default(false)
+  timestamp   DateTime @default(now())
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId])
+  @@index([agentId])
+  @@index([timestamp])
+}

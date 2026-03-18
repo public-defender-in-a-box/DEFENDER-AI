@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Next.js
+.next/
+out/
+
+# Build
+dist/
+build/
+
+# Environment
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Database
+*.db
+*.sqlite
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Testing
+coverage/
+.pytest_cache/
+htmlcov/
+
+# Turbo
+.turbo/
+
+# Prisma
+packages/web/prisma/migrations/
+
+# Uploaded documents (never commit client data)
+uploads/
+packages/api/uploads/
+
+# Corpus data (large files)
+packages/api/src/corpus/data/*.json
+!packages/api/src/corpus/data/.gitkeep
