@@ -28,8 +28,8 @@ async def intake_websocket(websocket: WebSocket, session_id: str):
 
     try:
         while True:
-            data = await websocket.receive_text()
-            # TODO: Route to Intake Conductor agent
+            _client_message = await websocket.receive_text()
+            # TODO: Route _client_message to Intake Conductor agent
             await websocket.send_json(
                 {
                     "sender": "SYSTEM",
