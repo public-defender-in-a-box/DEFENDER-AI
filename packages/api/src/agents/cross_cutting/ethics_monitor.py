@@ -5,7 +5,6 @@ constitutional boundaries. Cannot be overridden by any other agent.
 """
 
 import uuid
-from datetime import datetime
 from typing import Any
 
 from src.agents.base_agent import BaseAgent

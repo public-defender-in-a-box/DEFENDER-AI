@@ -1,7 +1,6 @@
 """PDF and image text extraction service."""
 
 import io
-from pathlib import Path
 
 from PyPDF2 import PdfReader
 
@@ -32,7 +31,6 @@ async def _ocr_fallback(file_bytes: bytes) -> str:
     """OCR fallback for scanned documents."""
     try:
         import pytesseract
-        from PIL import Image
         from pdf2image import convert_from_bytes
 
         images = convert_from_bytes(file_bytes)

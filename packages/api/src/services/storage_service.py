@@ -1,6 +1,5 @@
 """File storage service — local filesystem for MVP, S3-compatible later."""
 
-import os
 import uuid
 from pathlib import Path
 
