@@ -27,7 +27,7 @@ class CaseLawAgent(BaseAgent):
         facts = input_data.get("factual_pattern", "")
         statutes = input_data.get("statutory_framework", [])
 
-        prompt = f"""You are a case law research agent for a public defender in Illinois.
+        prompt = f"""You are a case law research agent for a public defender in Georgia.
 
 IMPORTANT: Tag ALL citations with verification status.
 Corpus citations = VERIFIED. Generated citations = UNVERIFIED.

@@ -1,4 +1,4 @@
-CHICAGO POLICE DEPARTMENT
+ATLANTA POLICE DEPARTMENT
 ARREST REPORT
 
 Case Number: JD-2024-00142
@@ -8,22 +8,23 @@ Time of Arrest: 02:35 AM
 ARRESTEE INFORMATION:
 Name: DOE, JOHN
 DOB: 05/12/1992
-Address: 1234 S. State St, Chicago, IL 60605
+Address: 1234 Peachtree St NE, Atlanta, GA 30309
 
 ARRESTING OFFICER:
 Officer James Smith, Badge #4521
-Chicago Police Department, 11th District
+Atlanta Police Department, Zone 3
 
 ASSISTING OFFICER:
 Officer Maria Garcia, Badge #3847
-Chicago Police Department, 11th District
+Atlanta Police Department, Zone 3
 
 LOCATION OF ARREST:
-W. Roosevelt Rd and S. Halsted St, Chicago, IL
+Peachtree St and Andrew Young International Blvd, Atlanta, GA
 
 NARRATIVE:
 On January 15, 2024, at approximately 0230 hours, I, Officer James Smith,
-was conducting routine patrol in the area of W. Roosevelt Rd and S. Halsted St.
+was conducting routine patrol in the area of Peachtree St and Andrew Young
+International Blvd.
 
 I observed the subject, later identified as JOHN DOE, standing on the
 southwest corner of the intersection. Upon seeing my patrol vehicle, the
@@ -41,7 +42,7 @@ I placed the subject under arrest and advised him of his Miranda rights at
 approximately 0235 hours. The subject stated he understood his rights and
 declined to make a statement.
 
-The subject was transported to the 11th District station for processing.
+The subject was transported to the Zone 3 precinct for processing.
 
 EVIDENCE:
 - One (1) clear plastic bag containing white powdery substance (cocaine),
@@ -49,4 +50,4 @@ EVIDENCE:
 - Field test kit #FT-2024-0891 (positive for cocaine)
 
 CHARGES:
-720 ILCS 570/402(c) - Possession of a Controlled Substance (Class 4 Felony)
+O.C.G.A. § 16-13-30(a) - Possession of a Controlled Substance (Felony)

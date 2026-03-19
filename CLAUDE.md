@@ -113,8 +113,8 @@ npm run format          # runs prettier + black
 - Integration tests: upload doc → verify CaseState after pipeline runs
 
 ## MVP Scope
-- **Single jurisdiction:** Illinois
-- **Single case type:** Misdemeanor drug possession (720 ILCS 570/402)
+- **Single jurisdiction:** Georgia
+- **Single case type:** Criminal law (O.C.G.A. Title 16 - Crimes and Offenses)
 - **Simplified agents for MVP:**
   - Personal Circumstances → structured form, not conversational
   - Recency Monitor → manual corpus updates

@@ -26,7 +26,7 @@ class StatuteAgent(BaseAgent):
         charges = input_data.get("charges", [])
         enhancements = input_data.get("enhancements", [])
 
-        prompt = f"""You are a statute analysis agent for a public defender in Illinois.
+        prompt = f"""You are a statute analysis agent for a public defender in Georgia.
 
 Analyze the following charges and provide detailed statutory analysis.
 
