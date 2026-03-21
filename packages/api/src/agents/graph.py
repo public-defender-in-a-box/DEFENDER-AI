@@ -31,13 +31,15 @@ async def orchestrator_init_node(state: GraphState) -> GraphState:
     from src.agents.tier0.orchestrator import OrchestratorAgent
 
     orchestrator = OrchestratorAgent()
-    case_state = await orchestrator.run({
-        "case_id": state["case_id"],
-        "attorney_id": state["case_state"].get("attorney_id", ""),
-        "jurisdiction": state["case_state"].get("jurisdiction", "GA"),
-        "attorney_config": state["case_state"].get("attorney_config", {}),
-        "documents": state["case_state"].get("documents", []),
-    })
+    case_state = await orchestrator.run(
+        {
+            "case_id": state["case_id"],
+            "attorney_id": state["case_state"].get("attorney_id", ""),
+            "jurisdiction": state["case_state"].get("jurisdiction", "GA"),
+            "attorney_config": state["case_state"].get("attorney_config", {}),
+            "documents": state["case_state"].get("documents", []),
+        }
+    )
 
     state["case_state"] = case_state
     state["current_stage"] = "CREATED"
@@ -53,12 +55,14 @@ async def charge_processing_node(state: GraphState) -> GraphState:
 
     orchestrator = OrchestratorAgent()
     # Re-initialize with current state
-    await orchestrator.run({
-        "case_id": state["case_id"],
-        "attorney_id": state["case_state"].get("attorney_id", ""),
-        "jurisdiction": state["case_state"].get("jurisdiction", "GA"),
-        "documents": state["case_state"].get("documents", []),
-    })
+    await orchestrator.run(
+        {
+            "case_id": state["case_id"],
+            "attorney_id": state["case_state"].get("attorney_id", ""),
+            "jurisdiction": state["case_state"].get("jurisdiction", "GA"),
+            "documents": state["case_state"].get("documents", []),
+        }
+    )
 
     # Check sequencing
     can_run, reason = orchestrator.can_run_agent("charge_processing")
@@ -74,7 +78,8 @@ async def charge_processing_node(state: GraphState) -> GraphState:
 
     if not documents:
         failure = await orchestrator.handle_agent_failure(
-            "charge_processing", "No documents to process",
+            "charge_processing",
+            "No documents to process",
         )
         state["error"] = failure["error"]
         state["case_state"] = orchestrator.get_case_state_snapshot()
@@ -88,16 +93,19 @@ async def charge_processing_node(state: GraphState) -> GraphState:
         document_text = state["case_state"].get("document_text", "")
 
     try:
-        result = await agent.run({
-            "document_text": document_text,
-            "document_type": doc.get("type", "COMPLAINT"),
-            "jurisdiction": state["case_state"].get("jurisdiction", "GA"),
-            "filename": doc.get("file_name", "document_1"),
-            "matter_id": state["case_id"],
-        })
+        result = await agent.run(
+            {
+                "document_text": document_text,
+                "document_type": doc.get("type", "COMPLAINT"),
+                "jurisdiction": state["case_state"].get("jurisdiction", "GA"),
+                "filename": doc.get("file_name", "document_1"),
+                "matter_id": state["case_id"],
+            }
+        )
     except Exception as e:
         failure = await orchestrator.handle_agent_failure(
-            "charge_processing", str(e),
+            "charge_processing",
+            str(e),
         )
         state["error"] = failure["error"]
         state["case_state"] = orchestrator.get_case_state_snapshot()
@@ -121,28 +129,35 @@ async def pre_interview_node(state: GraphState) -> GraphState:
     from src.agents.tier1.pre_interview import PreInterviewResearchAgent
 
     orchestrator = OrchestratorAgent()
-    await orchestrator.run({
-        "case_id": state["case_id"],
-        "attorney_id": state["case_state"].get("attorney_id", ""),
-        "jurisdiction": state["case_state"].get("jurisdiction", "GA"),
-    })
+    await orchestrator.run(
+        {
+            "case_id": state["case_id"],
+            "attorney_id": state["case_state"].get("attorney_id", ""),
+            "jurisdiction": state["case_state"].get("jurisdiction", "GA"),
+        }
+    )
 
     # Reconstruct state — in production this would load from DB
     # For the pipeline, we rebuild from the state dict
     orchestrator._case_state.charge_processing = state["case_state"].get("charge_processing")
     orchestrator._case_state.advance_stage(
-        __import__("src.models.case_state", fromlist=["PipelineStage"]).PipelineStage.CHARGES_PROCESSED
+        __import__(
+            "src.models.case_state", fromlist=["PipelineStage"]
+        ).PipelineStage.CHARGES_PROCESSED
     )
 
     agent = PreInterviewResearchAgent()
 
     try:
-        result = await agent.run({
-            "charge_processing": state["case_state"].get("charge_processing"),
-        })
+        result = await agent.run(
+            {
+                "charge_processing": state["case_state"].get("charge_processing"),
+            }
+        )
     except Exception as e:
         failure = await orchestrator.handle_agent_failure(
-            "pre_interview_research", str(e),
+            "pre_interview_research",
+            str(e),
         )
         state["error"] = failure["error"]
         state["case_state"] = orchestrator.get_case_state_snapshot()

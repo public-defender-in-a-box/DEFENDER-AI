@@ -306,40 +306,274 @@ IMPORTANT:
 
 _DEFAULT_QUESTIONS: dict[str, list[dict[str, Any]]] = {
     "personal_information": [
-        {"question_id": "Q-PI-001", "question_text": "What is your full legal name?", "question_type": "open_ended", "priority": "required", "rationale": "Verify identity", "follow_up_triggers": [], "related_charges": [], "feeds_subagent": "none"},
-        {"question_id": "Q-PI-002", "question_text": "What is your date of birth?", "question_type": "open_ended", "priority": "required", "rationale": "Verify identity and determine if minor", "follow_up_triggers": ["under 18"], "related_charges": [], "feeds_subagent": "collateral_consequences"},
-        {"question_id": "Q-PI-003", "question_text": "What is your current address?", "question_type": "open_ended", "priority": "required", "rationale": "Housing status", "follow_up_triggers": [], "related_charges": [], "feeds_subagent": "collateral_consequences"},
-        {"question_id": "Q-PI-004", "question_text": "Are you currently employed? If so, where do you work?", "question_type": "open_ended", "priority": "required", "rationale": "Employment impact assessment", "follow_up_triggers": [], "related_charges": [], "feeds_subagent": "collateral_consequences"},
-        {"question_id": "Q-PI-005", "question_text": "What is your immigration status?", "question_type": "open_ended", "priority": "required", "rationale": "Immigration consequences", "follow_up_triggers": ["not US citizen"], "related_charges": [], "feeds_subagent": "collateral_consequences"},
-        {"question_id": "Q-PI-006", "question_text": "Do you have any children or dependents?", "question_type": "open_ended", "priority": "required", "rationale": "Family circumstances", "follow_up_triggers": [], "related_charges": [], "feeds_subagent": "collateral_consequences"},
-        {"question_id": "Q-PI-007", "question_text": "Do you have any mental health conditions or are you currently taking any medications?", "question_type": "open_ended", "priority": "recommended", "rationale": "Competency and mitigation", "follow_up_triggers": ["mental health condition"], "related_charges": [], "feeds_subagent": "collateral_consequences"},
-        {"question_id": "Q-PI-008", "question_text": "Do you have any history of substance use?", "question_type": "open_ended", "priority": "recommended", "rationale": "Drug court eligibility, mitigation", "follow_up_triggers": ["substance use"], "related_charges": [], "feeds_subagent": "collateral_consequences"},
+        {
+            "question_id": "Q-PI-001",
+            "question_text": "What is your full legal name?",
+            "question_type": "open_ended",
+            "priority": "required",
+            "rationale": "Verify identity",
+            "follow_up_triggers": [],
+            "related_charges": [],
+            "feeds_subagent": "none",
+        },
+        {
+            "question_id": "Q-PI-002",
+            "question_text": "What is your date of birth?",
+            "question_type": "open_ended",
+            "priority": "required",
+            "rationale": "Verify identity and determine if minor",
+            "follow_up_triggers": ["under 18"],
+            "related_charges": [],
+            "feeds_subagent": "collateral_consequences",
+        },
+        {
+            "question_id": "Q-PI-003",
+            "question_text": "What is your current address?",
+            "question_type": "open_ended",
+            "priority": "required",
+            "rationale": "Housing status",
+            "follow_up_triggers": [],
+            "related_charges": [],
+            "feeds_subagent": "collateral_consequences",
+        },
+        {
+            "question_id": "Q-PI-004",
+            "question_text": "Are you currently employed? If so, where do you work?",
+            "question_type": "open_ended",
+            "priority": "required",
+            "rationale": "Employment impact assessment",
+            "follow_up_triggers": [],
+            "related_charges": [],
+            "feeds_subagent": "collateral_consequences",
+        },
+        {
+            "question_id": "Q-PI-005",
+            "question_text": "What is your immigration status?",
+            "question_type": "open_ended",
+            "priority": "required",
+            "rationale": "Immigration consequences",
+            "follow_up_triggers": ["not US citizen"],
+            "related_charges": [],
+            "feeds_subagent": "collateral_consequences",
+        },
+        {
+            "question_id": "Q-PI-006",
+            "question_text": "Do you have any children or dependents?",
+            "question_type": "open_ended",
+            "priority": "required",
+            "rationale": "Family circumstances",
+            "follow_up_triggers": [],
+            "related_charges": [],
+            "feeds_subagent": "collateral_consequences",
+        },
+        {
+            "question_id": "Q-PI-007",
+            "question_text": "Do you have any mental health conditions or are you currently taking any medications?",
+            "question_type": "open_ended",
+            "priority": "recommended",
+            "rationale": "Competency and mitigation",
+            "follow_up_triggers": ["mental health condition"],
+            "related_charges": [],
+            "feeds_subagent": "collateral_consequences",
+        },
+        {
+            "question_id": "Q-PI-008",
+            "question_text": "Do you have any history of substance use?",
+            "question_type": "open_ended",
+            "priority": "recommended",
+            "rationale": "Drug court eligibility, mitigation",
+            "follow_up_triggers": ["substance use"],
+            "related_charges": [],
+            "feeds_subagent": "collateral_consequences",
+        },
     ],
     "incident_narrative": [
-        {"question_id": "Q-IN-001", "question_text": "In your own words, can you tell me what happened?", "question_type": "open_ended", "priority": "required", "rationale": "Client's unguided account", "follow_up_triggers": [], "related_charges": [], "feeds_subagent": "fact_gatherer"},
-        {"question_id": "Q-IN-002", "question_text": "Where exactly did this happen?", "question_type": "open_ended", "priority": "required", "rationale": "Location details", "follow_up_triggers": [], "related_charges": [], "feeds_subagent": "fact_gatherer"},
-        {"question_id": "Q-IN-003", "question_text": "When did this happen? What time of day?", "question_type": "open_ended", "priority": "required", "rationale": "Timeline", "follow_up_triggers": [], "related_charges": [], "feeds_subagent": "fact_gatherer"},
-        {"question_id": "Q-IN-004", "question_text": "Was anyone else there? Who?", "question_type": "open_ended", "priority": "required", "rationale": "Potential witnesses", "follow_up_triggers": [], "related_charges": [], "feeds_subagent": "fact_gatherer"},
-        {"question_id": "Q-IN-005", "question_text": "Is there anything the police or the charges got wrong about what happened?", "question_type": "open_ended", "priority": "required", "rationale": "Identify discrepancies", "follow_up_triggers": [], "related_charges": [], "feeds_subagent": "fact_gatherer"},
+        {
+            "question_id": "Q-IN-001",
+            "question_text": "In your own words, can you tell me what happened?",
+            "question_type": "open_ended",
+            "priority": "required",
+            "rationale": "Client's unguided account",
+            "follow_up_triggers": [],
+            "related_charges": [],
+            "feeds_subagent": "fact_gatherer",
+        },
+        {
+            "question_id": "Q-IN-002",
+            "question_text": "Where exactly did this happen?",
+            "question_type": "open_ended",
+            "priority": "required",
+            "rationale": "Location details",
+            "follow_up_triggers": [],
+            "related_charges": [],
+            "feeds_subagent": "fact_gatherer",
+        },
+        {
+            "question_id": "Q-IN-003",
+            "question_text": "When did this happen? What time of day?",
+            "question_type": "open_ended",
+            "priority": "required",
+            "rationale": "Timeline",
+            "follow_up_triggers": [],
+            "related_charges": [],
+            "feeds_subagent": "fact_gatherer",
+        },
+        {
+            "question_id": "Q-IN-004",
+            "question_text": "Was anyone else there? Who?",
+            "question_type": "open_ended",
+            "priority": "required",
+            "rationale": "Potential witnesses",
+            "follow_up_triggers": [],
+            "related_charges": [],
+            "feeds_subagent": "fact_gatherer",
+        },
+        {
+            "question_id": "Q-IN-005",
+            "question_text": "Is there anything the police or the charges got wrong about what happened?",
+            "question_type": "open_ended",
+            "priority": "required",
+            "rationale": "Identify discrepancies",
+            "follow_up_triggers": [],
+            "related_charges": [],
+            "feeds_subagent": "fact_gatherer",
+        },
     ],
     "arrest_and_custody": [
-        {"question_id": "Q-AC-001", "question_text": "How did the police first contact you? Were you at home, in a car, on the street?", "question_type": "open_ended", "priority": "required", "rationale": "Arrest circumstances for 4th Amendment analysis", "follow_up_triggers": [], "related_charges": [], "feeds_subagent": "rights_violation_scanner"},
-        {"question_id": "Q-AC-002", "question_text": "Did the police tell you that you had the right to remain silent and the right to an attorney?", "question_type": "yes_no", "priority": "required", "rationale": "Miranda compliance", "follow_up_triggers": ["no Miranda"], "related_charges": [], "feeds_subagent": "rights_violation_scanner"},
-        {"question_id": "Q-AC-003", "question_text": "Did you say anything to the police? If so, what did you say?", "question_type": "open_ended", "priority": "required", "rationale": "Statements made \u2014 5th Amendment", "follow_up_triggers": ["made statements"], "related_charges": [], "feeds_subagent": "rights_violation_scanner"},
-        {"question_id": "Q-AC-004", "question_text": "Did the police search you, your car, or your home? Did they ask for your permission to search?", "question_type": "open_ended", "priority": "required", "rationale": "Search and seizure \u2014 4th Amendment", "follow_up_triggers": ["search conducted"], "related_charges": [], "feeds_subagent": "rights_violation_scanner"},
-        {"question_id": "Q-AC-005", "question_text": "Were you physically hurt during the arrest? Were the police rough with you?", "question_type": "open_ended", "priority": "required", "rationale": "Excessive force", "follow_up_triggers": ["injury"], "related_charges": [], "feeds_subagent": "rights_violation_scanner"},
-        {"question_id": "Q-AC-006", "question_text": "Did you ask for a lawyer at any point? What happened when you did?", "question_type": "open_ended", "priority": "required", "rationale": "6th Amendment \u2014 right to counsel", "follow_up_triggers": ["requested lawyer"], "related_charges": [], "feeds_subagent": "rights_violation_scanner"},
+        {
+            "question_id": "Q-AC-001",
+            "question_text": "How did the police first contact you? Were you at home, in a car, on the street?",
+            "question_type": "open_ended",
+            "priority": "required",
+            "rationale": "Arrest circumstances for 4th Amendment analysis",
+            "follow_up_triggers": [],
+            "related_charges": [],
+            "feeds_subagent": "rights_violation_scanner",
+        },
+        {
+            "question_id": "Q-AC-002",
+            "question_text": "Did the police tell you that you had the right to remain silent and the right to an attorney?",
+            "question_type": "yes_no",
+            "priority": "required",
+            "rationale": "Miranda compliance",
+            "follow_up_triggers": ["no Miranda"],
+            "related_charges": [],
+            "feeds_subagent": "rights_violation_scanner",
+        },
+        {
+            "question_id": "Q-AC-003",
+            "question_text": "Did you say anything to the police? If so, what did you say?",
+            "question_type": "open_ended",
+            "priority": "required",
+            "rationale": "Statements made \u2014 5th Amendment",
+            "follow_up_triggers": ["made statements"],
+            "related_charges": [],
+            "feeds_subagent": "rights_violation_scanner",
+        },
+        {
+            "question_id": "Q-AC-004",
+            "question_text": "Did the police search you, your car, or your home? Did they ask for your permission to search?",
+            "question_type": "open_ended",
+            "priority": "required",
+            "rationale": "Search and seizure \u2014 4th Amendment",
+            "follow_up_triggers": ["search conducted"],
+            "related_charges": [],
+            "feeds_subagent": "rights_violation_scanner",
+        },
+        {
+            "question_id": "Q-AC-005",
+            "question_text": "Were you physically hurt during the arrest? Were the police rough with you?",
+            "question_type": "open_ended",
+            "priority": "required",
+            "rationale": "Excessive force",
+            "follow_up_triggers": ["injury"],
+            "related_charges": [],
+            "feeds_subagent": "rights_violation_scanner",
+        },
+        {
+            "question_id": "Q-AC-006",
+            "question_text": "Did you ask for a lawyer at any point? What happened when you did?",
+            "question_type": "open_ended",
+            "priority": "required",
+            "rationale": "6th Amendment \u2014 right to counsel",
+            "follow_up_triggers": ["requested lawyer"],
+            "related_charges": [],
+            "feeds_subagent": "rights_violation_scanner",
+        },
     ],
     "prior_history": [
-        {"question_id": "Q-PH-001", "question_text": "Have you ever been arrested or charged with a crime before?", "question_type": "open_ended", "priority": "required", "rationale": "Criminal history for sentencing", "follow_up_triggers": ["prior arrests"], "related_charges": [], "feeds_subagent": "none"},
-        {"question_id": "Q-PH-002", "question_text": "Have you ever been convicted of a crime?", "question_type": "open_ended", "priority": "required", "rationale": "Prior convictions \u2014 enhancement risk", "follow_up_triggers": ["prior convictions"], "related_charges": [], "feeds_subagent": "none"},
-        {"question_id": "Q-PH-003", "question_text": "Are you currently on probation, parole, or any form of supervised release?", "question_type": "yes_no", "priority": "required", "rationale": "Supervision status", "follow_up_triggers": ["on supervision"], "related_charges": [], "feeds_subagent": "none"},
-        {"question_id": "Q-PH-004", "question_text": "Do you have any other pending criminal cases?", "question_type": "yes_no", "priority": "required", "rationale": "Pending cases", "follow_up_triggers": ["pending cases"], "related_charges": [], "feeds_subagent": "none"},
+        {
+            "question_id": "Q-PH-001",
+            "question_text": "Have you ever been arrested or charged with a crime before?",
+            "question_type": "open_ended",
+            "priority": "required",
+            "rationale": "Criminal history for sentencing",
+            "follow_up_triggers": ["prior arrests"],
+            "related_charges": [],
+            "feeds_subagent": "none",
+        },
+        {
+            "question_id": "Q-PH-002",
+            "question_text": "Have you ever been convicted of a crime?",
+            "question_type": "open_ended",
+            "priority": "required",
+            "rationale": "Prior convictions \u2014 enhancement risk",
+            "follow_up_triggers": ["prior convictions"],
+            "related_charges": [],
+            "feeds_subagent": "none",
+        },
+        {
+            "question_id": "Q-PH-003",
+            "question_text": "Are you currently on probation, parole, or any form of supervised release?",
+            "question_type": "yes_no",
+            "priority": "required",
+            "rationale": "Supervision status",
+            "follow_up_triggers": ["on supervision"],
+            "related_charges": [],
+            "feeds_subagent": "none",
+        },
+        {
+            "question_id": "Q-PH-004",
+            "question_text": "Do you have any other pending criminal cases?",
+            "question_type": "yes_no",
+            "priority": "required",
+            "rationale": "Pending cases",
+            "follow_up_triggers": ["pending cases"],
+            "related_charges": [],
+            "feeds_subagent": "none",
+        },
     ],
     "priorities_and_concerns": [
-        {"question_id": "Q-PC-001", "question_text": "What are you most worried about with this case?", "question_type": "open_ended", "priority": "required", "rationale": "Client priorities", "follow_up_triggers": [], "related_charges": [], "feeds_subagent": "none"},
-        {"question_id": "Q-PC-002", "question_text": "Is there anything specific you want to make sure your attorney knows about?", "question_type": "open_ended", "priority": "required", "rationale": "Catch-all", "follow_up_triggers": [], "related_charges": [], "feeds_subagent": "none"},
-        {"question_id": "Q-PC-003", "question_text": "Are you worried about losing your job, your housing, or your immigration status because of this case?", "question_type": "open_ended", "priority": "required", "rationale": "Collateral consequences priorities", "follow_up_triggers": ["immigration concern", "job concern", "housing concern"], "related_charges": [], "feeds_subagent": "collateral_consequences"},
+        {
+            "question_id": "Q-PC-001",
+            "question_text": "What are you most worried about with this case?",
+            "question_type": "open_ended",
+            "priority": "required",
+            "rationale": "Client priorities",
+            "follow_up_triggers": [],
+            "related_charges": [],
+            "feeds_subagent": "none",
+        },
+        {
+            "question_id": "Q-PC-002",
+            "question_text": "Is there anything specific you want to make sure your attorney knows about?",
+            "question_type": "open_ended",
+            "priority": "required",
+            "rationale": "Catch-all",
+            "follow_up_triggers": [],
+            "related_charges": [],
+            "feeds_subagent": "none",
+        },
+        {
+            "question_id": "Q-PC-003",
+            "question_text": "Are you worried about losing your job, your housing, or your immigration status because of this case?",
+            "question_type": "open_ended",
+            "priority": "required",
+            "rationale": "Collateral consequences priorities",
+            "follow_up_triggers": ["immigration concern", "job concern", "housing concern"],
+            "related_charges": [],
+            "feeds_subagent": "collateral_consequences",
+        },
     ],
 }
 
@@ -347,6 +581,7 @@ _DEFAULT_QUESTIONS: dict[str, list[dict[str, Any]]] = {
 # ---------------------------------------------------------------------------
 # Interview helpers
 # ---------------------------------------------------------------------------
+
 
 def _summarize_charge_data(charge_data: dict[str, Any]) -> str:
     """Create a focused summary of charge data for question generation."""
@@ -357,24 +592,30 @@ def _summarize_charge_data(charge_data: dict[str, Any]) -> str:
         "misconduct_flags": [],
     }
     for charge in charge_data.get("charges", []):
-        summary["charges"].append({
-            "count": charge.get("count_number"),
-            "description": charge.get("charge_description"),
-            "statute": charge.get("statute", {}).get("code"),
-            "degree": charge.get("degree"),
-            "date": charge.get("date_of_alleged_offense"),
-            "location": charge.get("location_of_alleged_offense"),
-        })
+        summary["charges"].append(
+            {
+                "count": charge.get("count_number"),
+                "description": charge.get("charge_description"),
+                "statute": charge.get("statute", {}).get("code"),
+                "degree": charge.get("degree"),
+                "date": charge.get("date_of_alleged_offense"),
+                "location": charge.get("location_of_alleged_offense"),
+            }
+        )
     for allegation in charge_data.get("factual_allegations", [])[:10]:
-        summary["key_allegations"].append({
-            "summary": allegation.get("summary"),
-            "category": allegation.get("category"),
-        })
+        summary["key_allegations"].append(
+            {
+                "summary": allegation.get("summary"),
+                "category": allegation.get("category"),
+            }
+        )
     for flag in charge_data.get("misconduct_flags", []):
-        summary["misconduct_flags"].append({
-            "category": flag.get("category"),
-            "description": flag.get("description"),
-        })
+        summary["misconduct_flags"].append(
+            {
+                "category": flag.get("category"),
+                "description": flag.get("description"),
+            }
+        )
     return json.dumps(summary, indent=2, default=str)
 
 
@@ -543,7 +784,8 @@ def _build_subagent_packages(
 
         if agent_name == "fact_gatherer":
             relevant_facts = [
-                f for f in intake_facts
+                f
+                for f in intake_facts
                 if f.get("category") in ("incident", "personal", "prior_history")
                 or f.get("feeds_subagent") == "fact_gatherer"
             ]
@@ -562,7 +804,8 @@ def _build_subagent_packages(
             }
         elif agent_name == "rights_violation_scanner":
             relevant_facts = [
-                f for f in intake_facts
+                f
+                for f in intake_facts
                 if f.get("category") in ("arrest", "custody")
                 or f.get("feeds_subagent") == "rights_violation_scanner"
             ]
@@ -571,8 +814,10 @@ def _build_subagent_packages(
                 "charge_misconduct_flags": charge_data.get("misconduct_flags", []),
                 "charge_procedural_flags": charge_data.get("procedural_flags", []),
                 "arrest_allegations": [
-                    a for a in charge_data.get("factual_allegations", [])
-                    if a.get("category") in ("arrest_circumstances", "search_and_seizure", "statement_by_defendant")
+                    a
+                    for a in charge_data.get("factual_allegations", [])
+                    if a.get("category")
+                    in ("arrest_circumstances", "search_and_seizure", "statement_by_defendant")
                 ],
                 "task": (
                     "Analyze for Fourth Amendment (search/seizure), Fifth Amendment "
@@ -582,7 +827,8 @@ def _build_subagent_packages(
             }
         elif agent_name == "collateral_consequences":
             relevant_facts = [
-                f for f in intake_facts
+                f
+                for f in intake_facts
                 if f.get("category") in ("personal", "priority", "concern")
                 or f.get("feeds_subagent") == "collateral_consequences"
             ]
@@ -642,6 +888,7 @@ def _confidence_summary(facts: list[dict[str, Any]]) -> dict[str, int]:
 # Agent
 # ---------------------------------------------------------------------------
 
+
 class IntakeConductorAgent(BaseAgent):
     agent_id = "intake_conductor"
     agent_name = "Intake Conductor"
@@ -662,9 +909,12 @@ class IntakeConductorAgent(BaseAgent):
         Output: ConfidenceRated dict with intake summary, facts,
             inconsistencies, ethical flags, and sub-agent triggers.
         """
-        self.log_action("intake_started", {
-            "input_keys": list(input_data.keys()),
-        })
+        self.log_action(
+            "intake_started",
+            {
+                "input_keys": list(input_data.keys()),
+            },
+        )
 
         charge_data = input_data.get("charge_data", {})
         # Unwrap if the charge data is ConfidenceRated wrapped
@@ -703,8 +953,10 @@ class IntakeConductorAgent(BaseAgent):
                 # would collect actual responses via WebSocket)
                 self.log_action("phase_skipped_no_responses", {"phase": phase})
                 phase_results[phase] = {
-                    "phase": phase, "questions_generated": len(questions_data.get("questions", [])),
-                    "responses_processed": 0, "facts_extracted": 0,
+                    "phase": phase,
+                    "questions_generated": len(questions_data.get("questions", [])),
+                    "responses_processed": 0,
+                    "facts_extracted": 0,
                 }
                 completed_phases.append(phase)
                 continue
@@ -756,7 +1008,9 @@ class IntakeConductorAgent(BaseAgent):
                 if flag.get("urgency") == "immediate":
                     logger.warning(
                         "IMMEDIATE ETHICAL FLAG in phase '%s': %s \u2014 %s",
-                        phase, flag.get("flag_type"), flag.get("description"),
+                        phase,
+                        flag.get("flag_type"),
+                        flag.get("description"),
                     )
 
         # Post-interview inconsistency analysis
@@ -767,7 +1021,9 @@ class IntakeConductorAgent(BaseAgent):
         # Deduplicate triggers and build sub-agent packages
         deduped_triggers = _deduplicate_triggers(all_subagent_triggers)
         subagent_packages = _build_subagent_packages(
-            deduped_triggers, all_facts, charge_data,
+            deduped_triggers,
+            all_facts,
+            charge_data,
             inconsistency_analysis.get("inconsistencies", []),
         )
 
@@ -832,11 +1088,14 @@ class IntakeConductorAgent(BaseAgent):
         else:
             overall_confidence = 0.7
 
-        self.log_action("intake_completed", {
-            "phases_completed": len(completed_phases),
-            "facts_extracted": len(all_facts),
-            "ethical_flags": len(all_ethical_flags),
-            "overall_confidence": overall_confidence,
-        })
+        self.log_action(
+            "intake_completed",
+            {
+                "phases_completed": len(completed_phases),
+                "facts_extracted": len(all_facts),
+                "ethical_flags": len(all_ethical_flags),
+                "overall_confidence": overall_confidence,
+            },
+        )
 
         return self.wrap_output(intake_output, confidence=overall_confidence)

@@ -234,9 +234,16 @@ _CLASSIFICATION_PROMPT = (
 )
 
 _VALID_DOCUMENT_TYPES = {
-    "indictment", "information", "accusation", "complaint",
-    "arrest_report", "police_report", "witness_statement",
-    "lab_report", "search_warrant", "other",
+    "indictment",
+    "information",
+    "accusation",
+    "complaint",
+    "arrest_report",
+    "police_report",
+    "witness_statement",
+    "lab_report",
+    "search_warrant",
+    "other",
 }
 
 _CROSS_DOCUMENT_ANALYSIS_PROMPT = """You are analyzing multiple documents from the same criminal case for a public defender's office in Georgia.
@@ -337,6 +344,7 @@ IMPORTANT:
 # Extraction helpers
 # ---------------------------------------------------------------------------
 
+
 async def _classify_document(text: str, filename: str) -> dict[str, Any]:
     """Classify document type using LLM. Fallback to 'other' on failure."""
     if not text or len(text.strip()) < 20:
@@ -407,6 +415,7 @@ async def _run_cross_document_analysis(
 # Output assembly helpers
 # ---------------------------------------------------------------------------
 
+
 def _build_case_output(
     matter_id: str,
     documents_info: list[dict[str, Any]],
@@ -459,18 +468,28 @@ def _build_case_output(
                 break
     if not defendant:
         defendant = {
-            "name": "UNKNOWN", "aliases": [], "date_of_birth": None,
-            "address": None, "prior_record_mentioned": False,
-            "prior_record_details": None, "custody_status": "unknown",
-            "confidence": 0.0, "source_reference": "",
+            "name": "UNKNOWN",
+            "aliases": [],
+            "date_of_birth": None,
+            "address": None,
+            "prior_record_mentioned": False,
+            "prior_record_details": None,
+            "custody_status": "unknown",
+            "confidence": 0.0,
+            "source_reference": "",
         }
 
     return {
         "case_id": matter_id,
         "processing_timestamp": datetime.now(timezone.utc).isoformat(),
-        "jurisdiction": cross_analysis.get("jurisdiction", {
-            "level": "unknown", "court": "unknown", "confidence": 0.0,
-        }),
+        "jurisdiction": cross_analysis.get(
+            "jurisdiction",
+            {
+                "level": "unknown",
+                "court": "unknown",
+                "confidence": 0.0,
+            },
+        ),
         "documents_processed": documents_info,
         "defendant": defendant,
         "charges": all_charges,
@@ -554,7 +573,11 @@ def _compute_overall_confidence(case_output: dict[str, Any]) -> float:
     """Derive a single confidence score from the confidence distribution."""
     buckets = case_output.get("processing_metadata", {}).get("confidence_summary", {})
     weights = {
-        "very_high": 0.95, "high": 0.8, "medium": 0.6, "low": 0.4, "very_low": 0.15,
+        "very_high": 0.95,
+        "high": 0.8,
+        "medium": 0.6,
+        "low": 0.4,
+        "very_low": 0.15,
     }
     total = sum(buckets.get(k, 0) for k in weights)
     if total == 0:
@@ -567,10 +590,15 @@ def _empty_extraction(document_id: str) -> dict[str, Any]:
     """Minimal extraction structure when extraction fails."""
     return {
         "defendant": {
-            "name": "UNKNOWN", "aliases": [], "date_of_birth": None,
-            "address": None, "prior_record_mentioned": False,
-            "prior_record_details": None, "custody_status": "unknown",
-            "confidence": 0.0, "source_reference": document_id,
+            "name": "UNKNOWN",
+            "aliases": [],
+            "date_of_birth": None,
+            "address": None,
+            "prior_record_mentioned": False,
+            "prior_record_details": None,
+            "custody_status": "unknown",
+            "confidence": 0.0,
+            "source_reference": document_id,
         },
         "charges": [],
         "factual_allegations": [],
@@ -589,27 +617,38 @@ def _empty_analysis() -> dict[str, Any]:
         "additional_misconduct_flags": [],
         "diversion_eligibility": {
             "first_offender_act_eligible": {
-                "potentially_eligible": False, "basis": "Insufficient information",
-                "disqualifying_factors": [], "confidence": 0.0,
+                "potentially_eligible": False,
+                "basis": "Insufficient information",
+                "disqualifying_factors": [],
+                "confidence": 0.0,
             },
             "pretrial_diversion_eligible": {
-                "potentially_eligible": False, "basis": "Insufficient information",
-                "notes": "", "confidence": 0.0,
+                "potentially_eligible": False,
+                "basis": "Insufficient information",
+                "notes": "",
+                "confidence": 0.0,
             },
             "drug_court_eligible": {
-                "potentially_eligible": False, "basis": "Insufficient information",
+                "potentially_eligible": False,
+                "basis": "Insufficient information",
                 "confidence": 0.0,
             },
             "federal_pretrial_diversion": {
-                "potentially_eligible": False, "basis": "Insufficient information",
+                "potentially_eligible": False,
+                "basis": "Insufficient information",
                 "confidence": 0.0,
             },
         },
         "consolidated_defendant": {
-            "name": "UNKNOWN", "aliases": [], "date_of_birth": None,
-            "address": None, "prior_record_mentioned": False,
-            "prior_record_details": None, "custody_status": "unknown",
-            "confidence": 0.0, "source_reference": "",
+            "name": "UNKNOWN",
+            "aliases": [],
+            "date_of_birth": None,
+            "address": None,
+            "prior_record_mentioned": False,
+            "prior_record_details": None,
+            "custody_status": "unknown",
+            "confidence": 0.0,
+            "source_reference": "",
         },
     }
 
@@ -617,6 +656,7 @@ def _empty_analysis() -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Agent
 # ---------------------------------------------------------------------------
+
 
 class ChargeProcessingAgent(BaseAgent):
     agent_id = "charge_processing"
@@ -637,11 +677,14 @@ class ChargeProcessingAgent(BaseAgent):
 
         Output: ConfidenceRated dict with full case extraction.
         """
-        self.log_action("charge_processing_started", {
-            "document_type": input_data.get("document_type"),
-            "jurisdiction": input_data.get("jurisdiction"),
-            "text_length": len(input_data.get("document_text", "")),
-        })
+        self.log_action(
+            "charge_processing_started",
+            {
+                "document_type": input_data.get("document_type"),
+                "jurisdiction": input_data.get("jurisdiction"),
+                "text_length": len(input_data.get("document_text", "")),
+            },
+        )
 
         matter_id = input_data.get("matter_id", input_data.get("case_id", "unknown"))
         documents_raw = input_data.get("documents")
@@ -650,13 +693,15 @@ class ChargeProcessingAgent(BaseAgent):
         if documents_raw and isinstance(documents_raw, list):
             docs = []
             for i, doc in enumerate(documents_raw):
-                docs.append({
-                    "document_id": doc.get("id", f"doc_{i + 1}"),
-                    "filename": doc.get("file_name", f"document_{i + 1}"),
-                    "document_text": doc.get("extracted_text", ""),
-                    "document_type": doc.get("type", "UNKNOWN"),
-                    "doc_type_confidence": doc.get("type_confidence", 0.5),
-                })
+                docs.append(
+                    {
+                        "document_id": doc.get("id", f"doc_{i + 1}"),
+                        "filename": doc.get("file_name", f"document_{i + 1}"),
+                        "document_text": doc.get("extracted_text", ""),
+                        "document_type": doc.get("type", "UNKNOWN"),
+                        "doc_type_confidence": doc.get("type_confidence", 0.5),
+                    }
+                )
         else:
             # Single document mode
             filename = input_data.get("filename", "document_1")
@@ -666,18 +711,21 @@ class ChargeProcessingAgent(BaseAgent):
             # Classify if type is unknown
             if doc_type in ("UNKNOWN", ""):
                 classification = await _classify_document(
-                    input_data.get("document_text", ""), filename,
+                    input_data.get("document_text", ""),
+                    filename,
                 )
                 doc_type = classification["document_type"]
                 doc_type_confidence = classification["confidence"]
 
-            docs = [{
-                "document_id": "doc_1",
-                "filename": filename,
-                "document_text": input_data.get("document_text", ""),
-                "document_type": doc_type,
-                "doc_type_confidence": doc_type_confidence,
-            }]
+            docs = [
+                {
+                    "document_id": "doc_1",
+                    "filename": filename,
+                    "document_text": input_data.get("document_text", ""),
+                    "document_type": doc_type,
+                    "doc_type_confidence": doc_type_confidence,
+                }
+            ]
 
         # Pass 1 — per-document extraction
         per_document_extractions: list[dict[str, Any]] = []
@@ -691,35 +739,45 @@ class ChargeProcessingAgent(BaseAgent):
                 doc_type_confidence=doc["doc_type_confidence"],
                 filename=doc["filename"],
             )
-            per_document_extractions.append({
-                "document_id": doc["document_id"],
-                "filename": doc["filename"],
-                "document_type": doc["document_type"],
-                "extraction": extraction,
-            })
-            documents_info.append({
-                "document_id": doc["document_id"],
-                "filename": doc["filename"],
-                "document_type": doc["document_type"],
-                "document_type_confidence": doc["doc_type_confidence"],
-            })
+            per_document_extractions.append(
+                {
+                    "document_id": doc["document_id"],
+                    "filename": doc["filename"],
+                    "document_type": doc["document_type"],
+                    "extraction": extraction,
+                }
+            )
+            documents_info.append(
+                {
+                    "document_id": doc["document_id"],
+                    "filename": doc["filename"],
+                    "document_type": doc["document_type"],
+                    "document_type_confidence": doc["doc_type_confidence"],
+                }
+            )
 
         # Pass 2 — cross-document analysis
         cross_analysis = await _run_cross_document_analysis(per_document_extractions)
 
         # Assemble and triage
         case_output = _build_case_output(
-            matter_id, documents_info, per_document_extractions, cross_analysis,
+            matter_id,
+            documents_info,
+            per_document_extractions,
+            cross_analysis,
         )
         case_output = _triage_confidence(case_output)
         overall_confidence = _compute_overall_confidence(case_output)
 
-        self.log_action("charge_processing_completed", {
-            "charges_count": len(case_output.get("charges", [])),
-            "allegations_count": len(case_output.get("factual_allegations", [])),
-            "persons_count": len(case_output.get("persons_of_interest", [])),
-            "misconduct_count": len(case_output.get("misconduct_flags", [])),
-            "overall_confidence": overall_confidence,
-        })
+        self.log_action(
+            "charge_processing_completed",
+            {
+                "charges_count": len(case_output.get("charges", [])),
+                "allegations_count": len(case_output.get("factual_allegations", [])),
+                "persons_count": len(case_output.get("persons_of_interest", [])),
+                "misconduct_count": len(case_output.get("misconduct_flags", [])),
+                "overall_confidence": overall_confidence,
+            },
+        )
 
         return self.wrap_output(case_output, confidence=overall_confidence)

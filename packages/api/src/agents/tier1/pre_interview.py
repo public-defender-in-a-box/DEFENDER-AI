@@ -185,18 +185,23 @@ class PreInterviewResearchAgent(BaseAgent):
         # and the completeness of the generated brief
         confidence = self._compute_confidence(charge_data, result)
 
-        self.log_action("pre_interview_research_completed", {
-            "targeted_questions": len(result.get("targeted_questions", [])),
-            "rights_flags": len(result.get("preliminary_rights_flags", [])),
-            "known_facts": len(result.get("known_facts_from_documents", [])),
-            "collateral_alerts": len(result.get("collateral_consequence_alerts", [])),
-            "overall_confidence": confidence,
-        })
+        self.log_action(
+            "pre_interview_research_completed",
+            {
+                "targeted_questions": len(result.get("targeted_questions", [])),
+                "rights_flags": len(result.get("preliminary_rights_flags", [])),
+                "known_facts": len(result.get("known_facts_from_documents", [])),
+                "collateral_alerts": len(result.get("collateral_consequence_alerts", [])),
+                "overall_confidence": confidence,
+            },
+        )
 
         return self.wrap_output(result, confidence=confidence)
 
     def _compute_confidence(
-        self, charge_data: dict[str, Any], result: dict[str, Any],
+        self,
+        charge_data: dict[str, Any],
+        result: dict[str, Any],
     ) -> float:
         """Derive confidence from input quality and output completeness."""
         score = 0.5  # baseline

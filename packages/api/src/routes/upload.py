@@ -73,24 +73,32 @@ async def upload_document(
 
     # Create the case via Orchestrator
     orchestrator = OrchestratorAgent()
-    await orchestrator.run({
-        "case_id": case_id,
-        "attorney_id": attorney_id,
-        "jurisdiction": jurisdiction,
-        "documents": [{
-            "id": f"doc-{uuid.uuid4().hex[:8]}",
-            "type": document_type,
-            "file_name": filename,
-            "storage_url": storage_url,
-        }],
-    })
+    await orchestrator.run(
+        {
+            "case_id": case_id,
+            "attorney_id": attorney_id,
+            "jurisdiction": jurisdiction,
+            "documents": [
+                {
+                    "id": f"doc-{uuid.uuid4().hex[:8]}",
+                    "type": document_type,
+                    "file_name": filename,
+                    "storage_url": storage_url,
+                }
+            ],
+        }
+    )
 
     # Store orchestrator and document text for pipeline use
     case_store[case_id] = orchestrator
 
     # Run the pipeline in the background so the upload returns immediately
     background_tasks.add_task(
-        _run_pipeline, case_id, document_text, document_type, jurisdiction,
+        _run_pipeline,
+        case_id,
+        document_text,
+        document_type,
+        jurisdiction,
     )
 
     return {
@@ -135,12 +143,14 @@ async def _run_pipeline(
 
     try:
         charge_agent = ChargeProcessingAgent()
-        charge_result = await charge_agent.run({
-            "document_text": document_text,
-            "document_type": document_type,
-            "jurisdiction": jurisdiction,
-            "matter_id": case_id,
-        })
+        charge_result = await charge_agent.run(
+            {
+                "document_text": document_text,
+                "document_type": document_type,
+                "jurisdiction": jurisdiction,
+                "matter_id": case_id,
+            }
+        )
     except Exception as e:
         await orchestrator.handle_agent_failure("charge_processing", str(e))
         logger.exception("Charge processing failed for %s", case_id)
@@ -149,12 +159,15 @@ async def _run_pipeline(
     merge = await orchestrator.receive_agent_output("charge_processing", charge_result)
     if merge["decision"] == "BLOCKED_ETHICS_P1":
         logger.warning(
-            "Charge processing blocked (ethics) for %s: %s", case_id, merge.get("reason"),
+            "Charge processing blocked (ethics) for %s: %s",
+            case_id,
+            merge.get("reason"),
         )
         return
     if merge.get("human_review_required"):
         logger.warning(
-            "Charge processing low confidence for %s — merged with flag", case_id,
+            "Charge processing low confidence for %s — merged with flag",
+            case_id,
         )
 
     logger.info("Charge processing complete for %s", case_id)
@@ -169,9 +182,11 @@ async def _run_pipeline(
 
     try:
         pre_agent = PreInterviewResearchAgent()
-        pre_result = await pre_agent.run({
-            "charge_processing": orchestrator.case_state.charge_processing,
-        })
+        pre_result = await pre_agent.run(
+            {
+                "charge_processing": orchestrator.case_state.charge_processing,
+            }
+        )
     except Exception as e:
         await orchestrator.handle_agent_failure("pre_interview_research", str(e))
         logger.exception("Pre-interview research failed for %s", case_id)
@@ -180,5 +195,6 @@ async def _run_pipeline(
     merge = await orchestrator.receive_agent_output("pre_interview_research", pre_result)
     logger.info(
         "Pre-interview research complete for %s (decision: %s)",
-        case_id, merge["decision"],
+        case_id,
+        merge["decision"],
     )

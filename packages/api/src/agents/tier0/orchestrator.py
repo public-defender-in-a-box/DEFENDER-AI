@@ -29,6 +29,7 @@ _CONFIDENCE_THRESHOLD = 0.6
 
 class MergeDecision(str, Enum):
     """Result of the Orchestrator's merge evaluation."""
+
     MERGED = "MERGED"
     BLOCKED_LOW_CONFIDENCE = "BLOCKED_LOW_CONFIDENCE"
     BLOCKED_ETHICS_P1 = "BLOCKED_ETHICS_P1"
@@ -150,13 +151,16 @@ class OrchestratorAgent(BaseAgent):
         documents = input_data.get("documents", [])
         for doc in documents:
             from src.models.case_state import DocumentRecord
-            self._case_state.documents.append(DocumentRecord(
-                id=doc.get("id", str(uuid.uuid4())),
-                type=doc.get("type", "UNKNOWN"),
-                file_name=doc.get("file_name", ""),
-                storage_url=doc.get("storage_url", ""),
-                uploaded_at=datetime.now(timezone.utc),
-            ))
+
+            self._case_state.documents.append(
+                DocumentRecord(
+                    id=doc.get("id", str(uuid.uuid4())),
+                    type=doc.get("type", "UNKNOWN"),
+                    file_name=doc.get("file_name", ""),
+                    storage_url=doc.get("storage_url", ""),
+                    uploaded_at=datetime.now(timezone.utc),
+                )
+            )
 
         return self._case_state.model_dump(mode="json")
 
@@ -200,7 +204,9 @@ class OrchestratorAgent(BaseAgent):
             self.log_action("agent_started", {"agent_id": agent_id})
 
     async def receive_agent_output(
-        self, agent_id: str, output: dict[str, Any],
+        self,
+        agent_id: str,
+        output: dict[str, Any],
     ) -> dict[str, Any]:
         """Validate, ethics-check, and merge an agent's output into CaseState.
 
@@ -223,9 +229,13 @@ class OrchestratorAgent(BaseAgent):
         confidence_level = self._parse_confidence(confidence_str)
 
         if confidence_level == ConfidenceLevel.LOW:
-            self.log_action("output_low_confidence_flagged", {
-                "agent_id": agent_id, "confidence": confidence_str,
-            })
+            self.log_action(
+                "output_low_confidence_flagged",
+                {
+                    "agent_id": agent_id,
+                    "confidence": confidence_str,
+                },
+            )
             self._human_review_required = True
 
             # Still store the output so attorneys can review it, but flag it
@@ -236,21 +246,25 @@ class OrchestratorAgent(BaseAgent):
             setattr(self._case_state, field, output)
             self._case_state.advance_stage(config["complete_stage"])
             self._case_state.updated_at = datetime.now(timezone.utc)
-            self._case_state.audit_log.append({
-                "id": str(uuid.uuid4()),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "agent_id": agent_id,
-                "action": "output_merged_low_confidence",
-                "decision": MergeDecision.MERGED_WITH_FLAG.value,
-                "note": "LOW confidence — attorney review required before relying on this data",
-            })
+            self._case_state.audit_log.append(
+                {
+                    "id": str(uuid.uuid4()),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "agent_id": agent_id,
+                    "action": "output_merged_low_confidence",
+                    "decision": MergeDecision.MERGED_WITH_FLAG.value,
+                    "note": "LOW confidence — attorney review required before relying on this data",
+                }
+            )
 
-            self._merge_history.append({
-                "agent_id": agent_id,
-                "decision": MergeDecision.MERGED_WITH_FLAG.value,
-                "confidence": confidence_str,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            })
+            self._merge_history.append(
+                {
+                    "agent_id": agent_id,
+                    "decision": MergeDecision.MERGED_WITH_FLAG.value,
+                    "confidence": confidence_str,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+            )
             return {
                 "decision": MergeDecision.MERGED_WITH_FLAG.value,
                 "reason": (
@@ -261,11 +275,13 @@ class OrchestratorAgent(BaseAgent):
             }
 
         # Step 2: Run Ethics Monitor
-        ethics_result = await self._ethics_monitor.run({
-            "output": output,
-            "agent_id": agent_id,
-            "is_client_facing": config["is_client_facing"],
-        })
+        ethics_result = await self._ethics_monitor.run(
+            {
+                "output": output,
+                "agent_id": agent_id,
+                "is_client_facing": config["is_client_facing"],
+            }
+        )
 
         ethics_flags = ethics_result.get("flags", [])
         ethics_blocked = ethics_result.get("blocked", False)
@@ -278,21 +294,26 @@ class OrchestratorAgent(BaseAgent):
         # Step 3: Apply ethics decision
         if p1_flags or ethics_blocked:
             # P1 = hard block
-            self.log_action("output_blocked_ethics_p1", {
-                "agent_id": agent_id,
-                "flags": [f.get("description") for f in p1_flags],
-            })
+            self.log_action(
+                "output_blocked_ethics_p1",
+                {
+                    "agent_id": agent_id,
+                    "flags": [f.get("description") for f in p1_flags],
+                },
+            )
             self._blocked = True
             self._blocked_reason = f"P1 ethics violation from {agent_id}"
             self._case_state.ethical_flags.extend(
                 {**f, "merge_decision": "BLOCKED"} for f in ethics_flags
             )
-            self._merge_history.append({
-                "agent_id": agent_id,
-                "decision": MergeDecision.BLOCKED_ETHICS_P1.value,
-                "flags": len(p1_flags),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            })
+            self._merge_history.append(
+                {
+                    "agent_id": agent_id,
+                    "decision": MergeDecision.BLOCKED_ETHICS_P1.value,
+                    "flags": len(p1_flags),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+            )
             return {
                 "decision": MergeDecision.BLOCKED_ETHICS_P1.value,
                 "reason": f"P1 ethics violation: {p1_flags[0].get('description', '')}",
@@ -320,30 +341,37 @@ class OrchestratorAgent(BaseAgent):
             )
 
         # Record audit
-        self._case_state.audit_log.append({
-            "id": str(uuid.uuid4()),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "agent_id": agent_id,
-            "action": "output_merged",
-            "decision": decision.value,
-            "ethics_flags_count": len(ethics_flags),
-        })
+        self._case_state.audit_log.append(
+            {
+                "id": str(uuid.uuid4()),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "agent_id": agent_id,
+                "action": "output_merged",
+                "decision": decision.value,
+                "ethics_flags_count": len(ethics_flags),
+            }
+        )
 
         self._case_state.updated_at = datetime.now(timezone.utc)
 
-        self._merge_history.append({
-            "agent_id": agent_id,
-            "decision": decision.value,
-            "confidence": confidence_str,
-            "ethics_flags": len(ethics_flags),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        })
+        self._merge_history.append(
+            {
+                "agent_id": agent_id,
+                "decision": decision.value,
+                "confidence": confidence_str,
+                "ethics_flags": len(ethics_flags),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        )
 
-        self.log_action("output_merged", {
-            "agent_id": agent_id,
-            "decision": decision.value,
-            "stage": self._case_state.stage.value,
-        })
+        self.log_action(
+            "output_merged",
+            {
+                "agent_id": agent_id,
+                "decision": decision.value,
+                "stage": self._case_state.stage.value,
+            },
+        )
 
         return {
             "decision": decision.value,
@@ -353,19 +381,23 @@ class OrchestratorAgent(BaseAgent):
         }
 
     async def handle_agent_failure(
-        self, agent_id: str, error: str,
+        self,
+        agent_id: str,
+        error: str,
     ) -> dict[str, Any]:
         """Handle partial failure — save state and surface the error."""
         self.log_action("agent_failed", {"agent_id": agent_id, "error": error})
 
         if self._case_state is not None:
-            self._case_state.audit_log.append({
-                "id": str(uuid.uuid4()),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "agent_id": agent_id,
-                "action": "agent_failed",
-                "error": error,
-            })
+            self._case_state.audit_log.append(
+                {
+                    "id": str(uuid.uuid4()),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "agent_id": agent_id,
+                    "action": "agent_failed",
+                    "error": error,
+                }
+            )
 
         self._blocked = True
         self._blocked_reason = f"Agent {agent_id} failed: {error}"
@@ -375,9 +407,7 @@ class OrchestratorAgent(BaseAgent):
             "agent_id": agent_id,
             "error": error,
             "case_state_preserved": self._case_state is not None,
-            "current_stage": (
-                self._case_state.stage.value if self._case_state else "NONE"
-            ),
+            "current_stage": (self._case_state.stage.value if self._case_state else "NONE"),
         }
 
     def get_status(self) -> PipelineStatus:

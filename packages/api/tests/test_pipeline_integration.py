@@ -32,11 +32,14 @@ from src.models.case_state import (
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def accusation_text() -> str:
     """Load the sample accusation fixture."""
     fixture_path = os.path.join(
-        os.path.dirname(__file__), "fixtures", "sample_accusation.txt",
+        os.path.dirname(__file__),
+        "fixtures",
+        "sample_accusation.txt",
     )
     with open(fixture_path, "r") as f:
         return f.read()
@@ -51,17 +54,20 @@ def orchestrator() -> OrchestratorAgent:
 # Unit tests — Orchestrator logic (no LLM calls)
 # ---------------------------------------------------------------------------
 
+
 class TestOrchestratorInit:
     """Test Orchestrator initialization and state management."""
 
     @pytest.mark.asyncio
     async def test_initialize_case(self, orchestrator: OrchestratorAgent):
         """Orchestrator creates CaseState with correct defaults."""
-        result = await orchestrator.run({
-            "case_id": "test_001",
-            "attorney_id": "atty_001",
-            "jurisdiction": "GA",
-        })
+        result = await orchestrator.run(
+            {
+                "case_id": "test_001",
+                "attorney_id": "atty_001",
+                "jurisdiction": "GA",
+            }
+        )
 
         assert result["id"] == "test_001"
         assert result["attorney_id"] == "atty_001"
@@ -76,12 +82,19 @@ class TestOrchestratorInit:
     @pytest.mark.asyncio
     async def test_initialize_with_documents(self, orchestrator: OrchestratorAgent):
         """Orchestrator attaches documents to CaseState."""
-        result = await orchestrator.run({
-            "case_id": "test_002",
-            "documents": [
-                {"id": "doc_1", "type": "accusation", "file_name": "accusation.txt", "storage_url": "/uploads/acc.txt"},
-            ],
-        })
+        result = await orchestrator.run(
+            {
+                "case_id": "test_002",
+                "documents": [
+                    {
+                        "id": "doc_1",
+                        "type": "accusation",
+                        "file_name": "accusation.txt",
+                        "storage_url": "/uploads/acc.txt",
+                    },
+                ],
+            }
+        )
 
         assert len(result["documents"]) == 1
         assert result["documents"][0]["type"] == "accusation"
@@ -129,11 +142,11 @@ class TestOrchestratorSequencing:
 
 
 class TestOrchestratorConfidenceThreshold:
-    """Test that the Orchestrator blocks LOW confidence outputs."""
+    """Test that the Orchestrator flags LOW confidence outputs."""
 
     @pytest.mark.asyncio
-    async def test_low_confidence_blocked(self, orchestrator: OrchestratorAgent):
-        """LOW confidence output is blocked and HumanReviewRequired is set."""
+    async def test_low_confidence_flagged(self, orchestrator: OrchestratorAgent):
+        """LOW confidence output is merged with flag and HumanReviewRequired is set."""
         await orchestrator.run({"case_id": "test_conf_001"})
         orchestrator.mark_agent_started("charge_processing")
 
@@ -145,13 +158,15 @@ class TestOrchestratorConfidenceThreshold:
         }
 
         merge_result = await orchestrator.receive_agent_output(
-            "charge_processing", low_output,
+            "charge_processing",
+            low_output,
         )
 
-        assert merge_result["decision"] == MergeDecision.BLOCKED_LOW_CONFIDENCE.value
+        assert merge_result["decision"] == MergeDecision.MERGED_WITH_FLAG.value
         assert merge_result["human_review_required"] is True
-        # CaseState should NOT have charge_processing populated
-        assert orchestrator.case_state.charge_processing is None
+        # CaseState SHOULD have charge_processing populated (flagged, not discarded)
+        assert orchestrator.case_state.charge_processing is not None
+        assert orchestrator.case_state.charge_processing["data"]["_low_confidence_flag"] is True
 
     @pytest.mark.asyncio
     async def test_high_confidence_merged(self, orchestrator: OrchestratorAgent):
@@ -167,11 +182,13 @@ class TestOrchestratorConfidenceThreshold:
         }
 
         merge_result = await orchestrator.receive_agent_output(
-            "charge_processing", high_output,
+            "charge_processing",
+            high_output,
         )
 
         assert merge_result["decision"] in (
-            MergeDecision.MERGED.value, MergeDecision.MERGED_WITH_FLAG.value,
+            MergeDecision.MERGED.value,
+            MergeDecision.MERGED_WITH_FLAG.value,
         )
         assert orchestrator.case_state.charge_processing is not None
         assert orchestrator.case_state.stage == PipelineStage.CHARGES_PROCESSED
@@ -194,7 +211,8 @@ class TestOrchestratorEthics:
         }
 
         merge_result = await orchestrator.receive_agent_output(
-            "charge_processing", output,
+            "charge_processing",
+            output,
         )
 
         # Ethics ran and result includes flags field
@@ -212,7 +230,8 @@ class TestOrchestratorFailureHandling:
         await orchestrator.run({"case_id": "test_fail_001"})
 
         failure = await orchestrator.handle_agent_failure(
-            "charge_processing", "API timeout after 30s",
+            "charge_processing",
+            "API timeout after 30s",
         )
 
         assert failure["status"] == "FAILED"
@@ -259,11 +278,13 @@ class TestPipelineStatus:
 # Agent unit tests (no LLM calls — test structure and wrapping)
 # ---------------------------------------------------------------------------
 
+
 class TestChargeProcessingAgent:
     """Test ChargeProcessingAgent structure and BaseAgent conformance."""
 
     def test_inherits_base_agent(self):
         from src.agents.base_agent import BaseAgent
+
         agent = ChargeProcessingAgent()
         assert isinstance(agent, BaseAgent)
 
@@ -294,6 +315,7 @@ class TestPreInterviewAgent:
 
     def test_inherits_base_agent(self):
         from src.agents.base_agent import BaseAgent
+
         agent = PreInterviewResearchAgent()
         assert isinstance(agent, BaseAgent)
 
@@ -308,6 +330,7 @@ class TestIntakeConductorAgent:
 
     def test_inherits_base_agent(self):
         from src.agents.base_agent import BaseAgent
+
         agent = IntakeConductorAgent()
         assert isinstance(agent, BaseAgent)
 
@@ -324,14 +347,16 @@ class TestEthicsMonitorAgent:
     async def test_ethics_monitor_clean_output(self):
         """Clean output produces no flags."""
         monitor = EthicsMonitorAgent()
-        result = await monitor.run({
-            "output": {
-                "data": {"test": True},
-                "confidence": "HIGH",
-            },
-            "agent_id": "test_agent",
-            "is_client_facing": False,
-        })
+        result = await monitor.run(
+            {
+                "output": {
+                    "data": {"test": True},
+                    "confidence": "HIGH",
+                },
+                "agent_id": "test_agent",
+                "is_client_facing": False,
+            }
+        )
 
         assert isinstance(result["flags"], list)
         assert result["blocked"] is False
@@ -340,14 +365,16 @@ class TestEthicsMonitorAgent:
     async def test_ethics_monitor_low_confidence_flag(self):
         """LOW confidence outputs get flagged."""
         monitor = EthicsMonitorAgent()
-        result = await monitor.run({
-            "output": {
-                "data": {"test": True},
-                "confidence": "LOW",
-            },
-            "agent_id": "test_agent",
-            "is_client_facing": False,
-        })
+        result = await monitor.run(
+            {
+                "output": {
+                    "data": {"test": True},
+                    "confidence": "LOW",
+                },
+                "agent_id": "test_agent",
+                "is_client_facing": False,
+            }
+        )
 
         assert len(result["flags"]) > 0
         assert any(f["category"] == "COMPETENCE" for f in result["flags"])
@@ -356,14 +383,16 @@ class TestEthicsMonitorAgent:
     async def test_ethics_monitor_upl_violation(self):
         """Client-facing output with legal advice triggers UPL flag."""
         monitor = EthicsMonitorAgent()
-        result = await monitor.run({
-            "output": {
-                "data": "I recommend you take the plea deal",
-                "confidence": "HIGH",
-            },
-            "agent_id": "intake_conductor",
-            "is_client_facing": True,
-        })
+        result = await monitor.run(
+            {
+                "output": {
+                    "data": "I recommend you take the plea deal",
+                    "confidence": "HIGH",
+                },
+                "agent_id": "intake_conductor",
+                "is_client_facing": True,
+            }
+        )
 
         assert result["blocked"] is True
         assert any(f["category"] == "UPL" for f in result["flags"])
@@ -372,6 +401,7 @@ class TestEthicsMonitorAgent:
 # ---------------------------------------------------------------------------
 # End-to-end pipeline test (requires ANTHROPIC_API_KEY)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.skipif(
     not os.getenv("ANTHROPIC_API_KEY"),
@@ -387,12 +417,14 @@ class TestFullPipeline:
     async def test_charge_processing_end_to_end(self, accusation_text: str):
         """Charge Processing Agent extracts structured data from accusation."""
         agent = ChargeProcessingAgent()
-        result = await agent.run({
-            "document_text": accusation_text,
-            "document_type": "accusation",
-            "jurisdiction": "GA",
-            "matter_id": "test_e2e_001",
-        })
+        result = await agent.run(
+            {
+                "document_text": accusation_text,
+                "document_type": "accusation",
+                "jurisdiction": "GA",
+                "matter_id": "test_e2e_001",
+            }
+        )
 
         # Verify ConfidenceRated wrapping
         assert "data" in result
@@ -423,18 +455,22 @@ class TestFullPipeline:
         """Pre-Interview builds brief from charge processing output."""
         # First run charge processing
         charge_agent = ChargeProcessingAgent()
-        charge_result = await charge_agent.run({
-            "document_text": accusation_text,
-            "document_type": "accusation",
-            "jurisdiction": "GA",
-            "matter_id": "test_e2e_002",
-        })
+        charge_result = await charge_agent.run(
+            {
+                "document_text": accusation_text,
+                "document_type": "accusation",
+                "jurisdiction": "GA",
+                "matter_id": "test_e2e_002",
+            }
+        )
 
         # Then run pre-interview
         pre_interview_agent = PreInterviewResearchAgent()
-        result = await pre_interview_agent.run({
-            "charge_processing": charge_result,
-        })
+        result = await pre_interview_agent.run(
+            {
+                "charge_processing": charge_result,
+            }
+        )
 
         assert "data" in result
         assert "confidence" in result
@@ -452,14 +488,21 @@ class TestFullPipeline:
         orchestrator = OrchestratorAgent()
 
         # Step 1: Initialize
-        init_result = await orchestrator.run({
-            "case_id": "test_e2e_full",
-            "attorney_id": "atty_test",
-            "jurisdiction": "GA",
-            "documents": [
-                {"id": "doc_1", "type": "accusation", "file_name": "accusation.txt", "storage_url": "/test"},
-            ],
-        })
+        init_result = await orchestrator.run(
+            {
+                "case_id": "test_e2e_full",
+                "attorney_id": "atty_test",
+                "jurisdiction": "GA",
+                "documents": [
+                    {
+                        "id": "doc_1",
+                        "type": "accusation",
+                        "file_name": "accusation.txt",
+                        "storage_url": "/test",
+                    },
+                ],
+            }
+        )
         assert orchestrator.case_state.stage == PipelineStage.CREATED
 
         # Step 2: Charge Processing
@@ -470,15 +513,20 @@ class TestFullPipeline:
         assert orchestrator.case_state.stage == PipelineStage.CHARGES_PROCESSING
 
         charge_agent = ChargeProcessingAgent()
-        charge_result = await charge_agent.run({
-            "document_text": accusation_text,
-            "document_type": "accusation",
-            "jurisdiction": "GA",
-            "matter_id": "test_e2e_full",
-        })
+        charge_result = await charge_agent.run(
+            {
+                "document_text": accusation_text,
+                "document_type": "accusation",
+                "jurisdiction": "GA",
+                "matter_id": "test_e2e_full",
+            }
+        )
 
         merge = await orchestrator.receive_agent_output("charge_processing", charge_result)
-        assert merge["decision"] in (MergeDecision.MERGED.value, MergeDecision.MERGED_WITH_FLAG.value)
+        assert merge["decision"] in (
+            MergeDecision.MERGED.value,
+            MergeDecision.MERGED_WITH_FLAG.value,
+        )
         assert orchestrator.case_state.stage == PipelineStage.CHARGES_PROCESSED
         assert orchestrator.case_state.charge_processing is not None
 
@@ -489,12 +537,17 @@ class TestFullPipeline:
         orchestrator.mark_agent_started("pre_interview_research")
 
         pre_agent = PreInterviewResearchAgent()
-        pre_result = await pre_agent.run({
-            "charge_processing": orchestrator.case_state.charge_processing,
-        })
+        pre_result = await pre_agent.run(
+            {
+                "charge_processing": orchestrator.case_state.charge_processing,
+            }
+        )
 
         merge = await orchestrator.receive_agent_output("pre_interview_research", pre_result)
-        assert merge["decision"] in (MergeDecision.MERGED.value, MergeDecision.MERGED_WITH_FLAG.value)
+        assert merge["decision"] in (
+            MergeDecision.MERGED.value,
+            MergeDecision.MERGED_WITH_FLAG.value,
+        )
         assert orchestrator.case_state.stage == PipelineStage.PRE_INTERVIEW_COMPLETE
         assert orchestrator.case_state.pre_interview_research is not None
 
