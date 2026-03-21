@@ -65,11 +65,9 @@ async def get_case_summary(case_id: str):
     # --- Extract data ---
     cp = state.get("charge_processing", {}) or {}
     cp_data = cp.get("data", {})
-    cp_conf = cp.get("confidence", "N/A")
 
     pi = state.get("pre_interview_research", {}) or {}
     pi_data = pi.get("data", {})
-    pi_conf = pi.get("confidence", "N/A")
 
     defendant = cp_data.get("defendant", {})
     charges = cp_data.get("charges", [])
@@ -77,8 +75,6 @@ async def get_case_summary(case_id: str):
     misconduct = cp_data.get("misconduct_flags", [])
     allegations = cp_data.get("factual_allegations", [])
     evidence = cp_data.get("evidence_items", [])
-    inconsistencies = cp_data.get("inconsistencies", [])
-    diversion = cp_data.get("diversion_eligibility", {})
     meta = cp_data.get("processing_metadata", {})
 
     tqs = pi_data.get("targeted_questions", [])
