@@ -1,5 +1,7 @@
 """Data models for research agents: Statute, Case Law, Citation Verification."""
 
+from __future__ import annotations
+
 from pydantic import BaseModel
 
 

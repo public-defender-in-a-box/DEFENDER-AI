@@ -1,5 +1,7 @@
 """Data models for the Intake Conductor and sub-agents."""
 
+from __future__ import annotations
+
 from pydantic import BaseModel
 
 

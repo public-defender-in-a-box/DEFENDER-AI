@@ -1,5 +1,7 @@
 """Data models for the Ethics & Compliance Monitor."""
 
+from __future__ import annotations
+
 from datetime import datetime
 
 from pydantic import BaseModel, Field

@@ -1,5 +1,7 @@
 """Base class for all agents. Every agent inherits from this."""
 
+from __future__ import annotations
+
 import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime

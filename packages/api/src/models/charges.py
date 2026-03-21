@@ -1,5 +1,7 @@
 """Data models for the Charge Processing Agent."""
 
+from __future__ import annotations
+
 from pydantic import BaseModel
 
 

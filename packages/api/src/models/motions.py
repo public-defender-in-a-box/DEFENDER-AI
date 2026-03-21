@@ -1,5 +1,7 @@
 """Data models for attorney prep agents: Motions, Brady, Plea/Trial, Sentencing."""
 
+from __future__ import annotations
+
 from pydantic import BaseModel
 
 

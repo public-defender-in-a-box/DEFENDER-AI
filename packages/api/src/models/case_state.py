@@ -1,5 +1,7 @@
 """Canonical CaseState — single source of truth for every case."""
 
+from __future__ import annotations
+
 from datetime import datetime
 from enum import Enum
 from typing import Any, Generic, TypeVar
