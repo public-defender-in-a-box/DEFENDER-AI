@@ -62,12 +62,24 @@ class MotionDrafterAgent(BaseAgent):
             {"case_id": input_data.get("case_id", "")},
         )
 
-        # Extract upstream data
+        # Normalize field names — accept both conventions until team aligns
         charges = input_data.get("charges", [])
-        rights_violations = input_data.get("rights_violations", [])
-        intake_summary = input_data.get("intake_summary", {})
-        legal_research = input_data.get("legal_research", {})
-        brady_analysis = input_data.get("brady_analysis", {})
+        rights_violations = (
+            input_data.get("rights_violations")
+            or input_data.get("rights_violation_analysis", [])
+        )
+        intake_summary = (
+            input_data.get("intake_summary")
+            or input_data.get("intake", {})
+        )
+        legal_research = (
+            input_data.get("legal_research")
+            or input_data.get("case_law_research", {})
+        )
+        brady_analysis = (
+            input_data.get("brady_analysis")
+            or input_data.get("brady", {})
+        )
         jurisdiction = input_data.get("jurisdiction", "GA")
         case_id = input_data.get("case_id", "")
         case_number = input_data.get("case_number")
@@ -400,6 +412,12 @@ class MotionDrafterAgent(BaseAgent):
                 system=MOTION_DRAFTER_SYSTEM_PROMPT,
                 max_tokens=4096,
             )
+            if not result or not isinstance(result, dict):
+                logger.error(
+                    "Empty or invalid LLM response for motion_type=%s",
+                    motion_type.value,
+                )
+                return None
             return result
         except (json.JSONDecodeError, KeyError) as exc:
             # Log only case_id and motion_type — no client data
@@ -439,24 +457,24 @@ class MotionDrafterAgent(BaseAgent):
         - Fact corroboration
         - Discrepancies between accounts
         """
-        score = 0.7  # Base score for a successfully generated motion
+        score = 0.75  # Base score for a successfully generated motion
 
-        # Upstream data completeness (+0.15 max)
+        # Upstream data completeness (+0.20 max)
         data_bonus = 0.0
         if charges:
-            data_bonus += 0.03
+            data_bonus += 0.05
         if rights_violations and motion_type == MotionType.SUPPRESS:
-            data_bonus += 0.03
-        if intake_summary and intake_summary.get("facts") or intake_summary.get("client_account"):
-            data_bonus += 0.03
+            data_bonus += 0.05
+        if intake_summary and (intake_summary.get("facts") or intake_summary.get("client_account")):
+            data_bonus += 0.05
         case_law = legal_research.get("case_law", []) or legal_research.get("authorities", [])
         if case_law:
-            data_bonus += 0.03
+            data_bonus += 0.05
         if brady_analysis and motion_type == MotionType.DISCOVERY_BRADY:
-            data_bonus += 0.03
+            data_bonus += 0.05
         score += data_bonus
 
-        # Citation verification (+0.1 if all verified, -0.1 if mostly unverified)
+        # Citation verification (+0.1 if all verified, -0.15 if none verified)
         all_citations: list[str] = []
         for section in draft.get("sections", []):
             all_citations.extend(section.get("citations", []))
@@ -465,7 +483,7 @@ class MotionDrafterAgent(BaseAgent):
                 1 for c in all_citations if "[VERIFIED]" in c.upper()
             )
             verification_ratio = verified_count / len(all_citations)
-            score += 0.1 * (verification_ratio - 0.5)  # +0.05 if all verified, -0.05 if none
+            score += 0.15 * (verification_ratio - 0.5)  # +0.075 if all verified, -0.075 if none
 
         # Discrepancies penalty
         inconsistencies = intake_summary.get("inconsistencies", [])

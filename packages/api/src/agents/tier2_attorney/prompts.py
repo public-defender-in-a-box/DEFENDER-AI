@@ -1,5 +1,7 @@
 """System and user prompts for the Motion Drafter Agent."""
 
+import json
+
 MOTION_DRAFTER_SYSTEM_PROMPT = """You are a legal motion drafting assistant working for the Georgia public defender's office. You generate preliminary draft motions that a licensed attorney will review, edit, and file.
 
 ROLE AND LIMITATIONS:
@@ -58,7 +60,6 @@ def build_motion_user_prompt(
     case_data: dict,
 ) -> str:
     """Build the user prompt for a specific motion type with case data."""
-    import json
 
     sections_desc = json.dumps(template["sections"], indent=2)
     georgia_notes = "\n".join(f"- {n}" for n in template.get("georgia_specific_notes", []))
