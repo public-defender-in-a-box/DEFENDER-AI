@@ -76,7 +76,7 @@ class CaseState(BaseModel):
     id: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
-    jurisdiction: str = "IL"
+    jurisdiction: str = "GA"
     case_number: str | None = None
 
     # Pipeline

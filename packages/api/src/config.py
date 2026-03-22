@@ -7,7 +7,7 @@ class Settings:
     DATABASE_URL: str = os.getenv("DATABASE_URL", "")
     STORAGE_PATH: str = os.getenv("STORAGE_PATH", "./uploads")
     CONFIDENCE_THRESHOLD: float = 0.6  # Below this = LOW confidence, flagged
-    DEFAULT_JURISDICTION: str = "IL"
+    DEFAULT_JURISDICTION: str = "GA"
 
 
 settings = Settings()
