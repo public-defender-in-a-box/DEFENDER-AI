@@ -11,5 +11,8 @@ from src.models.research import StatuteAnalysisOutput as StatuteAnalysisOutput
 from src.models.research import CaseLawOutput as CaseLawOutput
 from src.models.research import CitationVerificationOutput as CitationVerificationOutput
 from src.models.motions import MotionDrafterOutput as MotionDrafterOutput
+from src.models.rights import RightsScannerInput as RightsScannerInput
+from src.models.rights import RightsScannerOutput as RightsScannerOutput
+from src.models.rights import RightsViolation as RightsViolation
 from src.models.ethics import EthicalFlag as EthicalFlag
 from src.models.ethics import AuditEntry as AuditEntry
