@@ -16,3 +16,8 @@ from src.models.rights import RightsScannerOutput as RightsScannerOutput
 from src.models.rights import RightsViolation as RightsViolation
 from src.models.ethics import EthicalFlag as EthicalFlag
 from src.models.ethics import AuditEntry as AuditEntry
+from src.models.disclosure import DisclosureTrackingOutput as DisclosureTrackingOutput
+from src.models.disclosure import DisclosureGap as DisclosureGap
+from src.models.disclosure import DiscoveryLedgerEntry as DiscoveryLedgerEntry
+from src.models.disclosure import ChecklistItem as ChecklistItem
+from src.models.disclosure import BradyComplianceReport as BradyComplianceReport
