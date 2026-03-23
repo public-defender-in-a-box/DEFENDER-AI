@@ -101,6 +101,7 @@ class CaseState(BaseModel):
     personal_circumstances: dict[str, Any] | None = None
     draft_motions: dict[str, Any] | None = None
     brady_analysis: dict[str, Any] | None = None
+    disclosure_tracking: dict[str, Any] | None = None
     plea_trial_assessment: dict[str, Any] | None = None
     sentencing_analysis: dict[str, Any] | None = None
 
