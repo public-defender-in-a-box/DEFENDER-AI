@@ -1,14 +1,23 @@
-"""Shared test fixtures for case state, plea offers, and mock LLM responses."""
+"""Shared test fixtures for case state, plea offers, and mock LLM responses.
+
+Contains fixtures used by both motion drafter and plea/trial analyst tests.
+"""
 
 from __future__ import annotations
 
 from typing import Any
 
 
-def make_sample_case_state() -> dict[str, Any]:
-    """Minimal case state for testing."""
+# ---------------------------------------------------------------------------
+# Base case state helpers
+# ---------------------------------------------------------------------------
+
+
+def make_minimal_case_state() -> dict[str, Any]:
+    """Bare-minimum case state — just identity and jurisdiction."""
     return {
         "id": "test_case_001",
+        "case_id": "test_case_001",
         "jurisdiction": "GA",
         "stage": "CASE_PREP_IN_PROGRESS",
         "attorney_id": "attorney_001",
@@ -119,6 +128,32 @@ def make_sample_brady_analysis() -> dict[str, Any]:
     }
 
 
+def make_sample_case_state() -> dict[str, Any]:
+    """Full case state with charge, intake, and research data.
+
+    Used by motion drafter tests. Contains all upstream agent outputs
+    needed for motion drafting but NOT plea/trial-specific fields.
+    """
+    data = make_minimal_case_state()
+    data["charges"] = make_sample_charges()
+    data["rights_violations"] = make_sample_rights_violations()
+    data["intake_summary"] = make_sample_intake_summary()
+    data["legal_research"] = make_sample_legal_research()
+    data["collateral_consequences"] = {
+        "immigration": {"impact": "NONE", "details": "US Citizen — no immigration consequences"},
+        "employment": {"impact": "MEDIUM", "details": "Felony conviction may affect employment"},
+        "housing": {"impact": "LOW", "details": "May affect public housing eligibility"},
+    }
+    data["draft_motions"] = make_sample_draft_motions()
+    data["brady_analysis"] = make_sample_brady_analysis()
+    return data
+
+
+# ---------------------------------------------------------------------------
+# Plea / Trial specific helpers
+# ---------------------------------------------------------------------------
+
+
 def make_sample_plea_offer() -> dict[str, Any]:
     """Realistic plea offer for the drug possession case.
 
@@ -168,26 +203,142 @@ def make_sample_attorney_assessments() -> dict[str, Any]:
 
 
 def make_full_case_data() -> dict[str, Any]:
-    """Complete case data with all upstream agent outputs for testing."""
+    """Complete case data with all upstream agent outputs for plea/trial testing.
+
+    Extends make_sample_case_state() with plea offer and attorney assessments.
+    """
     data = make_sample_case_state()
-    data["charges"] = make_sample_charges()
-    data["rights_violations"] = make_sample_rights_violations()
-    data["intake_summary"] = make_sample_intake_summary()
-    data["legal_research"] = make_sample_legal_research()
-    data["collateral_consequences"] = {
-        "immigration": {"impact": "NONE", "details": "US Citizen — no immigration consequences"},
-        "employment": {"impact": "MEDIUM", "details": "Felony conviction may affect employment"},
-        "housing": {"impact": "LOW", "details": "May affect public housing eligibility"},
-    }
-    data["draft_motions"] = make_sample_draft_motions()
-    data["brady_analysis"] = make_sample_brady_analysis()
     data["plea_offer"] = make_sample_plea_offer()
     data["attorney_assessments"] = make_sample_attorney_assessments()
     return data
 
 
 # ---------------------------------------------------------------------------
-# Mock LLM responses
+# Mock LLM responses — Motion Drafter
+# ---------------------------------------------------------------------------
+
+SAMPLE_LLM_SUPPRESS_RESPONSE: dict[str, Any] = {
+    "motions": [
+        {
+            "id": "motion_001",
+            "type": "SUPPRESS",
+            "title": "Motion to Suppress Physical Evidence",
+            "draft": (
+                "DRAFT — ATTORNEY REVIEW REQUIRED\n\n"
+                "IN THE STATE COURT OF FULTON COUNTY\n"
+                "STATE OF GEORGIA\n\n"
+                "STATE OF GEORGIA v. JOHN DOE\n\n"
+                "MOTION TO SUPPRESS PHYSICAL EVIDENCE\n\n"
+                "COMES NOW the Defendant, John Doe, by and through undersigned "
+                "counsel, and moves this Honorable Court to suppress the physical "
+                "evidence seized during the warrantless stop and search on the "
+                "grounds that said stop violated Defendant's rights under the "
+                "Fourth Amendment to the United States Constitution and Article I, "
+                "Section I, Paragraph XIII of the Georgia Constitution.\n\n"
+                "STATEMENT OF FACTS\n\n"
+                "On or about the date in question, Defendant was standing on a "
+                "public sidewalk when he was approached and detained by Officer "
+                "without reasonable articulable suspicion of criminal activity. "
+                "During this unlawful detention, Officer conducted a search of "
+                "Defendant's person and seized approximately 2.3 grams of a "
+                "substance later identified as cocaine.\n\n"
+                "ARGUMENT\n\n"
+                "The Fourth Amendment requires that a law enforcement officer have "
+                "reasonable articulable suspicion before conducting a Terry stop. "
+                "Terry v. Ohio, 392 U.S. 1 (1968) [VERIFIED]. Under Georgia law, "
+                "O.C.G.A. § 17-5-30 [VERIFIED] codifies this protection.\n\n"
+                "Here, Defendant was engaged in no criminal activity and was merely "
+                "standing on a public sidewalk. The officer has articulated no basis "
+                "for the initial stop. See State v. Sample, 300 Ga. 123 (2022) "
+                "[UNVERIFIED] (suppression granted where officer lacked RAS).\n\n"
+                "WHEREFORE, Defendant respectfully requests that this Court grant "
+                "this Motion and suppress all physical evidence obtained as a result "
+                "of the unlawful stop and search."
+            ),
+            "status": "DRAFT",
+            "filing_deadline": "2024-03-01",
+            "supporting_authority": [
+                "Terry v. Ohio, 392 U.S. 1 (1968) [VERIFIED]",
+                "O.C.G.A. § 17-5-30 [VERIFIED]",
+                "State v. Sample, 300 Ga. 123 (2022) [UNVERIFIED]",
+            ],
+        }
+    ],
+}
+
+SAMPLE_LLM_DISCOVERY_RESPONSE: dict[str, Any] = {
+    "motions": [
+        {
+            "id": "motion_002",
+            "type": "DISCOVERY",
+            "title": "Motion for Discovery and Inspection",
+            "draft": (
+                "DRAFT — ATTORNEY REVIEW REQUIRED\n\n"
+                "IN THE STATE COURT OF FULTON COUNTY\n"
+                "STATE OF GEORGIA\n\n"
+                "STATE OF GEORGIA v. JOHN DOE\n\n"
+                "MOTION FOR DISCOVERY AND INSPECTION\n\n"
+                "COMES NOW the Defendant, John Doe, and pursuant to O.C.G.A. "
+                "§ 17-16-1 et seq. [VERIFIED], moves this Court to order the "
+                "State to produce for inspection and copying the following:\n\n"
+                "1. All body camera footage from the arresting officer(s)\n"
+                "2. All police reports and supplemental reports\n"
+                "3. Chain of custody documentation for all seized evidence\n"
+                "4. Laboratory analysis reports for the seized substance\n"
+                "5. Any and all exculpatory evidence pursuant to Brady v. "
+                "Maryland, 373 U.S. 83 (1963) [VERIFIED]\n\n"
+                "WHEREFORE, Defendant respectfully requests this Court grant "
+                "this Motion and order the State to comply within 10 days."
+            ),
+            "status": "DRAFT",
+            "filing_deadline": "2024-03-15",
+            "supporting_authority": [
+                "O.C.G.A. § 17-16-1 et seq. [VERIFIED]",
+                "Brady v. Maryland, 373 U.S. 83 (1963) [VERIFIED]",
+            ],
+        }
+    ],
+}
+
+SAMPLE_LLM_BAIL_RESPONSE: dict[str, Any] = {
+    "motions": [
+        {
+            "id": "motion_003",
+            "type": "BAIL_REDUCTION",
+            "title": "Motion for Reduction of Bond",
+            "draft": (
+                "DRAFT — ATTORNEY REVIEW REQUIRED\n\n"
+                "IN THE STATE COURT OF FULTON COUNTY\n"
+                "STATE OF GEORGIA\n\n"
+                "STATE OF GEORGIA v. JOHN DOE\n\n"
+                "MOTION FOR REDUCTION OF BOND\n\n"
+                "COMES NOW the Defendant, John Doe, and moves this Honorable "
+                "Court to reduce Defendant's bond based on the following:\n\n"
+                "1. Defendant is a first-time offender with no prior criminal record\n"
+                "2. Defendant is employed full-time as a warehouse worker\n"
+                "3. Defendant has one dependent child\n"
+                "4. Defendant has stable housing in the community\n"
+                "5. Defendant is a United States Citizen with strong community ties\n"
+                "6. The charged offense is non-violent\n\n"
+                "Pursuant to O.C.G.A. § 17-6-1 [VERIFIED], this Court should "
+                "consider the Defendant's ties to the community, financial "
+                "resources, and the nature of the offense in setting bond.\n\n"
+                "WHEREFORE, Defendant respectfully requests that this Court "
+                "reduce the current bond to a reasonable amount or release "
+                "Defendant on his own recognizance."
+            ),
+            "status": "DRAFT",
+            "filing_deadline": None,
+            "supporting_authority": [
+                "O.C.G.A. § 17-6-1 [VERIFIED]",
+            ],
+        }
+    ],
+}
+
+
+# ---------------------------------------------------------------------------
+# Mock LLM responses — Plea / Trial Analyst
 # ---------------------------------------------------------------------------
 
 SAMPLE_LLM_PLEA_TRIAL_RESPONSE: dict[str, Any] = {

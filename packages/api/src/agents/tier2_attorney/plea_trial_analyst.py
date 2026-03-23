@@ -60,7 +60,7 @@ class PleaTrialAnalyst(BaseAgent):
         Reads from CaseState fields, calls the LLM, validates output,
         and returns wrapped results with confidence scoring and flags.
         """
-        case_id = input_data.get("id", "unknown")
+        case_id = input_data.get("case_id") or input_data.get("id", "unknown")
         self.log_action("plea_trial_analysis_started", {"case_id": case_id})
 
         # --- 1. Normalize field names ---
@@ -74,9 +74,10 @@ class PleaTrialAnalyst(BaseAgent):
         if not plea_offer:
             flags.append("MISSING_PLEA_OFFER")
 
-        attorney_assessments = case_data.get("attorney_assessments", {})
-        if not attorney_assessments:
+        if not input_data.get("attorney_assessments"):
             flags.append("MISSING_ATTORNEY_INPUTS")
+
+        attorney_assessments = case_data.get("attorney_assessments", {})
 
         collateral = case_data.get("collateral_consequences", {})
         if not collateral:
@@ -112,8 +113,8 @@ class PleaTrialAnalyst(BaseAgent):
         if trial_outcomes:
             parsed.setdefault("trial_scenario", {})["outcomes"] = trial_outcomes
 
-        # --- 6. Calculate confidence ---
-        confidence = self._calculate_confidence(case_data, attorney_assessments)
+        # --- 6. Calculate confidence (after probability validation) ---
+        confidence = self._calculate_confidence(case_data, attorney_assessments, probability_flags=prob_flags)
 
         confidence_level = self.score_confidence(confidence).value
 
@@ -167,7 +168,7 @@ class PleaTrialAnalyst(BaseAgent):
 
         # --- 12. Record attorney inputs used ---
         attorney_inputs_used: dict[str, Any] = {}
-        if attorney_assessments:
+        if input_data.get("attorney_assessments"):
             for key, value in attorney_assessments.items():
                 attorney_inputs_used[key] = value
         else:
@@ -178,7 +179,7 @@ class PleaTrialAnalyst(BaseAgent):
         parsed["confidence_level"] = confidence_level
         parsed["confidence_reasoning"] = parsed.get(
             "confidence_reasoning",
-            self._build_confidence_reasoning(case_data, attorney_assessments, confidence),
+            self._build_confidence_reasoning(case_data, attorney_assessments, confidence, probability_flags=prob_flags),
         )
         parsed["flags"] = flags
         parsed["warnings"] = warnings
@@ -250,11 +251,15 @@ class PleaTrialAnalyst(BaseAgent):
         # plea offer
         data.setdefault("plea_offer", input_data.get("plea_offer", {}))
 
-        # attorney assessments
-        data.setdefault(
-            "attorney_assessments",
-            input_data.get("attorney_assessments", {}),
-        )
+        # attorney assessments — apply defaults if missing
+        raw_assessments = input_data.get("attorney_assessments", {})
+        if not raw_assessments:
+            data["attorney_assessments"] = dict(_DEFAULT_ATTORNEY_ASSESSMENTS)
+        else:
+            # Fill in any missing keys with defaults
+            merged = dict(_DEFAULT_ATTORNEY_ASSESSMENTS)
+            merged.update(raw_assessments)
+            data["attorney_assessments"] = merged
 
         return data
 
@@ -363,14 +368,14 @@ class PleaTrialAnalyst(BaseAgent):
         self,
         case_data: dict[str, Any],
         attorney_assessments: dict[str, Any],
+        probability_flags: list[str] | None = None,
     ) -> float:
         """Calculate confidence based on data completeness and attorney inputs."""
         base = 0.60
 
         # +0.05 per present upstream source (max 7 sources = +0.35)
         for source in _UPSTREAM_SOURCES:
-            value = case_data.get(source)
-            if value:
+            if case_data.get(source):
                 base += 0.05
 
         # +0.10 if most attorney inputs are present
@@ -385,17 +390,37 @@ class PleaTrialAnalyst(BaseAgent):
             if present >= 3:
                 base += 0.10
 
-        # Cap at 1.0
-        return min(base, 1.0)
+        # Citation verification: check legal research for unverified citations
+        legal = case_data.get("legal_research", {})
+        all_citations: list[Any] = []
+        for key in ("relevant_case_law", "case_law", "relevant_statutes", "statutes"):
+            items = legal.get(key, [])
+            if isinstance(items, list):
+                all_citations.extend(items)
+        if all_citations:
+            unverified = sum(1 for c in all_citations if "UNVERIFIED" in str(c).upper())
+            if unverified == 0:
+                base += 0.05
+            elif unverified > len(all_citations) / 2:
+                base -= 0.05
+
+        # Probability consistency penalty
+        if probability_flags:
+            prob_errors = [f for f in probability_flags if "PROBABILITY_SUM_ERROR" in f]
+            if prob_errors:
+                base -= 0.10
+
+        return max(0.0, min(base, 1.0))
 
     def _build_confidence_reasoning(
         self,
         case_data: dict[str, Any],
         attorney_assessments: dict[str, Any],
         confidence: float,
+        probability_flags: list[str] | None = None,
     ) -> str:
         """Build a human-readable explanation of the confidence score."""
-        parts: list[str] = [f"Base confidence: 0.60."]
+        parts: list[str] = ["Base confidence: 0.60."]
 
         present_sources = [s for s in _UPSTREAM_SOURCES if case_data.get(s)]
         parts.append(
@@ -407,6 +432,32 @@ class PleaTrialAnalyst(BaseAgent):
             parts.append("Attorney subjective inputs provided (+0.10).")
         else:
             parts.append("Attorney subjective inputs not provided (+0.00).")
+
+        # Citation verification status
+        legal = case_data.get("legal_research", {})
+        all_citations: list[Any] = []
+        for key in ("relevant_case_law", "case_law", "relevant_statutes", "statutes"):
+            items = legal.get(key, [])
+            if isinstance(items, list):
+                all_citations.extend(items)
+        if all_citations:
+            unverified = sum(1 for c in all_citations if "UNVERIFIED" in str(c).upper())
+            if unverified == 0:
+                parts.append("All citations verified (+0.05).")
+            elif unverified > len(all_citations) / 2:
+                parts.append(
+                    f"Majority of citations unverified ({unverified}/{len(all_citations)}) (-0.05)."
+                )
+            else:
+                parts.append(
+                    f"Some citations unverified ({unverified}/{len(all_citations)}) (+0.00)."
+                )
+
+        # Probability consistency
+        if probability_flags:
+            prob_errors = [f for f in probability_flags if "PROBABILITY_SUM_ERROR" in f]
+            if prob_errors:
+                parts.append("Trial outcome probabilities required normalization (-0.10).")
 
         parts.append(f"Final confidence: {confidence:.2f}.")
         return " ".join(parts)
