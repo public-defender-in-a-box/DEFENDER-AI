@@ -184,6 +184,103 @@ async def intake_node(state: GraphState) -> GraphState:
     return state
 
 
+async def intake_sub_agents_node(state: GraphState) -> GraphState:
+    """Node: Tier 2 Intake Specialists — run after Intake Conductor.
+
+    Dispatches the three intake sub-agents in parallel:
+    1. Fact Gatherer — structures timeline, witnesses, evidence, element coverage
+    2. Collateral Consequences — immigration, employment, housing, Padilla check
+    3. Personal Circumstances — bail profile, mitigation, diversion eligibility
+
+    All three read from intake_summary and charge_processing in the CaseState
+    and write their outputs back to the state dict.
+    """
+    import asyncio
+
+    from src.agents.tier2_intake.collateral_agent import CollateralConsequencesAgent
+    from src.agents.tier2_intake.fact_gatherer import FactGathererAgent
+    from src.agents.tier2_intake.personal_circumstances import (
+        PersonalCircumstancesAgent,
+    )
+
+    case_state = state["case_state"]
+    intake_summary = case_state.get("intake_summary", {})
+    charge_data = case_state.get("charge_processing", {})
+    charges = []
+    if isinstance(charge_data, dict):
+        charges = charge_data.get("data", charge_data).get("charges", [])
+
+    # Build inputs for each sub-agent
+    fact_input = {
+        "targeted_questions": intake_summary.get("unanswered_questions", []),
+        "client_responses": intake_summary.get("transcript", []),
+        "charges": charges,
+        "research_context": case_state.get("pre_interview_research", {}),
+        "intake_facts": intake_summary.get("facts", []),
+    }
+
+    collateral_input = {
+        "charges": charges,
+        "personal_circumstances": intake_summary.get("personal_circumstances", {}),
+        "client_priorities": intake_summary.get("priorities_and_concerns", []),
+        "intake_summary": intake_summary,
+    }
+
+    personal_input = {
+        "client_background": intake_summary.get("personal_circumstances", {}),
+        "charges": charges,
+        "client_priorities": intake_summary.get("priorities_and_concerns", []),
+    }
+
+    # Run all three in parallel
+    fact_agent = FactGathererAgent()
+    collateral_agent = CollateralConsequencesAgent()
+    personal_agent = PersonalCircumstancesAgent()
+
+    try:
+        fact_result, collateral_result, personal_result = await asyncio.gather(
+            fact_agent.run(fact_input),
+            collateral_agent.run(collateral_input),
+            personal_agent.run(personal_input),
+            return_exceptions=True,
+        )
+
+        # Write results back to state (tolerant of individual failures)
+        if not isinstance(fact_result, Exception):
+            state["case_state"]["fact_gathering"] = fact_result
+        else:
+            logger.error("Fact Gatherer failed: %s", fact_result)
+            state["case_state"]["fact_gathering"] = {
+                "error": str(fact_result),
+                "confidence": "LOW",
+            }
+
+        if not isinstance(collateral_result, Exception):
+            state["case_state"]["collateral_consequences"] = collateral_result
+        else:
+            logger.error("Collateral Agent failed: %s", collateral_result)
+            state["case_state"]["collateral_consequences"] = {
+                "error": str(collateral_result),
+                "confidence": "LOW",
+            }
+
+        if not isinstance(personal_result, Exception):
+            state["case_state"]["personal_circumstances"] = personal_result
+        else:
+            logger.error("Personal Circumstances failed: %s", personal_result)
+            state["case_state"]["personal_circumstances"] = {
+                "error": str(personal_result),
+                "confidence": "LOW",
+            }
+
+    except Exception as e:
+        logger.error("Intake sub-agents node failed: %s", e)
+        state["error"] = f"Intake sub-agents failed: {e}"
+
+    state["current_stage"] = "INTAKE_COMPLETE"
+    return state
+
+
 async def case_prep_node(state: GraphState) -> GraphState:
     """Node: Case Prep Conductor — placeholder for Tier 1 synthesis."""
     state["current_stage"] = "CASE_PREP_IN_PROGRESS"
@@ -205,14 +302,22 @@ def should_continue_after_pre_interview(state: GraphState) -> str:
     return "intake"
 
 
+def should_continue_after_intake(state: GraphState) -> str:
+    """Route after intake — run sub-agents or stop on error."""
+    if state.get("error"):
+        return END
+    return "intake_sub_agents"
+
+
 def build_pipeline() -> StateGraph:
-    """Build the full Tier 0 + Tier 1 agent pipeline graph."""
+    """Build the full Tier 0 + Tier 1 + Tier 2 Intake agent pipeline graph."""
     graph = StateGraph(GraphState)
 
     # Add nodes
     graph.add_node("charge_processing", charge_processing_node)
     graph.add_node("pre_interview", pre_interview_node)
     graph.add_node("intake", intake_node)
+    graph.add_node("intake_sub_agents", intake_sub_agents_node)
     graph.add_node("case_prep", case_prep_node)
 
     # Entry point
@@ -229,7 +334,12 @@ def build_pipeline() -> StateGraph:
         should_continue_after_pre_interview,
         {"intake": "intake", END: END},
     )
-    graph.add_edge("intake", "case_prep")
+    graph.add_conditional_edges(
+        "intake",
+        should_continue_after_intake,
+        {"intake_sub_agents": "intake_sub_agents", END: END},
+    )
+    graph.add_edge("intake_sub_agents", "case_prep")
     graph.add_edge("case_prep", END)
 
     return graph
