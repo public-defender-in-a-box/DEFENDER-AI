@@ -1,7 +1,9 @@
 """LangGraph orchestration graph — defines the full agent pipeline.
 
 Pipeline sequence:
-    Charge Processing → Pre-Interview Research → Intake Conductor → (Case Prep placeholder)
+    Charge Processing → Pre-Interview Research → Intake Conductor
+    → Intake Sub-Agents (Fact Gatherer, Collateral, Personal — parallel)
+    → Case Prep (placeholder)
 
 The Orchestrator manages the CaseState object and validates/merges every agent
 output before advancing to the next stage.
@@ -10,7 +12,7 @@ output before advancing to the next stage.
 from __future__ import annotations
 
 import logging
-from typing import Any, TypedDict
+from typing import Any, Optional, TypedDict
 
 from langgraph.graph import END, StateGraph
 
@@ -23,7 +25,7 @@ class GraphState(TypedDict):
     case_id: str
     case_state: dict[str, Any]
     current_stage: str
-    error: str | None
+    error: Optional[str]
 
 
 async def orchestrator_init_node(state: GraphState) -> GraphState:
@@ -193,10 +195,12 @@ async def intake_sub_agents_node(state: GraphState) -> GraphState:
     3. Personal Circumstances — bail profile, mitigation, diversion eligibility
 
     All three read from intake_summary and charge_processing in the CaseState
-    and write their outputs back to the state dict.
+    and write their outputs back to the state dict. Results are merged through
+    the Orchestrator's receive_agent_output for ethics checking and audit.
     """
     import asyncio
 
+    from src.agents.cross_cutting.ethics_monitor import EthicsMonitorAgent
     from src.agents.tier2_intake.collateral_agent import CollateralConsequencesAgent
     from src.agents.tier2_intake.fact_gatherer import FactGathererAgent
     from src.agents.tier2_intake.personal_circumstances import (
@@ -208,7 +212,8 @@ async def intake_sub_agents_node(state: GraphState) -> GraphState:
     charge_data = case_state.get("charge_processing", {})
     charges = []
     if isinstance(charge_data, dict):
-        charges = charge_data.get("data", charge_data).get("charges", [])
+        inner = charge_data.get("data", charge_data)
+        charges = inner.get("charges", []) if isinstance(inner, dict) else []
 
     # Build inputs for each sub-agent
     fact_input = {
@@ -245,33 +250,56 @@ async def intake_sub_agents_node(state: GraphState) -> GraphState:
             return_exceptions=True,
         )
 
-        # Write results back to state (tolerant of individual failures)
-        if not isinstance(fact_result, Exception):
-            state["case_state"]["fact_gathering"] = fact_result
-        else:
-            logger.error("Fact Gatherer failed: %s", fact_result)
-            state["case_state"]["fact_gathering"] = {
-                "error": str(fact_result),
-                "confidence": "LOW",
-            }
+        # Ethics monitor for Tier 2 outputs before merging into state
+        ethics = EthicsMonitorAgent()
 
-        if not isinstance(collateral_result, Exception):
-            state["case_state"]["collateral_consequences"] = collateral_result
-        else:
-            logger.error("Collateral Agent failed: %s", collateral_result)
-            state["case_state"]["collateral_consequences"] = {
-                "error": str(collateral_result),
-                "confidence": "LOW",
-            }
+        # Agent ID → (state field, result) mapping
+        agent_results = [
+            ("fact_gatherer", "fact_gathering", fact_result),
+            ("collateral_consequences", "collateral_consequences", collateral_result),
+            ("personal_circumstances", "personal_circumstances", personal_result),
+        ]
 
-        if not isinstance(personal_result, Exception):
-            state["case_state"]["personal_circumstances"] = personal_result
-        else:
-            logger.error("Personal Circumstances failed: %s", personal_result)
-            state["case_state"]["personal_circumstances"] = {
-                "error": str(personal_result),
-                "confidence": "LOW",
-            }
+        for agent_id, state_field, result in agent_results:
+            if isinstance(result, Exception):
+                logger.error("%s failed: %s", agent_id, result)
+                state["case_state"][state_field] = {
+                    "error": str(result),
+                    "confidence": "LOW",
+                }
+                continue
+
+            # Run ethics check before writing to state
+            ethics_result = await ethics.run(
+                {
+                    "output": result,
+                    "agent_id": agent_id,
+                    "is_client_facing": False,
+                }
+            )
+
+            ethics_flags = ethics_result.get("flags", [])
+            p1_flags = [
+                f for f in ethics_flags if f.get("priority") == "CRITICAL"
+            ]
+
+            if p1_flags or ethics_result.get("blocked", False):
+                logger.warning(
+                    "%s output blocked by ethics monitor: %s",
+                    agent_id,
+                    p1_flags,
+                )
+                state["case_state"][state_field] = {
+                    "error": "Blocked by ethics monitor",
+                    "confidence": "LOW",
+                    "ethics_flags": ethics_flags,
+                }
+            else:
+                state["case_state"][state_field] = result
+                if ethics_flags:
+                    state["case_state"].setdefault("ethical_flags", []).extend(
+                        ethics_flags
+                    )
 
     except Exception as e:
         logger.error("Intake sub-agents node failed: %s", e)
