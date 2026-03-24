@@ -14,13 +14,17 @@ from typing import Any
 
 
 def make_minimal_case_state() -> dict[str, Any]:
-    """Bare-minimum case state — just identity and jurisdiction."""
+    """Bare-minimum case state for motion drafter tests."""
     return {
-        "id": "test_case_001",
-        "case_id": "test_case_001",
+        "case_id": "test_case_GA_2024_002",
+        "case_number": "24-CR-99999",
         "jurisdiction": "GA",
         "stage": "CASE_PREP_IN_PROGRESS",
         "attorney_id": "attorney_001",
+        "charges": [],
+        "intake": {},
+        "legal_research": {"statutes": [], "case_law": []},
+        "brady": {"gaps": [], "giglio_checklist": [], "missing_reports": []},
         "documents": [],
     }
 
@@ -131,22 +135,106 @@ def make_sample_brady_analysis() -> dict[str, Any]:
 def make_sample_case_state() -> dict[str, Any]:
     """Full case state with charge, intake, and research data.
 
-    Used by motion drafter tests. Contains all upstream agent outputs
-    needed for motion drafting but NOT plea/trial-specific fields.
+    Used by motion drafter tests.  Returns a single inline dict using the
+    motion-drafter field conventions (statute_section, offense_title, etc.).
     """
-    data = make_minimal_case_state()
-    data["charges"] = make_sample_charges()
-    data["rights_violations"] = make_sample_rights_violations()
-    data["intake_summary"] = make_sample_intake_summary()
-    data["legal_research"] = make_sample_legal_research()
-    data["collateral_consequences"] = {
-        "immigration": {"impact": "NONE", "details": "US Citizen — no immigration consequences"},
-        "employment": {"impact": "MEDIUM", "details": "Felony conviction may affect employment"},
-        "housing": {"impact": "LOW", "details": "May affect public housing eligibility"},
+    return {
+        "case_id": "test_case_GA_2024_001",
+        "case_number": "24-CR-12345",
+        "jurisdiction": "GA",
+        "stage": "CASE_PREP_IN_PROGRESS",
+        "attorney_id": "attorney_001",
+        "charges": [
+            {
+                "statute_section": "O.C.G.A. § 16-13-30(a)",
+                "offense_title": "Possession of a Controlled Substance",
+                "degree": "Felony",
+                "elements": [
+                    "Knowingly possessed",
+                    "A controlled substance (cocaine)",
+                    "Less than one ounce",
+                ],
+                "penalty_range": {
+                    "min_years": 1,
+                    "max_years": 15,
+                    "fine_max": 5000,
+                    "probation_eligible": True,
+                },
+                "procedural_requirements": [
+                    "Lab confirmation of substance",
+                    "Chain of custody documentation",
+                ],
+                "factual_allegations": (
+                    "Defendant was found in possession of approximately 2.3 grams "
+                    "of cocaine during a stop on a public sidewalk."
+                ),
+                "officers": ["Officer Smith"],
+                "witnesses": ["Officer Smith", "Officer Jones"],
+            }
+        ],
+        "intake": {
+            "client_account": (
+                "Client states he was standing on a public sidewalk when approached "
+                "by officers without provocation.  Client denies knowledge of the "
+                "substance found during the search."
+            ),
+            "facts": [
+                "Client stopped on public sidewalk",
+                "No criminal activity observed prior to stop",
+                "Search conducted without warrant",
+                "2.3 grams of cocaine seized",
+            ],
+            "inconsistencies": [
+                "Client says officers approached without warning; police report "
+                "states officers observed 'suspicious behavior'."
+            ],
+            "personal_circumstances": {
+                "custody_status": "IN_CUSTODY",
+                "employment": "Employed full-time — warehouse worker",
+                "dependents": 1,
+                "prior_record": "No prior criminal record",
+                "citizenship_status": "US Citizen",
+                "housing": "Stable housing — rents apartment",
+            },
+        },
+        "legal_research": {
+            "statutes": [
+                {
+                    "citation": "O.C.G.A. § 16-13-30(a)",
+                    "summary": "Possession of controlled substance — Schedule II",
+                    "sentencing_range": "1-15 years felony; may be probated",
+                    "verification_status": "VERIFIED",
+                },
+                {
+                    "citation": "O.C.G.A. § 42-8-60",
+                    "summary": "Georgia First Offender Act — eligible if no prior felony",
+                    "verification_status": "VERIFIED",
+                },
+            ],
+            "case_law": [
+                {
+                    "citation": "State v. Sample, 300 Ga. 123 (2022)",
+                    "holding": (
+                        "Suppression granted where officer lacked RAS for initial stop"
+                    ),
+                    "verification_status": "UNVERIFIED",
+                }
+            ],
+        },
+        "brady": {
+            "gaps": [
+                "Body camera footage not yet disclosed — may show officer approaching "
+                "without cause"
+            ],
+            "giglio_checklist": [
+                "Officer Smith disciplinary history not yet reviewed"
+            ],
+            "missing_reports": [
+                "Supplemental arrest report referenced in primary report but not provided"
+            ],
+        },
+        "documents": [],
     }
-    data["draft_motions"] = make_sample_draft_motions()
-    data["brady_analysis"] = make_sample_brady_analysis()
-    return data
 
 
 # ---------------------------------------------------------------------------
@@ -205,12 +293,39 @@ def make_sample_attorney_assessments() -> dict[str, Any]:
 def make_full_case_data() -> dict[str, Any]:
     """Complete case data with all upstream agent outputs for plea/trial testing.
 
-    Extends make_sample_case_state() with plea offer and attorney assessments.
+    Builds its own data independently using the plea/trial helper functions
+    (different field conventions than the motion drafter fixtures).
     """
-    data = make_sample_case_state()
-    data["plea_offer"] = make_sample_plea_offer()
-    data["attorney_assessments"] = make_sample_attorney_assessments()
-    return data
+    return {
+        "id": "test_case_001",
+        "case_id": "test_case_001",
+        "jurisdiction": "GA",
+        "stage": "CASE_PREP_IN_PROGRESS",
+        "attorney_id": "attorney_001",
+        "documents": [],
+        "charges": make_sample_charges(),
+        "rights_violations": make_sample_rights_violations(),
+        "intake_summary": make_sample_intake_summary(),
+        "legal_research": make_sample_legal_research(),
+        "collateral_consequences": {
+            "immigration": {
+                "impact": "NONE",
+                "details": "US Citizen — no immigration consequences",
+            },
+            "employment": {
+                "impact": "MEDIUM",
+                "details": "Felony conviction may affect employment",
+            },
+            "housing": {
+                "impact": "LOW",
+                "details": "May affect public housing eligibility",
+            },
+        },
+        "draft_motions": make_sample_draft_motions(),
+        "brady_analysis": make_sample_brady_analysis(),
+        "plea_offer": make_sample_plea_offer(),
+        "attorney_assessments": make_sample_attorney_assessments(),
+    }
 
 
 # ---------------------------------------------------------------------------
