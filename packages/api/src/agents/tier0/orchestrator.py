@@ -111,6 +111,42 @@ _AGENT_CONFIG: dict[str, dict[str, Any]] = {
         "is_client_facing": False,
         "required_stage": PipelineStage.INTAKE_COMPLETE,
     },
+    # Research agents — run after pre-interview produces charges + rights flags
+    "research_orchestrator": {
+        "state_field": "combined_research",
+        "start_stage": PipelineStage.LEGAL_RESEARCH_IN_PROGRESS,
+        "complete_stage": PipelineStage.LEGAL_RESEARCH_COMPLETE,
+        "is_client_facing": False,
+        "required_stage": PipelineStage.PRE_INTERVIEW_COMPLETE,
+    },
+    "ga_criminal_case_law": {
+        "state_field": "case_law_research",
+        "start_stage": PipelineStage.LEGAL_RESEARCH_IN_PROGRESS,
+        "complete_stage": PipelineStage.LEGAL_RESEARCH_IN_PROGRESS,
+        "is_client_facing": False,
+        "required_stage": PipelineStage.PRE_INTERVIEW_COMPLETE,
+    },
+    "constitutional_case_law": {
+        "state_field": "constitutional_research",
+        "start_stage": PipelineStage.LEGAL_RESEARCH_IN_PROGRESS,
+        "complete_stage": PipelineStage.LEGAL_RESEARCH_IN_PROGRESS,
+        "is_client_facing": False,
+        "required_stage": PipelineStage.PRE_INTERVIEW_COMPLETE,
+    },
+    "ga_statutes_agent": {
+        "state_field": "statute_analysis",
+        "start_stage": PipelineStage.LEGAL_RESEARCH_IN_PROGRESS,
+        "complete_stage": PipelineStage.LEGAL_RESEARCH_IN_PROGRESS,
+        "is_client_facing": False,
+        "required_stage": PipelineStage.PRE_INTERVIEW_COMPLETE,
+    },
+    "citation_verification": {
+        "state_field": "citation_verification",
+        "start_stage": PipelineStage.LEGAL_RESEARCH_IN_PROGRESS,
+        "complete_stage": PipelineStage.LEGAL_RESEARCH_COMPLETE,
+        "is_client_facing": False,
+        "required_stage": PipelineStage.PRE_INTERVIEW_COMPLETE,
+    },
 }
 
 
