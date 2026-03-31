@@ -166,7 +166,9 @@ class PadillaAssessment(BaseModel):
     """
 
     non_citizen: bool
-    immigration_status: str = "UNKNOWN"  # LPR, VISA_HOLDER, UNDOCUMENTED, DACA, TPS, ASYLEE, REFUGEE, UNKNOWN
+    immigration_status: str = (
+        "UNKNOWN"  # LPR, VISA_HOLDER, UNDOCUMENTED, DACA, TPS, ASYLEE, REFUGEE, UNKNOWN
+    )
     deportation_risk: str = "UNKNOWN"  # CERTAIN, LIKELY, POSSIBLE, UNLIKELY, UNKNOWN
     aggravated_felony_risk: bool = False
     crime_involving_moral_turpitude: bool = False

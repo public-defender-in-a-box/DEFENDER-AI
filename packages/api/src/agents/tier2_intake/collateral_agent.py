@@ -153,10 +153,13 @@ class CollateralConsequencesAgent(BaseAgent):
         Returns:
             Wrapped output with CollateralConsequencesOutput data and confidence.
         """
-        self.log_action("collateral_analysis_started", {
-            "has_charges": bool(input_data.get("charges")),
-            "has_circumstances": bool(input_data.get("personal_circumstances")),
-        })
+        self.log_action(
+            "collateral_analysis_started",
+            {
+                "has_charges": bool(input_data.get("charges")),
+                "has_circumstances": bool(input_data.get("personal_circumstances")),
+            },
+        )
 
         charges = input_data.get("charges", [])
         circumstances = input_data.get("personal_circumstances", {})
@@ -199,15 +202,18 @@ class CollateralConsequencesAgent(BaseAgent):
         output = self._structure_output(result, priorities)
         confidence = self._calculate_confidence(output, circumstances)
 
-        self.log_action("collateral_analysis_completed", {
-            "consequences_found": len(output.consequences),
-            "severe_consequences": sum(
-                1 for c in output.consequences if c.severity == "SEVERE"
-            ),
-            "padilla_required": output.padilla_assessment.advisory_required,
-            "priority_count": len(output.priority_consequences),
-            "confidence": confidence,
-        })
+        self.log_action(
+            "collateral_analysis_completed",
+            {
+                "consequences_found": len(output.consequences),
+                "severe_consequences": sum(
+                    1 for c in output.consequences if c.severity == "SEVERE"
+                ),
+                "padilla_required": output.padilla_assessment.advisory_required,
+                "priority_count": len(output.priority_consequences),
+                "confidence": confidence,
+            },
+        )
 
         return self.wrap_output(output.model_dump(), confidence=confidence)
 
@@ -218,19 +224,21 @@ class CollateralConsequencesAgent(BaseAgent):
         consequences = []
         for cc in raw.get("consequences", []):
             try:
-                consequences.append(CollateralConsequence(
-                    id=cc.get("id", f"cc_{uuid.uuid4().hex[:6]}"),
-                    category=cc.get("category", "EMPLOYMENT"),
-                    description=cc.get("description", ""),
-                    severity=cc.get("severity", "MODERATE"),
-                    charge_specific=cc.get("charge_specific", False),
-                    related_charge_ids=cc.get("related_charge_ids", []),
-                    affects_plea_strategy=cc.get("affects_plea_strategy", False),
-                    georgia_statute=cc.get("georgia_statute", ""),
-                    federal_statute=cc.get("federal_statute", ""),
-                    mitigation_possible=cc.get("mitigation_possible", False),
-                    mitigation_strategy=cc.get("mitigation_strategy", ""),
-                ))
+                consequences.append(
+                    CollateralConsequence(
+                        id=cc.get("id", f"cc_{uuid.uuid4().hex[:6]}"),
+                        category=cc.get("category", "EMPLOYMENT"),
+                        description=cc.get("description", ""),
+                        severity=cc.get("severity", "MODERATE"),
+                        charge_specific=cc.get("charge_specific", False),
+                        related_charge_ids=cc.get("related_charge_ids", []),
+                        affects_plea_strategy=cc.get("affects_plea_strategy", False),
+                        georgia_statute=cc.get("georgia_statute", ""),
+                        federal_statute=cc.get("federal_statute", ""),
+                        mitigation_possible=cc.get("mitigation_possible", False),
+                        mitigation_strategy=cc.get("mitigation_strategy", ""),
+                    )
+                )
             except Exception as e:
                 logger.warning("Skipping malformed consequence: %s", e)
 
@@ -244,9 +252,7 @@ class CollateralConsequencesAgent(BaseAgent):
             crime_involving_moral_turpitude=padilla_raw.get(
                 "crime_involving_moral_turpitude", False
             ),
-            controlled_substance_offense=padilla_raw.get(
-                "controlled_substance_offense", False
-            ),
+            controlled_substance_offense=padilla_raw.get("controlled_substance_offense", False),
             firearm_offense=padilla_raw.get("firearm_offense", False),
             domestic_violence_offense=padilla_raw.get("domestic_violence_offense", False),
             advisory_required=padilla_raw.get("advisory_required", False),
@@ -258,9 +264,7 @@ class CollateralConsequencesAgent(BaseAgent):
             padilla_assessment=padilla,
             plea_strategy_impact=raw.get("plea_strategy_impact", ""),
             priority_consequences=raw.get("priority_consequences", []),
-            client_stated_priorities=(
-                priorities if isinstance(priorities, list) else []
-            ),
+            client_stated_priorities=(priorities if isinstance(priorities, list) else []),
         )
 
     def _calculate_confidence(
@@ -284,8 +288,7 @@ class CollateralConsequencesAgent(BaseAgent):
         # Rich circumstances data = better analysis
         if circumstances:
             filled_fields = sum(
-                1 for v in circumstances.values()
-                if v and v != "" and v != 0 and v is not False
+                1 for v in circumstances.values() if v and v != "" and v != 0 and v is not False
             )
             score += min(filled_fields * 0.02, 0.15)
 

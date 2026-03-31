@@ -169,19 +169,25 @@ class PersonalCircumstancesAgent(BaseAgent):
         Returns:
             Wrapped output with PersonalCircumstancesOutput data and confidence.
         """
-        self.log_action("personal_circumstances_started", {
-            "has_background": bool(input_data.get("client_background")),
-            "has_charges": bool(input_data.get("charges")),
-        })
+        self.log_action(
+            "personal_circumstances_started",
+            {
+                "has_background": bool(input_data.get("client_background")),
+                "has_charges": bool(input_data.get("charges")),
+            },
+        )
 
         background = input_data.get("client_background", {})
         charges = input_data.get("charges", [])
         priorities = input_data.get("client_priorities", [])
 
         if not background:
-            self.log_action("personal_circumstances_skipped", {
-                "reason": "no_background_data",
-            })
+            self.log_action(
+                "personal_circumstances_skipped",
+                {
+                    "reason": "no_background_data",
+                },
+            )
             empty_output = PersonalCircumstancesOutput(
                 bail_profile=BailProfile(),
                 mitigation_narrative=MitigationNarrative(
@@ -208,16 +214,19 @@ class PersonalCircumstancesAgent(BaseAgent):
         output = self._structure_output(result)
         confidence = self._calculate_confidence(output, background)
 
-        self.log_action("personal_circumstances_completed", {
-            "community_ties": len(output.bail_profile.community_ties),
-            "diversion_programs_checked": len(output.diversion_eligibility),
-            "diversion_eligible_count": sum(
-                1 for d in output.diversion_eligibility if d.eligible
-            ),
-            "treatment_needs": len(output.treatment_needs),
-            "first_offender_eligible": output.first_offender_eligible,
-            "confidence": confidence,
-        })
+        self.log_action(
+            "personal_circumstances_completed",
+            {
+                "community_ties": len(output.bail_profile.community_ties),
+                "diversion_programs_checked": len(output.diversion_eligibility),
+                "diversion_eligible_count": sum(
+                    1 for d in output.diversion_eligibility if d.eligible
+                ),
+                "treatment_needs": len(output.treatment_needs),
+                "first_offender_eligible": output.first_offender_eligible,
+                "confidence": confidence,
+            },
+        )
 
         return self.wrap_output(output.model_dump(), confidence=confidence)
 
@@ -228,25 +237,29 @@ class PersonalCircumstancesAgent(BaseAgent):
         community_ties = []
         for ct in bail_raw.get("community_ties", []):
             try:
-                community_ties.append(CommunityTie(
-                    category=ct.get("category", "RESIDENCE"),
-                    description=ct.get("description", ""),
-                    strength=ct.get("strength", "MODERATE"),
-                    verifiable=ct.get("verifiable", False),
-                    verification_source=ct.get("verification_source", ""),
-                ))
+                community_ties.append(
+                    CommunityTie(
+                        category=ct.get("category", "RESIDENCE"),
+                        description=ct.get("description", ""),
+                        strength=ct.get("strength", "MODERATE"),
+                        verifiable=ct.get("verifiable", False),
+                        verification_source=ct.get("verification_source", ""),
+                    )
+                )
             except Exception as e:
                 logger.warning("Skipping malformed community tie: %s", e)
 
         flight_risk_factors = []
         for frf in bail_raw.get("flight_risk_factors", []):
             try:
-                flight_risk_factors.append(FlightRiskFactor(
-                    factor=frf.get("factor", ""),
-                    direction=frf.get("direction", "INCREASES_RISK"),
-                    weight=frf.get("weight", "MEDIUM"),
-                    notes=frf.get("notes", ""),
-                ))
+                flight_risk_factors.append(
+                    FlightRiskFactor(
+                        factor=frf.get("factor", ""),
+                        direction=frf.get("direction", "INCREASES_RISK"),
+                        weight=frf.get("weight", "MEDIUM"),
+                        notes=frf.get("notes", ""),
+                    )
+                )
             except Exception as e:
                 logger.warning("Skipping malformed flight risk factor: %s", e)
 
@@ -273,14 +286,16 @@ class PersonalCircumstancesAgent(BaseAgent):
         diversion = []
         for d in raw.get("diversion_eligibility", []):
             try:
-                diversion.append(DiversionEligibility(
-                    program=d.get("program", "PRETRIAL_DIVERSION"),
-                    eligible=d.get("eligible", False),
-                    basis=d.get("basis", ""),
-                    georgia_authority=d.get("georgia_authority", ""),
-                    conditions=d.get("conditions", []),
-                    notes=d.get("notes", ""),
-                ))
+                diversion.append(
+                    DiversionEligibility(
+                        program=d.get("program", "PRETRIAL_DIVERSION"),
+                        eligible=d.get("eligible", False),
+                        basis=d.get("basis", ""),
+                        georgia_authority=d.get("georgia_authority", ""),
+                        conditions=d.get("conditions", []),
+                        notes=d.get("notes", ""),
+                    )
+                )
             except Exception as e:
                 logger.warning("Skipping malformed diversion entry: %s", e)
 
@@ -288,13 +303,15 @@ class PersonalCircumstancesAgent(BaseAgent):
         treatment_needs = []
         for tn in raw.get("treatment_needs", []):
             try:
-                treatment_needs.append(TreatmentNeed(
-                    category=tn.get("category", "MEDICAL"),
-                    description=tn.get("description", ""),
-                    urgency=tn.get("urgency", "ONGOING"),
-                    relevant_to_diversion=tn.get("relevant_to_diversion", False),
-                    relevant_to_mitigation=tn.get("relevant_to_mitigation", False),
-                ))
+                treatment_needs.append(
+                    TreatmentNeed(
+                        category=tn.get("category", "MEDICAL"),
+                        description=tn.get("description", ""),
+                        urgency=tn.get("urgency", "ONGOING"),
+                        relevant_to_diversion=tn.get("relevant_to_diversion", False),
+                        relevant_to_mitigation=tn.get("relevant_to_mitigation", False),
+                    )
+                )
             except Exception as e:
                 logger.warning("Skipping malformed treatment need: %s", e)
 
@@ -320,8 +337,7 @@ class PersonalCircumstancesAgent(BaseAgent):
         # Background data richness
         if background:
             filled = sum(
-                1 for v in background.values()
-                if v and v != "" and v != 0 and v is not False
+                1 for v in background.values() if v and v != "" and v != 0 and v is not False
             )
             score += min(filled * 0.03, 0.2)
 

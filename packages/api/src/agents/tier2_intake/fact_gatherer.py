@@ -155,10 +155,13 @@ class FactGathererAgent(BaseAgent):
         Returns:
             Wrapped output with FactGatheringOutput data and confidence score.
         """
-        self.log_action("fact_gathering_started", {
-            "has_charges": bool(input_data.get("charges")),
-            "has_responses": bool(input_data.get("client_responses")),
-        })
+        self.log_action(
+            "fact_gathering_started",
+            {
+                "has_charges": bool(input_data.get("charges")),
+                "has_responses": bool(input_data.get("client_responses")),
+            },
+        )
 
         # Extract inputs with defaults
         questions = input_data.get("targeted_questions", [])
@@ -202,15 +205,18 @@ class FactGathererAgent(BaseAgent):
         # Calculate confidence based on element coverage
         confidence = self._calculate_confidence(output)
 
-        self.log_action("fact_gathering_completed", {
-            "timeline_events": len(output.timeline),
-            "witnesses": len(output.witnesses),
-            "evidence_items": len(output.evidence_inventory),
-            "elements_covered": sum(1 for ec in output.element_coverage if ec.covered),
-            "elements_total": len(output.element_coverage),
-            "follow_ups_needed": len(output.follow_up_questions),
-            "confidence": confidence,
-        })
+        self.log_action(
+            "fact_gathering_completed",
+            {
+                "timeline_events": len(output.timeline),
+                "witnesses": len(output.witnesses),
+                "evidence_items": len(output.evidence_inventory),
+                "elements_covered": sum(1 for ec in output.element_coverage if ec.covered),
+                "elements_total": len(output.element_coverage),
+                "follow_ups_needed": len(output.follow_up_questions),
+                "confidence": confidence,
+            },
+        )
 
         return self.wrap_output(output.model_dump(), confidence=confidence)
 
@@ -221,72 +227,82 @@ class FactGathererAgent(BaseAgent):
         timeline = []
         for evt in raw.get("timeline", []):
             try:
-                timeline.append(TimelineEvent(
-                    id=evt.get("id", f"evt_{uuid.uuid4().hex[:6]}"),
-                    timestamp_description=evt.get("timestamp_description", ""),
-                    event=evt.get("event", ""),
-                    source=evt.get("source", "CLIENT_STATEMENT"),
-                    confidence=evt.get("confidence", "LOW"),
-                    related_charge_ids=evt.get("related_charge_ids", []),
-                    source_message_ids=evt.get("source_message_ids", []),
-                ))
+                timeline.append(
+                    TimelineEvent(
+                        id=evt.get("id", f"evt_{uuid.uuid4().hex[:6]}"),
+                        timestamp_description=evt.get("timestamp_description", ""),
+                        event=evt.get("event", ""),
+                        source=evt.get("source", "CLIENT_STATEMENT"),
+                        confidence=evt.get("confidence", "LOW"),
+                        related_charge_ids=evt.get("related_charge_ids", []),
+                        source_message_ids=evt.get("source_message_ids", []),
+                    )
+                )
             except Exception as e:
                 logger.warning("Skipping malformed timeline event: %s", e)
 
         witnesses = []
         for wit in raw.get("witnesses", []):
             try:
-                witnesses.append(WitnessRecord(
-                    id=wit.get("id", f"wit_{uuid.uuid4().hex[:6]}"),
-                    name=wit.get("name", ""),
-                    contact_info=wit.get("contact_info", ""),
-                    relationship=wit.get("relationship", "OTHER"),
-                    observed_events=wit.get("observed_events", []),
-                    favorable=wit.get("favorable"),
-                    notes=wit.get("notes", ""),
-                ))
+                witnesses.append(
+                    WitnessRecord(
+                        id=wit.get("id", f"wit_{uuid.uuid4().hex[:6]}"),
+                        name=wit.get("name", ""),
+                        contact_info=wit.get("contact_info", ""),
+                        relationship=wit.get("relationship", "OTHER"),
+                        observed_events=wit.get("observed_events", []),
+                        favorable=wit.get("favorable"),
+                        notes=wit.get("notes", ""),
+                    )
+                )
             except Exception as e:
                 logger.warning("Skipping malformed witness record: %s", e)
 
         evidence = []
         for evi in raw.get("evidence_inventory", []):
             try:
-                evidence.append(EvidenceItem(
-                    id=evi.get("id", f"evi_{uuid.uuid4().hex[:6]}"),
-                    description=evi.get("description", ""),
-                    evidence_type=evi.get("evidence_type", "PHYSICAL"),
-                    location=evi.get("location", ""),
-                    preservation_status=evi.get("preservation_status", "UNKNOWN"),
-                    relevance=evi.get("relevance", "SUPPLEMENTARY"),
-                    chain_of_custody_concern=evi.get("chain_of_custody_concern", False),
-                    notes=evi.get("notes", ""),
-                ))
+                evidence.append(
+                    EvidenceItem(
+                        id=evi.get("id", f"evi_{uuid.uuid4().hex[:6]}"),
+                        description=evi.get("description", ""),
+                        evidence_type=evi.get("evidence_type", "PHYSICAL"),
+                        location=evi.get("location", ""),
+                        preservation_status=evi.get("preservation_status", "UNKNOWN"),
+                        relevance=evi.get("relevance", "SUPPLEMENTARY"),
+                        chain_of_custody_concern=evi.get("chain_of_custody_concern", False),
+                        notes=evi.get("notes", ""),
+                    )
+                )
             except Exception as e:
                 logger.warning("Skipping malformed evidence item: %s", e)
 
         element_coverage = []
         for ec in raw.get("element_coverage", []):
             try:
-                element_coverage.append(ElementCoverage(
-                    charge_id=ec.get("charge_id", ""),
-                    element=ec.get("element", ""),
-                    covered=ec.get("covered", False),
-                    client_position=ec.get("client_position", "NO_RESPONSE"),
-                    confidence=ec.get("confidence", "LOW"),
-                    gaps=ec.get("gaps", []),
-                ))
+                element_coverage.append(
+                    ElementCoverage(
+                        charge_id=ec.get("charge_id", ""),
+                        element=ec.get("element", ""),
+                        covered=ec.get("covered", False),
+                        client_position=ec.get("client_position", "NO_RESPONSE"),
+                        confidence=ec.get("confidence", "LOW"),
+                        gaps=ec.get("gaps", []),
+                    )
+                )
             except Exception as e:
                 logger.warning("Skipping malformed element coverage: %s", e)
 
         follow_ups = []
         for fq in raw.get("follow_up_questions", []):
             try:
-                follow_ups.append(TargetedQuestion(
-                    question=fq.get("question", ""),
-                    relevant_charge_id=fq.get("relevant_charge_id", ""),
-                    relevant_element=fq.get("relevant_element", ""),
-                    priority=fq.get("priority", "SHOULD_ASK"),
-                ))
+                follow_ups.append(
+                    TargetedQuestion(
+                        question=fq.get("question", ""),
+                        relevant_charge_id=fq.get("relevant_charge_id", ""),
+                        relevant_element=fq.get("relevant_element", ""),
+                        priority=fq.get("priority", "SHOULD_ASK"),
+                    )
+                )
             except Exception as e:
                 logger.warning("Skipping malformed follow-up question: %s", e)
 

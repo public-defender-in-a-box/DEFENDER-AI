@@ -447,7 +447,10 @@ _PERSONAL_GOLDEN_RESPONSE = {
                 "notes": "",
             },
         ],
-        "danger_to_community_factors": ["No violent history", "Charge is possession, not distribution"],
+        "danger_to_community_factors": [
+            "No violent history",
+            "Charge is possession, not distribution",
+        ],
         "recommendation": "OR",
         "recommended_conditions": ["Drug testing", "Check-in with pretrial services"],
         "georgia_bail_schedule_note": "Fulton County bail schedule: possession < 1 oz cocaine — standard bond",
@@ -532,18 +535,33 @@ class TestFactGathererAgent:
         """Test fact gathering with realistic Georgia cocaine possession case."""
         agent = FactGathererAgent()
 
-        with patch("src.agents.tier2_intake.fact_gatherer.call_llm", new_callable=AsyncMock) as mock_llm:
+        with patch(
+            "src.agents.tier2_intake.fact_gatherer.call_llm", new_callable=AsyncMock
+        ) as mock_llm:
             mock_llm.return_value = _FACT_GATHERER_GOLDEN_RESPONSE
 
-            result = await agent.run({
-                "targeted_questions": [
-                    {"question": "What were you doing near Peachtree St?", "relevant_charge_id": "charge_001", "relevant_element": "knowingly possessed", "priority": "MUST_ASK"},
-                ],
-                "client_responses": {"msg_001": "I was walking from a bar. I didn't drop anything."},
-                "charges": [
-                    {"charge_id": "charge_001", "offense_title": "Possession of Cocaine", "elements": ["knowingly possessed", "controlled substance (cocaine)"]},
-                ],
-            })
+            result = await agent.run(
+                {
+                    "targeted_questions": [
+                        {
+                            "question": "What were you doing near Peachtree St?",
+                            "relevant_charge_id": "charge_001",
+                            "relevant_element": "knowingly possessed",
+                            "priority": "MUST_ASK",
+                        },
+                    ],
+                    "client_responses": {
+                        "msg_001": "I was walking from a bar. I didn't drop anything."
+                    },
+                    "charges": [
+                        {
+                            "charge_id": "charge_001",
+                            "offense_title": "Possession of Cocaine",
+                            "elements": ["knowingly possessed", "controlled substance (cocaine)"],
+                        },
+                    ],
+                }
+            )
 
         assert result["confidence"] is not None
         data = result["data"]
@@ -556,8 +574,7 @@ class TestFactGathererAgent:
 
         # Verify element coverage detail
         possession_element = next(
-            ec for ec in data["element_coverage"]
-            if ec["element"] == "knowingly possessed"
+            ec for ec in data["element_coverage"] if ec["element"] == "knowingly possessed"
         )
         assert possession_element["client_position"] == "DENIES"
 
@@ -580,9 +597,27 @@ class TestFactGathererAgent:
         # Test with high coverage
         output = FactGatheringOutput(
             timeline=[
-                TimelineEvent(id="e1", timestamp_description="t", event="e", source="CLIENT_STATEMENT", confidence="HIGH"),
-                TimelineEvent(id="e2", timestamp_description="t", event="e", source="CLIENT_STATEMENT", confidence="HIGH"),
-                TimelineEvent(id="e3", timestamp_description="t", event="e", source="CLIENT_STATEMENT", confidence="HIGH"),
+                TimelineEvent(
+                    id="e1",
+                    timestamp_description="t",
+                    event="e",
+                    source="CLIENT_STATEMENT",
+                    confidence="HIGH",
+                ),
+                TimelineEvent(
+                    id="e2",
+                    timestamp_description="t",
+                    event="e",
+                    source="CLIENT_STATEMENT",
+                    confidence="HIGH",
+                ),
+                TimelineEvent(
+                    id="e3",
+                    timestamp_description="t",
+                    event="e",
+                    source="CLIENT_STATEMENT",
+                    confidence="HIGH",
+                ),
             ],
             witnesses=[
                 WitnessRecord(id="w1", relationship="EYEWITNESS"),
@@ -605,19 +640,27 @@ class TestCollateralConsequencesAgent:
         """Test collateral analysis with cocaine possession case."""
         agent = CollateralConsequencesAgent()
 
-        with patch("src.agents.tier2_intake.collateral_agent.call_llm", new_callable=AsyncMock) as mock_llm:
+        with patch(
+            "src.agents.tier2_intake.collateral_agent.call_llm", new_callable=AsyncMock
+        ) as mock_llm:
             mock_llm.return_value = _COLLATERAL_GOLDEN_RESPONSE
 
-            result = await agent.run({
-                "charges": [
-                    {"charge_id": "charge_001", "offense_title": "Possession of Cocaine", "statute_section": "O.C.G.A. § 16-13-30(a)"},
-                ],
-                "personal_circumstances": {
-                    "citizenship": "US Citizen",
-                    "employment_status": "Employed",
-                },
-                "client_priorities": ["keeping my job", "avoiding jail"],
-            })
+            result = await agent.run(
+                {
+                    "charges": [
+                        {
+                            "charge_id": "charge_001",
+                            "offense_title": "Possession of Cocaine",
+                            "statute_section": "O.C.G.A. § 16-13-30(a)",
+                        },
+                    ],
+                    "personal_circumstances": {
+                        "citizenship": "US Citizen",
+                        "employment_status": "Employed",
+                    },
+                    "client_priorities": ["keeping my job", "avoiding jail"],
+                }
+            )
 
         data = result["data"]
         assert len(data["consequences"]) == 3
@@ -655,12 +698,18 @@ class TestCollateralConsequencesAgent:
             "advisory_summary": "Client is LPR. Cocaine possession triggers deportation.",
         }
 
-        with patch("src.agents.tier2_intake.collateral_agent.call_llm", new_callable=AsyncMock) as mock_llm:
+        with patch(
+            "src.agents.tier2_intake.collateral_agent.call_llm", new_callable=AsyncMock
+        ) as mock_llm:
             mock_llm.return_value = padilla_response
-            result = await agent.run({
-                "charges": [{"charge_id": "charge_001", "offense_title": "Possession of Cocaine"}],
-                "personal_circumstances": {"citizenship": "LPR"},
-            })
+            result = await agent.run(
+                {
+                    "charges": [
+                        {"charge_id": "charge_001", "offense_title": "Possession of Cocaine"}
+                    ],
+                    "personal_circumstances": {"citizenship": "LPR"},
+                }
+            )
 
         data = result["data"]
         assert data["padilla_assessment"]["advisory_required"] is True
@@ -675,25 +724,29 @@ class TestPersonalCircumstancesAgent:
         """Test personal circumstances with cocaine possession case."""
         agent = PersonalCircumstancesAgent()
 
-        with patch("src.agents.tier2_intake.personal_circumstances.call_llm", new_callable=AsyncMock) as mock_llm:
+        with patch(
+            "src.agents.tier2_intake.personal_circumstances.call_llm", new_callable=AsyncMock
+        ) as mock_llm:
             mock_llm.return_value = _PERSONAL_GOLDEN_RESPONSE
 
-            result = await agent.run({
-                "client_background": {
-                    "citizenship": "US Citizen",
-                    "employment_status": "Employed — line cook, 3 years",
-                    "housing_status": "Rents apartment, East Atlanta, 2 years",
-                    "dependents": 0,
-                    "mental_health_history": None,
-                    "substance_abuse_history": "Denies regular use",
-                    "military_service": False,
-                    "education_status": "High school diploma",
-                    "prior_record_self_report": "No prior arrests",
-                },
-                "charges": [
-                    {"charge_id": "charge_001", "offense_title": "Possession of Cocaine"},
-                ],
-            })
+            result = await agent.run(
+                {
+                    "client_background": {
+                        "citizenship": "US Citizen",
+                        "employment_status": "Employed — line cook, 3 years",
+                        "housing_status": "Rents apartment, East Atlanta, 2 years",
+                        "dependents": 0,
+                        "mental_health_history": None,
+                        "substance_abuse_history": "Denies regular use",
+                        "military_service": False,
+                        "education_status": "High school diploma",
+                        "prior_record_self_report": "No prior arrests",
+                    },
+                    "charges": [
+                        {"charge_id": "charge_001", "offense_title": "Possession of Cocaine"},
+                    ],
+                }
+            )
 
         data = result["data"]
 
@@ -736,7 +789,9 @@ class TestPersonalCircumstancesAgent:
                 community_ties=[
                     CommunityTie(category="EMPLOYMENT", description="Employed", strength="STRONG"),
                     CommunityTie(category="FAMILY", description="Family nearby", strength="STRONG"),
-                    CommunityTie(category="RESIDENCE", description="Stable housing", strength="MODERATE"),
+                    CommunityTie(
+                        category="RESIDENCE", description="Stable housing", strength="MODERATE"
+                    ),
                 ],
             ),
             mitigation_narrative=MitigationNarrative(
@@ -804,9 +859,17 @@ class TestIntakeSubAgentsNode:
             "error": None,
         }
 
-        with patch("src.agents.tier2_intake.fact_gatherer.call_llm", new_callable=AsyncMock) as mock_fact, \
-             patch("src.agents.tier2_intake.collateral_agent.call_llm", new_callable=AsyncMock) as mock_coll, \
-             patch("src.agents.tier2_intake.personal_circumstances.call_llm", new_callable=AsyncMock) as mock_pers:
+        with (
+            patch(
+                "src.agents.tier2_intake.fact_gatherer.call_llm", new_callable=AsyncMock
+            ) as mock_fact,
+            patch(
+                "src.agents.tier2_intake.collateral_agent.call_llm", new_callable=AsyncMock
+            ) as mock_coll,
+            patch(
+                "src.agents.tier2_intake.personal_circumstances.call_llm", new_callable=AsyncMock
+            ) as mock_pers,
+        ):
 
             mock_fact.return_value = _FACT_GATHERER_GOLDEN_RESPONSE
             mock_coll.return_value = _COLLATERAL_GOLDEN_RESPONSE

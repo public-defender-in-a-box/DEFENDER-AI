@@ -279,9 +279,7 @@ async def intake_sub_agents_node(state: GraphState) -> GraphState:
             )
 
             ethics_flags = ethics_result.get("flags", [])
-            p1_flags = [
-                f for f in ethics_flags if f.get("priority") == "CRITICAL"
-            ]
+            p1_flags = [f for f in ethics_flags if f.get("priority") == "CRITICAL"]
 
             if p1_flags or ethics_result.get("blocked", False):
                 logger.warning(
@@ -297,9 +295,7 @@ async def intake_sub_agents_node(state: GraphState) -> GraphState:
             else:
                 state["case_state"][state_field] = result
                 if ethics_flags:
-                    state["case_state"].setdefault("ethical_flags", []).extend(
-                        ethics_flags
-                    )
+                    state["case_state"].setdefault("ethical_flags", []).extend(ethics_flags)
 
     except Exception as e:
         logger.error("Intake sub-agents node failed: %s", e)
