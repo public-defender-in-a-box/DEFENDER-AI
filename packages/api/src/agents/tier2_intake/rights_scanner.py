@@ -328,31 +328,36 @@ class RightsScannerAgent(BaseAgent):
             )
 
         # ---- Pass 1: Document-level extraction ----
-        self.log_action("rights_scan_pass1_started", {
-            "has_arrest_report": bool(arrest_report),
-            "has_officer_conduct": bool(officer_conduct),
-            "charge_count": len(charges),
-        })
+        self.log_action(
+            "rights_scan_pass1_started",
+            {
+                "has_arrest_report": bool(arrest_report),
+                "has_officer_conduct": bool(officer_conduct),
+                "charge_count": len(charges),
+            },
+        )
 
         pass1_result = await self._run_pass1(
             arrest_report, officer_conduct, charges, pre_interview_flags
         )
-        self.log_action("rights_scan_pass1_completed", {
-            "violations_found": len(pass1_result.get("violations", [])),
-        })
+        self.log_action(
+            "rights_scan_pass1_completed",
+            {
+                "violations_found": len(pass1_result.get("violations", [])),
+            },
+        )
 
         # ---- Pass 2: Client narrative cross-reference ----
         if has_client_narrative:
             self.log_action("rights_scan_pass2_started")
-            pass2_result = await self._run_pass2(
-                pass1_result, client_narrative, arrest_report
+            pass2_result = await self._run_pass2(pass1_result, client_narrative, arrest_report)
+            self.log_action(
+                "rights_scan_pass2_completed",
+                {
+                    "additional_violations": len(pass2_result.get("additional_violations", [])),
+                    "discrepancies": len(pass2_result.get("discrepancy_report", [])),
+                },
             )
-            self.log_action("rights_scan_pass2_completed", {
-                "additional_violations": len(
-                    pass2_result.get("additional_violations", [])
-                ),
-                "discrepancies": len(pass2_result.get("discrepancy_report", [])),
-            })
         else:
             pass2_result = {}
 
@@ -362,12 +367,15 @@ class RightsScannerAgent(BaseAgent):
         # Compute overall confidence
         overall_confidence = self._compute_confidence(merged)
 
-        self.log_action("rights_scan_completed", {
-            "total_violations": merged["total_violations_found"],
-            "critical_violations": merged["critical_violations"],
-            "suppression_score": merged["suppression_viability"].get("score", 0),
-            "overall_confidence": overall_confidence,
-        })
+        self.log_action(
+            "rights_scan_completed",
+            {
+                "total_violations": merged["total_violations_found"],
+                "critical_violations": merged["critical_violations"],
+                "suppression_score": merged["suppression_viability"].get("score", 0),
+                "overall_confidence": overall_confidence,
+            },
+        )
 
         return self.wrap_output(merged, confidence=overall_confidence)
 
@@ -380,7 +388,9 @@ class RightsScannerAgent(BaseAgent):
     ) -> dict[str, Any]:
         """Pass 1: Analyze official documents for rights violations."""
         charges_text = json.dumps(charges, indent=2) if charges else "No charges provided"
-        flags_text = "\n".join(f"- {f}" for f in pre_interview_flags) if pre_interview_flags else "None"
+        flags_text = (
+            "\n".join(f"- {f}" for f in pre_interview_flags) if pre_interview_flags else "None"
+        )
 
         prompt = _PASS1_PROMPT.format(
             arrest_report=arrest_report or "Not provided",
@@ -400,15 +410,9 @@ class RightsScannerAgent(BaseAgent):
     ) -> dict[str, Any]:
         """Pass 2: Cross-reference client narrative with official record."""
         prompt = _PASS2_PROMPT.format(
-            pass1_violations=json.dumps(
-                pass1_result.get("violations", []), indent=2
-            ),
-            pass1_miranda=json.dumps(
-                pass1_result.get("miranda_analysis", {}), indent=2
-            ),
-            pass1_search=json.dumps(
-                pass1_result.get("search_analysis", {}), indent=2
-            ),
+            pass1_violations=json.dumps(pass1_result.get("violations", []), indent=2),
+            pass1_miranda=json.dumps(pass1_result.get("miranda_analysis", {}), indent=2),
+            pass1_search=json.dumps(pass1_result.get("search_analysis", {}), indent=2),
             client_narrative=client_narrative,
             arrest_report=arrest_report or "Not provided",
         )
@@ -428,11 +432,7 @@ class RightsScannerAgent(BaseAgent):
 
         # Count by severity
         total = len(all_violations)
-        critical = sum(
-            1
-            for v in all_violations
-            if v.get("severity") in _CRITICAL_SEVERITIES
-        )
+        critical = sum(1 for v in all_violations if v.get("severity") in _CRITICAL_SEVERITIES)
 
         # Miranda: merge pass2 updates into pass1 analysis
         miranda = dict(pass1.get("miranda_analysis", {}))

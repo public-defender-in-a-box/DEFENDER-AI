@@ -271,9 +271,7 @@ class TestDisclosureTrackingAgent:
                     "confidence": 0.85,
                 }
             ],
-            "exculpatory_highlights": [
-                "Arrest report p.8: 'witness stated she was not certain'"
-            ],
+            "exculpatory_highlights": ["Arrest report p.8: 'witness stated she was not certain'"],
         }
 
         mock_checklist = [
@@ -367,17 +365,19 @@ class TestDisclosureTrackingAgent:
                 mock_drafts,
             ]
 
-            result = await agent.run({
-                "case_id": "test_001",
-                "discovery_documents": [{"id": "doc-1", "name": "Arrest Report"}],
-                "charges": "Possession of cocaine, O.C.G.A. § 16-13-30(a)",
-                "case_type": "drug_possession",
-                "intake_facts": "Client denies knowledge of substance",
-                "officer_roster": [{"name": "Officer James Smith", "badge": "4521"}],
-                "jurisdiction": "GA",
-                "case_timeline": {"arraignment": "2024-01-20"},
-                "prior_requests": [],
-            })
+            result = await agent.run(
+                {
+                    "case_id": "test_001",
+                    "discovery_documents": [{"id": "doc-1", "name": "Arrest Report"}],
+                    "charges": "Possession of cocaine, O.C.G.A. § 16-13-30(a)",
+                    "case_type": "drug_possession",
+                    "intake_facts": "Client denies knowledge of substance",
+                    "officer_roster": [{"name": "Officer James Smith", "badge": "4521"}],
+                    "jurisdiction": "GA",
+                    "case_timeline": {"arraignment": "2024-01-20"},
+                    "prior_requests": [],
+                }
+            )
 
         # Verify wrapped structure
         assert "data" in result
@@ -477,11 +477,13 @@ class TestOrchestratorIntegration:
         from src.agents.tier0.orchestrator import OrchestratorAgent
 
         orchestrator = OrchestratorAgent()
-        await orchestrator.run({
-            "case_id": "test_merge",
-            "attorney_id": "atty_001",
-            "jurisdiction": "GA",
-        })
+        await orchestrator.run(
+            {
+                "case_id": "test_merge",
+                "attorney_id": "atty_001",
+                "jurisdiction": "GA",
+            }
+        )
 
         # Advance through pipeline to required stage
         orchestrator._case_state.advance_stage(PipelineStage.CHARGES_PROCESSING)
