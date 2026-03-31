@@ -23,9 +23,7 @@ BAIL_REDUCTION_TEMPLATE: dict = {
             "heading": "ARGUMENT",
             "subsections": [
                 {
-                    "heading": (
-                        "I. THE CURRENT BAIL IS EXCESSIVE UNDER O.C.G.A. § 17-6-1"
-                    ),
+                    "heading": ("I. THE CURRENT BAIL IS EXCESSIVE UNDER O.C.G.A. § 17-6-1"),
                     "instructions": (
                         "Apply the statutory factors from O.C.G.A. § 17-6-1 and the "
                         "Ayala factors. Address each: (1) ability to pay; (2) nature "
@@ -35,9 +33,7 @@ BAIL_REDUCTION_TEMPLATE: dict = {
                     ),
                 },
                 {
-                    "heading": (
-                        "II. PERSONAL CIRCUMSTANCES SUPPORT REDUCED BAIL"
-                    ),
+                    "heading": ("II. PERSONAL CIRCUMSTANCES SUPPORT REDUCED BAIL"),
                     "instructions": (
                         "Argue personal circumstances — employment, family "
                         "obligations, health — support release or reduced bail. "
@@ -46,8 +42,7 @@ BAIL_REDUCTION_TEMPLATE: dict = {
                 },
                 {
                     "heading": (
-                        "III. CONDITIONS OF RELEASE CAN ADEQUATELY PROTECT "
-                        "THE COMMUNITY"
+                        "III. CONDITIONS OF RELEASE CAN ADEQUATELY PROTECT " "THE COMMUNITY"
                     ),
                     "instructions": (
                         "Propose specific alternative conditions (GPS monitoring, "

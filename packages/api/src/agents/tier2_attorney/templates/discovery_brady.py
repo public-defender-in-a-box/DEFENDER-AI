@@ -79,9 +79,6 @@ DISCOVERY_BRADY_TEMPLATE: dict = {
             "Uniform Superior Court Rule 31.1: Requires disclosure of evidence "
             "within the State's possession or control."
         ),
-        (
-            "Demand should be filed within 10 days of arraignment per O.C.G.A. "
-            "§ 17-16-2."
-        ),
+        ("Demand should be filed within 10 days of arraignment per O.C.G.A. " "§ 17-16-2."),
     ],
 }

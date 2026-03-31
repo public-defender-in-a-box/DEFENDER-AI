@@ -23,10 +23,7 @@ LIMINE_TEMPLATE: dict = {
             "heading": "ARGUMENT",
             "subsections": [
                 {
-                    "heading": (
-                        "I. THE EVIDENCE SHOULD BE EXCLUDED UNDER O.C.G.A. "
-                        "§ 24-4-403"
-                    ),
+                    "heading": ("I. THE EVIDENCE SHOULD BE EXCLUDED UNDER O.C.G.A. " "§ 24-4-403"),
                     "instructions": (
                         "Argue that the probative value of the evidence is "
                         "substantially outweighed by the danger of unfair "

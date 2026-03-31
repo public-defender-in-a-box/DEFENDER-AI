@@ -112,8 +112,7 @@ async def test_suppress_motion_structure(
     output_data = result["data"]
 
     suppress_motions = [
-        m for m in output_data["motions"]
-        if m["motion_type"] == MotionType.SUPPRESS.value
+        m for m in output_data["motions"] if m["motion_type"] == MotionType.SUPPRESS.value
     ]
     assert len(suppress_motions) == 1
 
@@ -150,9 +149,9 @@ async def test_confidence_scoring(
         assert dm.confidence_level in ("HIGH", "MEDIUM", "LOW")
 
         # With full data, confidence should be at least MEDIUM
-        assert dm.confidence >= 0.6, (
-            f"{dm.motion_type} has unexpectedly low confidence: {dm.confidence}"
-        )
+        assert (
+            dm.confidence >= 0.6
+        ), f"{dm.motion_type} has unexpectedly low confidence: {dm.confidence}"
 
 
 @pytest.mark.asyncio
@@ -175,10 +174,14 @@ async def test_missing_upstream_data_flag(
 
     # Check reason mentions missing rights violations
     suppress_skip = next(
-        m for m in output_data["motions_not_generated"]
+        m
+        for m in output_data["motions_not_generated"]
         if m["motion_type"] == MotionType.SUPPRESS.value
     )
-    assert "rights violation" in suppress_skip["reason"].lower() or "no rights" in suppress_skip["reason"].lower()
+    assert (
+        "rights violation" in suppress_skip["reason"].lower()
+        or "no rights" in suppress_skip["reason"].lower()
+    )
 
 
 @pytest.mark.asyncio
@@ -194,8 +197,7 @@ async def test_unverified_citation_flag(
 
     # The suppress motion mock has an [UNVERIFIED] citation (State v. Allen)
     suppress_motions = [
-        m for m in output_data["motions"]
-        if m["motion_type"] == MotionType.SUPPRESS.value
+        m for m in output_data["motions"] if m["motion_type"] == MotionType.SUPPRESS.value
     ]
     assert len(suppress_motions) == 1
 

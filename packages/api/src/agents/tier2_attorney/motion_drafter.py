@@ -218,34 +218,41 @@ class MotionDrafterAgent(BaseAgent):
 
         # Suppression: if rights violations with viability >= 0.6
         viable_violations = [
-            v for v in rights_violations
-            if v.get("suppression_viability", 0) >= 0.6
+            v for v in rights_violations if v.get("suppression_viability", 0) >= 0.6
         ]
         if viable_violations:
-            applicable.append((
-                MotionType.SUPPRESS,
-                f"{len(viable_violations)} rights violation(s) with viable suppression",
-            ))
+            applicable.append(
+                (
+                    MotionType.SUPPRESS,
+                    f"{len(viable_violations)} rights violation(s) with viable suppression",
+                )
+            )
 
         # Discovery / Brady: always generated
-        applicable.append((
-            MotionType.DISCOVERY_BRADY,
-            "Discovery demand generated for every case",
-        ))
+        applicable.append(
+            (
+                MotionType.DISCOVERY_BRADY,
+                "Discovery demand generated for every case",
+            )
+        )
 
         # Bail reduction: if client is in custody or bail/bond issues
         personal = intake_summary.get("personal_circumstances", {})
         in_custody = (
             personal.get("custody_status") == "IN_CUSTODY"
             or intake_summary.get("in_custody", False)
-            or any("bail" in str(f).lower() or "bond" in str(f).lower()
-                   for f in intake_summary.get("inconsistencies", []))
+            or any(
+                "bail" in str(f).lower() or "bond" in str(f).lower()
+                for f in intake_summary.get("inconsistencies", [])
+            )
         )
         if in_custody:
-            applicable.append((
-                MotionType.BAIL_REDUCTION,
-                "Client is in custody or bail/bond issues identified",
-            ))
+            applicable.append(
+                (
+                    MotionType.BAIL_REDUCTION,
+                    "Client is in custody or bail/bond issues identified",
+                )
+            )
 
         # Dismiss: charging defects, speedy trial, or statute of limitations
         procedural_flags = []
@@ -253,35 +260,45 @@ class MotionDrafterAgent(BaseAgent):
             procedural_flags.extend(charge.get("procedural_requirements", []))
             procedural_flags.extend(charge.get("procedural_flags", []))
         statutes = legal_research.get("statutes", [])
-        has_dismissal_basis = (
-            any("speedy" in str(f).lower() or "limitation" in str(f).lower()
-                or "defect" in str(f).lower() or "deficient" in str(f).lower()
-                for f in procedural_flags)
-            or any("speedy" in str(s).lower() or "limitation" in str(s).lower()
-                   for s in statutes)
-        )
+        has_dismissal_basis = any(
+            "speedy" in str(f).lower()
+            or "limitation" in str(f).lower()
+            or "defect" in str(f).lower()
+            or "deficient" in str(f).lower()
+            for f in procedural_flags
+        ) or any("speedy" in str(s).lower() or "limitation" in str(s).lower() for s in statutes)
         if has_dismissal_basis:
-            applicable.append((
-                MotionType.DISMISS,
-                "Procedural or limitations basis for dismissal identified",
-            ))
+            applicable.append(
+                (
+                    MotionType.DISMISS,
+                    "Procedural or limitations basis for dismissal identified",
+                )
+            )
 
         # Limine: evidentiary issues flagged
         case_law = legal_research.get("case_law", []) or legal_research.get("authorities", [])
-        has_evidentiary_issues = (
-            any("evidentiary" in str(f).lower() or "prejudic" in str(f).lower()
-                or "character" in str(f).lower() or "hearsay" in str(f).lower()
-                or "prior bad" in str(f).lower() or "404" in str(f).lower()
-                for f in procedural_flags)
-            or any("limine" in str(c).lower() or "403" in str(c).lower()
-                   or "404" in str(c).lower() or "prejudic" in str(c).lower()
-                   for c in case_law)
+        has_evidentiary_issues = any(
+            "evidentiary" in str(f).lower()
+            or "prejudic" in str(f).lower()
+            or "character" in str(f).lower()
+            or "hearsay" in str(f).lower()
+            or "prior bad" in str(f).lower()
+            or "404" in str(f).lower()
+            for f in procedural_flags
+        ) or any(
+            "limine" in str(c).lower()
+            or "403" in str(c).lower()
+            or "404" in str(c).lower()
+            or "prejudic" in str(c).lower()
+            for c in case_law
         )
         if has_evidentiary_issues:
-            applicable.append((
-                MotionType.LIMINE,
-                "Evidentiary issues identified for pretrial exclusion",
-            ))
+            applicable.append(
+                (
+                    MotionType.LIMINE,
+                    "Evidentiary issues identified for pretrial exclusion",
+                )
+            )
 
         return applicable
 
@@ -299,12 +316,13 @@ class MotionDrafterAgent(BaseAgent):
         all_types = {mt.value for mt in MotionType}
         for mt_value in all_types - applicable_types:
             if mt_value == MotionType.SUPPRESS.value:
-                viable = [v for v in rights_violations
-                          if v.get("suppression_viability", 0) >= 0.6]
+                viable = [v for v in rights_violations if v.get("suppression_viability", 0) >= 0.6]
                 if not rights_violations:
                     reason = "No rights violations identified by upstream agents"
                 elif not viable:
-                    reason = "Rights violations present but suppression viability below 0.6 threshold"
+                    reason = (
+                        "Rights violations present but suppression viability below 0.6 threshold"
+                    )
                 else:
                     reason = "Unknown"
             elif mt_value == MotionType.BAIL_REDUCTION.value:
@@ -342,14 +360,15 @@ class MotionDrafterAgent(BaseAgent):
 
         if motion_type == MotionType.SUPPRESS:
             base["rights_violations"] = [
-                v for v in rights_violations
-                if v.get("suppression_viability", 0) >= 0.6
+                v for v in rights_violations if v.get("suppression_viability", 0) >= 0.6
             ]
             base["client_account"] = intake_summary.get("client_account", "")
             base["fact_timeline"] = intake_summary.get("fact_timeline", [])
             base["facts"] = intake_summary.get("facts", [])
             base["inconsistencies"] = intake_summary.get("inconsistencies", [])
-            base["case_law"] = legal_research.get("case_law", []) or legal_research.get("authorities", [])
+            base["case_law"] = legal_research.get("case_law", []) or legal_research.get(
+                "authorities", []
+            )
             base["statutes"] = legal_research.get("statutes", [])
 
         elif motion_type == MotionType.BAIL_REDUCTION:
@@ -358,7 +377,9 @@ class MotionDrafterAgent(BaseAgent):
             base["facts"] = intake_summary.get("facts", [])
 
         elif motion_type == MotionType.DISMISS:
-            base["case_law"] = legal_research.get("case_law", []) or legal_research.get("authorities", [])
+            base["case_law"] = legal_research.get("case_law", []) or legal_research.get(
+                "authorities", []
+            )
             base["statutes"] = legal_research.get("statutes", [])
             base["procedural_flags"] = []
             for charge in charges:
@@ -367,10 +388,14 @@ class MotionDrafterAgent(BaseAgent):
 
         elif motion_type == MotionType.DISCOVERY_BRADY:
             base["brady_analysis"] = brady_analysis
-            base["case_law"] = legal_research.get("case_law", []) or legal_research.get("authorities", [])
+            base["case_law"] = legal_research.get("case_law", []) or legal_research.get(
+                "authorities", []
+            )
 
         elif motion_type == MotionType.LIMINE:
-            base["case_law"] = legal_research.get("case_law", []) or legal_research.get("authorities", [])
+            base["case_law"] = legal_research.get("case_law", []) or legal_research.get(
+                "authorities", []
+            )
             base["client_account"] = intake_summary.get("client_account", "")
             base["facts"] = intake_summary.get("facts", [])
             base["inconsistencies"] = intake_summary.get("inconsistencies", [])
@@ -461,9 +486,7 @@ class MotionDrafterAgent(BaseAgent):
         for section in draft.get("sections", []):
             all_citations.extend(section.get("citations", []))
         if all_citations:
-            verified_count = sum(
-                1 for c in all_citations if "[VERIFIED]" in c.upper()
-            )
+            verified_count = sum(1 for c in all_citations if "[VERIFIED]" in c.upper())
             verification_ratio = verified_count / len(all_citations)
             score += 0.1 * (verification_ratio - 0.5)  # +0.05 if all verified, -0.05 if none
 
@@ -509,7 +532,9 @@ class MotionDrafterAgent(BaseAgent):
 
         # Missing upstream data
         missing: list[str] = []
-        if not intake_summary or (not intake_summary.get("facts") and not intake_summary.get("client_account")):
+        if not intake_summary or (
+            not intake_summary.get("facts") and not intake_summary.get("client_account")
+        ):
             missing.append("intake_summary")
         case_law = legal_research.get("case_law", []) or legal_research.get("authorities", [])
         if not case_law:
@@ -547,15 +572,11 @@ class MotionDrafterAgent(BaseAgent):
         low_confidence = [m for m in motions if m.confidence < 0.6]
         if low_confidence:
             types = ", ".join(m.motion_type.value for m in low_confidence)
-            warnings.append(
-                f"LOW confidence on {len(low_confidence)} motion(s): {types}"
-            )
+            warnings.append(f"LOW confidence on {len(low_confidence)} motion(s): {types}")
 
         if motions_not_generated:
             types = ", ".join(m["motion_type"] for m in motions_not_generated)
-            warnings.append(
-                f"{len(motions_not_generated)} motion type(s) not generated: {types}"
-            )
+            warnings.append(f"{len(motions_not_generated)} motion type(s) not generated: {types}")
 
         if not motions:
             warnings.append("No motions were generated — review case data completeness")

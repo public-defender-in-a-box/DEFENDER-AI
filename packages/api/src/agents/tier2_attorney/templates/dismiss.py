@@ -7,8 +7,7 @@ DISMISS_TEMPLATE: dict = {
         {
             "heading": "INTRODUCTION",
             "instructions": (
-                "Identify the charge(s) to be dismissed and the legal basis. "
-                "2-3 sentences."
+                "Identify the charge(s) to be dismissed and the legal basis. " "2-3 sentences."
             ),
         },
         {
