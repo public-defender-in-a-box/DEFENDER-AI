@@ -120,9 +120,7 @@ class ResearchOrchestrator(BaseAgent):
             "statutes_output": statutes_result.get("data", {}),
         }
 
-        verification_result = await self._run_agent_safe(
-            self._verifier, verification_input
-        )
+        verification_result = await self._run_agent_safe(self._verifier, verification_input)
 
         cost_tracker.finish_agent("citation_verification")
 

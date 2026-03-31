@@ -234,17 +234,13 @@ class GAStatutesAgent(BaseAgent):
         charged_offenses = await self._analyze_statutes(
             charges_json, enhancements_json, defendant_json
         )
-        diversion_options = await self._analyze_diversion(
-            charges_json, defendant_json
-        )
+        diversion_options = await self._analyze_diversion(charges_json, defendant_json)
         procedural_data = await self._analyze_procedural(charges_json)
 
         output = {
             "charged_offenses": charged_offenses,
             "diversion_options": diversion_options,
-            "procedural_requirements": procedural_data.get(
-                "procedural_requirements", []
-            ),
+            "procedural_requirements": procedural_data.get("procedural_requirements", []),
             "recent_amendments": procedural_data.get("recent_amendments", []),
         }
 

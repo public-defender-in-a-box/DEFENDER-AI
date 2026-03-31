@@ -33,8 +33,7 @@ class AgentCostEntry:
     @property
     def llm_cost(self) -> float:
         return (
-            self.input_tokens * _INPUT_COST_PER_TOKEN
-            + self.output_tokens * _OUTPUT_COST_PER_TOKEN
+            self.input_tokens * _INPUT_COST_PER_TOKEN + self.output_tokens * _OUTPUT_COST_PER_TOKEN
         )
 
     @property

@@ -205,9 +205,7 @@ class ResearchCostReport(BaseModel):
 class CombinedResearchOutput(BaseModel):
     """Combined output from all research agents after verification."""
 
-    ga_criminal_case_law: GACriminalCaseLawOutput = Field(
-        default_factory=GACriminalCaseLawOutput
-    )
+    ga_criminal_case_law: GACriminalCaseLawOutput = Field(default_factory=GACriminalCaseLawOutput)
     constitutional_case_law: ConstitutionalCaseLawOutput = Field(
         default_factory=ConstitutionalCaseLawOutput
     )

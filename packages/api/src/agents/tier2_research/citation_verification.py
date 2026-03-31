@@ -70,9 +70,7 @@ Return JSON:
 }}"""
 
 # Regex patterns for citation formats
-_GA_CASE_PATTERN = re.compile(
-    r"\d+\s+Ga\.?\s*(?:App\.?)?\s*\d+"  # e.g., "300 Ga. App. 123"
-)
+_GA_CASE_PATTERN = re.compile(r"\d+\s+Ga\.?\s*(?:App\.?)?\s*\d+")  # e.g., "300 Ga. App. 123"
 _FEDERAL_CASE_PATTERN = re.compile(
     r"\d+\s+(?:U\.?S\.?|S\.?\s*Ct\.?|F\.?\s*(?:2d|3d|4th)?|L\.?\s*Ed\.?\s*2d)\s*\d+"
 )

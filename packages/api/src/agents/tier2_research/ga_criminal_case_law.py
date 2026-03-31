@@ -170,17 +170,13 @@ class GACriminalCaseLawAgent(BaseAgent):
             "ga_case_law_research_completed",
             {
                 "issues_researched": len(research_results),
-                "total_cases_found": sum(
-                    len(r.get("cases_found", [])) for r in research_results
-                ),
+                "total_cases_found": sum(len(r.get("cases_found", [])) for r in research_results),
                 "courtlistener_calls": self._cl_client.call_count,
             },
         )
 
         # Compute confidence based on how many issues got results
-        issues_with_results = sum(
-            1 for r in research_results if r.get("cases_found")
-        )
+        issues_with_results = sum(1 for r in research_results if r.get("cases_found"))
         if not research_results:
             confidence = 0.3
         elif issues_with_results == len(research_results):
@@ -231,9 +227,7 @@ class GACriminalCaseLawAgent(BaseAgent):
         legal_issues: list[dict[str, str]],
     ) -> list[dict[str, Any]]:
         """Use LLM to generate targeted search queries for each legal issue."""
-        issues_text = "\n".join(
-            f"- [{i['source']}] {i['issue']}" for i in legal_issues
-        )
+        issues_text = "\n".join(f"- [{i['source']}] {i['issue']}" for i in legal_issues)
 
         try:
             result = await call_llm(

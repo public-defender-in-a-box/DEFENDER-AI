@@ -126,8 +126,7 @@ def williams_factual_allegations() -> list[dict]:
         {
             "id": "fa_005",
             "allegation": (
-                "Defendant was read Miranda rights and invoked his right to "
-                "remain silent."
+                "Defendant was read Miranda rights and invoked his right to " "remain silent."
             ),
             "related_charge_ids": ["williams_001", "williams_002"],
             "related_elements": ["Miranda"],
@@ -551,11 +550,13 @@ class TestCitationVerificationAgent:
     @pytest.mark.asyncio
     async def test_run_empty_input(self):
         agent = CitationVerificationAgent()
-        result = await agent.run({
-            "ga_case_law_output": {},
-            "constitutional_output": {},
-            "statutes_output": {},
-        })
+        result = await agent.run(
+            {
+                "ga_case_law_output": {},
+                "constitutional_output": {},
+                "statutes_output": {},
+            }
+        )
 
         assert result["data"]["summary"]["total_citations"] == 0
 
