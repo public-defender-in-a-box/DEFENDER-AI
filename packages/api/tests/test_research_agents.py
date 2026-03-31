@@ -10,6 +10,8 @@ Test case:
   suspicion for pat-down, fruit of poisonous tree, Miranda invocation
 """
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
 
 from src.agents.tier2_research.ga_criminal_case_law import GACriminalCaseLawAgent
@@ -451,8 +453,32 @@ class TestConstitutionalCaseLawAgent:
 
     @pytest.mark.asyncio
     async def test_run_covers_constitutional_issues(self, williams_full_input):
-        agent = ConstitutionalCaseLawAgent()
-        result = await agent.run(williams_full_input)
+        mock_identify_response = {
+            "constitutional_issues": [
+                {
+                    "amendment": "4th Amendment",
+                    "issue": "Unreasonable search and seizure",
+                    "legal_standard": "Terry stop requires reasonable suspicion",
+                    "foundational_cases": [
+                        {"case_name": "Terry v. Ohio", "citation": "392 U.S. 1 (1968)"}
+                    ],
+                    "circuit_queries": ["Terry stop reasonable suspicion"],
+                    "state_queries": ["Georgia Terry stop"],
+                }
+            ]
+        }
+        mock_framework_response = {
+            "doctrinal_framework": "Terry stop analysis",
+            "application": "Officers lacked articulable suspicion",
+        }
+
+        with patch(
+            "src.agents.tier2_research.constitutional_case_law.call_llm",
+            new_callable=AsyncMock,
+            side_effect=[mock_identify_response, mock_framework_response],
+        ):
+            agent = ConstitutionalCaseLawAgent()
+            result = await agent.run(williams_full_input)
 
         research = result["data"]["constitutional_research"]
         assert len(research) > 0
@@ -490,8 +516,41 @@ class TestGAStatutesAgent:
 
     @pytest.mark.asyncio
     async def test_run_analyzes_both_charges(self, williams_full_input):
-        agent = GAStatutesAgent()
-        result = await agent.run(williams_full_input)
+        mock_statutes_response = {
+            "charged_offenses": [
+                {
+                    "statute": "O.C.G.A. § 16-13-30(j)(1)",
+                    "offense": "Possession of Controlled Substance",
+                    "elements": ["knowing possession", "Schedule IV substance"],
+                    "penalty_range": "1-3 years",
+                },
+                {
+                    "statute": "O.C.G.A. § 16-10-24(a)",
+                    "offense": "Obstruction of Law Enforcement",
+                    "elements": ["knowingly and willfully", "obstructs officer"],
+                    "penalty_range": "1-5 years",
+                },
+            ]
+        }
+        mock_diversion_response = {
+            "diversion_options": [{"program": "Drug Court", "eligibility": "First-time offender"}]
+        }
+        mock_procedural_response = {
+            "procedural_requirements": [{"requirement": "Arraignment within 72 hours"}],
+            "recent_amendments": [],
+        }
+
+        with patch(
+            "src.agents.tier2_research.ga_statutes_agent.call_llm",
+            new_callable=AsyncMock,
+            side_effect=[
+                mock_statutes_response,
+                mock_diversion_response,
+                mock_procedural_response,
+            ],
+        ):
+            agent = GAStatutesAgent()
+            result = await agent.run(williams_full_input)
 
         offenses = result["data"]["charged_offenses"]
         # Should have analysis for both possession and obstruction
