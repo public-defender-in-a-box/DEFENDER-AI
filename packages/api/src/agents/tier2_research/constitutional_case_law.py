@@ -13,7 +13,7 @@ import logging
 from typing import Any
 
 from src.agents.base_agent import BaseAgent
-from src.services.courtlistener import CourtListenerClient, FEDERAL_COURTS, GEORGIA_COURTS
+from src.services.courtlistener import CourtListenerClient, GEORGIA_COURTS
 from src.services.llm_service import call_llm
 
 logger = logging.getLogger(__name__)

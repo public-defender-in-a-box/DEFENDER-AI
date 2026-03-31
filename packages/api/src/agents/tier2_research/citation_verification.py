@@ -7,7 +7,6 @@ verification tasks using CourtListener API lookups and LLM analysis.
 
 from __future__ import annotations
 
-import json
 import logging
 import re
 from typing import Any
