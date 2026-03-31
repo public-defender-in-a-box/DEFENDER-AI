@@ -8,6 +8,8 @@ Covers all five enforcement pillars:
 5. Hallucination Detection
 """
 
+from __future__ import annotations
+
 import pytest
 
 from src.agents.cross_cutting.ethics_monitor import EthicsMonitorAgent
