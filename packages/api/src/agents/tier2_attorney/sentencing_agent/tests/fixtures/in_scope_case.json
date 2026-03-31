@@ -1,0 +1,64 @@
+{
+  "case_id": "test-001",
+  "case_phase": "pretrial",
+  "jurisdiction_context": {
+    "state": "georgia",
+    "county": "Clarke",
+    "judicial_circuit": "Western",
+    "court_name": "Clarke County State Court",
+    "court_type": "state"
+  },
+  "offense_details": {
+    "statute": "O.C.G.A. § 16-13-30(j)(1)",
+    "charge_description": "Simple possession of marijuana, less than one ounce",
+    "conduct_type": "simple_possession",
+    "substance_name": "marijuana",
+    "quantity_text": "0.5 ounces",
+    "quantity_value": 0.5,
+    "quantity_unit": "ounces",
+    "degree": "misdemeanor",
+    "enhancements": [],
+    "statutory_max_jail": 365,
+    "statutory_max_fine": 1000.0,
+    "elements": ["possession", "marijuana", "less than one ounce"]
+  },
+  "criminal_history": {
+    "verification_status": "verified",
+    "has_prior_convictions": false,
+    "prior_drug_offenses": 0,
+    "prior_felonies": 0,
+    "prior_misdemeanors": 0,
+    "prior_conditional_discharge_used": false,
+    "prior_out_of_state_or_federal_drug_convictions": 0,
+    "details": []
+  },
+  "personal_circumstances": {
+    "age": 22,
+    "employment_status": "employed",
+    "employment_details": "Works as a warehouse associate at a local distribution center",
+    "employer_supportive": true,
+    "housing_stable": true,
+    "housing_details": "Rents apartment with roommate",
+    "dependents": [],
+    "caregiving_obligations": null,
+    "education_status": "some_college",
+    "education_details": "Attending community college part-time",
+    "mental_health_history": null,
+    "substance_use_history": null,
+    "treatment_history": null,
+    "currently_in_treatment": false,
+    "military_service": false,
+    "military_details": null,
+    "community_ties": "Active member of local community center",
+    "character_references_available": true,
+    "additional_mitigating_factors": [
+      "First-time offender who has expressed responsibility and willingness to comply with any conditions"
+    ],
+    "structured_facts": []
+  },
+  "pretrial_custody_days": 0,
+  "conviction_charges": [],
+  "plea_offer_terms": null,
+  "attorney_notes": null,
+  "program_availability_overrides": {}
+}

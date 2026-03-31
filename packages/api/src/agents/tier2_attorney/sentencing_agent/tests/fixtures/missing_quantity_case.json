@@ -1,0 +1,35 @@
+{
+  "case_id": "test-mq-001",
+  "case_phase": "pretrial",
+  "jurisdiction_context": {
+    "state": "georgia",
+    "county": "Clarke",
+    "judicial_circuit": "Western"
+  },
+  "offense_details": {
+    "statute": "O.C.G.A. § 16-13-30(j)(1)",
+    "charge_description": "Simple possession of marijuana",
+    "conduct_type": "simple_possession",
+    "substance_name": "marijuana",
+    "quantity_text": null,
+    "quantity_value": null,
+    "quantity_unit": "unknown",
+    "enhancements": [],
+    "elements": []
+  },
+  "criminal_history": {
+    "verification_status": "verified",
+    "has_prior_convictions": false,
+    "prior_drug_offenses": 0,
+    "prior_felonies": 0,
+    "prior_misdemeanors": 0,
+    "prior_conditional_discharge_used": false,
+    "prior_out_of_state_or_federal_drug_convictions": 0,
+    "details": []
+  },
+  "personal_circumstances": {
+    "structured_facts": []
+  },
+  "pretrial_custody_days": 0,
+  "program_availability_overrides": {}
+}

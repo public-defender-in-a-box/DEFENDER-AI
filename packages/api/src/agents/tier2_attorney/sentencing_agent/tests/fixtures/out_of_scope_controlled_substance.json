@@ -1,0 +1,37 @@
+{
+  "case_id": "test-oos-001",
+  "case_phase": "pretrial",
+  "jurisdiction_context": {
+    "state": "georgia",
+    "county": "Fulton",
+    "judicial_circuit": "Atlanta"
+  },
+  "offense_details": {
+    "statute": "O.C.G.A. § 16-13-30(a)",
+    "charge_description": "Possession of a Schedule II controlled substance (cocaine)",
+    "conduct_type": "simple_possession",
+    "substance_name": "cocaine",
+    "quantity_text": "2 grams",
+    "quantity_value": 2.0,
+    "quantity_unit": "grams",
+    "enhancements": [],
+    "elements": ["possession", "cocaine", "Schedule II"]
+  },
+  "criminal_history": {
+    "verification_status": "verified",
+    "has_prior_convictions": false,
+    "prior_drug_offenses": 0,
+    "prior_felonies": 0,
+    "prior_misdemeanors": 0,
+    "prior_conditional_discharge_used": false,
+    "prior_out_of_state_or_federal_drug_convictions": 0,
+    "details": []
+  },
+  "personal_circumstances": {
+    "age": 30,
+    "employment_status": "employed",
+    "structured_facts": []
+  },
+  "pretrial_custody_days": 0,
+  "program_availability_overrides": {}
+}

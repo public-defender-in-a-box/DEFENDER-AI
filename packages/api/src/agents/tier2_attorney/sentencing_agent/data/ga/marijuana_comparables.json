@@ -1,0 +1,176 @@
+[
+  {
+    "comparable_id": "comp-001",
+    "county": "Clarke",
+    "judicial_circuit": "Western",
+    "offense": "Simple possession of marijuana, less than one ounce",
+    "statute": "O.C.G.A. § 16-13-2(b)",
+    "defendant_profile": {
+      "prior_record_level": "none",
+      "age_range": "18-25",
+      "employment_status": "employed",
+      "substance_use_noted": false,
+      "mitigating_factors_present": ["employment", "no_prior_record"]
+    },
+    "disposition": {
+      "type": "conditional_discharge",
+      "jail_days_imposed": 0,
+      "jail_days_suspended": 0,
+      "probation_months": 12,
+      "fine_amount": 0.0,
+      "community_service_hours": 40,
+      "conditions": ["Drug testing", "No new arrests"],
+      "outcome_description": "Conditional discharge granted; 12 months probation with drug testing and community service"
+    },
+    "date": "2025",
+    "source": "verified_corpus",
+    "verification_status": "confirmed",
+    "source_ref": "Western Circuit PD office case data (anonymized)",
+    "notes": "First-time offender with stable employment. No contested facts."
+  },
+  {
+    "comparable_id": "comp-002",
+    "county": "Fulton",
+    "judicial_circuit": "Atlanta",
+    "offense": "Simple possession of marijuana, less than one ounce",
+    "statute": "O.C.G.A. § 16-13-2(b)",
+    "defendant_profile": {
+      "prior_record_level": "one_prior_misdemeanor",
+      "age_range": "26-35",
+      "employment_status": "unemployed",
+      "substance_use_noted": true,
+      "mitigating_factors_present": ["treatment_engagement", "caregiving"]
+    },
+    "disposition": {
+      "type": "plea_with_probation",
+      "jail_days_imposed": 30,
+      "jail_days_suspended": 30,
+      "probation_months": 12,
+      "fine_amount": 500.0,
+      "community_service_hours": 0,
+      "conditions": ["Substance abuse treatment", "Drug testing", "No new arrests"],
+      "outcome_description": "Guilty plea; 30 days jail suspended, 12 months probation conditioned on treatment completion"
+    },
+    "date": "2024",
+    "source": "verified_corpus",
+    "verification_status": "confirmed",
+    "source_ref": "Fulton County PD office case data (anonymized)",
+    "notes": "Prior misdemeanor on record made conditional discharge unavailable. Treatment engagement was a significant mitigating factor."
+  },
+  {
+    "comparable_id": "comp-003",
+    "county": "Chatham",
+    "judicial_circuit": "Eastern",
+    "offense": "Simple possession of marijuana, less than one ounce",
+    "statute": "O.C.G.A. § 16-13-2(b)",
+    "defendant_profile": {
+      "prior_record_level": "none",
+      "age_range": "18-25",
+      "employment_status": "student",
+      "substance_use_noted": false,
+      "mitigating_factors_present": ["education", "no_prior_record", "community_ties"]
+    },
+    "disposition": {
+      "type": "pretrial_diversion",
+      "jail_days_imposed": 0,
+      "jail_days_suspended": 0,
+      "probation_months": 6,
+      "fine_amount": 0.0,
+      "community_service_hours": 24,
+      "conditions": ["Drug testing", "No new arrests", "Community service"],
+      "outcome_description": "Pretrial diversion; charges dismissed after 6 months compliance"
+    },
+    "date": "2025",
+    "source": "verified_corpus",
+    "verification_status": "confirmed",
+    "source_ref": "Eastern Circuit PD office case data (anonymized)",
+    "notes": "Student defendant with strong community ties. Prosecutor agreed to pretrial diversion."
+  },
+  {
+    "comparable_id": "comp-004",
+    "county": "Clarke",
+    "judicial_circuit": "Western",
+    "offense": "Simple possession of marijuana, less than one ounce",
+    "statute": "O.C.G.A. § 16-13-2(b)",
+    "defendant_profile": {
+      "prior_record_level": "one_prior_misdemeanor",
+      "age_range": "26-35",
+      "employment_status": "employed",
+      "substance_use_noted": false,
+      "mitigating_factors_present": ["employment", "housing_stability"]
+    },
+    "disposition": {
+      "type": "plea_with_fine",
+      "jail_days_imposed": 0,
+      "jail_days_suspended": 0,
+      "probation_months": 6,
+      "fine_amount": 750.0,
+      "community_service_hours": 0,
+      "conditions": ["No new arrests", "Drug testing"],
+      "outcome_description": "Guilty plea; $750 fine with 6 months probation, no jail time imposed"
+    },
+    "date": "2025",
+    "source": "verified_corpus",
+    "verification_status": "confirmed",
+    "source_ref": "Western Circuit PD office case data (anonymized)",
+    "notes": "Prior misdemeanor disqualified conditional discharge. Stable employment and housing weighed in favor of fine-only with probation."
+  },
+  {
+    "comparable_id": "comp-005",
+    "county": "Fulton",
+    "judicial_circuit": "Atlanta",
+    "offense": "Simple possession of marijuana, less than one ounce",
+    "statute": "O.C.G.A. § 16-13-2(b)",
+    "defendant_profile": {
+      "prior_record_level": "none",
+      "age_range": "18-25",
+      "employment_status": "employed",
+      "substance_use_noted": false,
+      "mitigating_factors_present": ["employment", "no_prior_record", "education"]
+    },
+    "disposition": {
+      "type": "conditional_discharge",
+      "jail_days_imposed": 0,
+      "jail_days_suspended": 0,
+      "probation_months": 12,
+      "fine_amount": 0.0,
+      "community_service_hours": 30,
+      "conditions": ["Drug testing", "No new arrests", "Community service"],
+      "outcome_description": "Conditional discharge granted; 12 months probation with community service and drug testing"
+    },
+    "date": "2024",
+    "source": "verified_corpus",
+    "verification_status": "confirmed",
+    "source_ref": "Fulton County PD office case data (anonymized)",
+    "notes": "First-time offender, employed, attending college part-time."
+  },
+  {
+    "comparable_id": "comp-006",
+    "county": "Clarke",
+    "judicial_circuit": "Western",
+    "offense": "Simple possession of marijuana, less than one ounce",
+    "statute": "O.C.G.A. § 16-13-2(b)",
+    "defendant_profile": {
+      "prior_record_level": "none",
+      "age_range": "26-35",
+      "employment_status": "employed",
+      "substance_use_noted": false,
+      "mitigating_factors_present": ["employment", "no_prior_record", "caregiving", "community_ties"]
+    },
+    "disposition": {
+      "type": "pretrial_diversion",
+      "jail_days_imposed": 0,
+      "jail_days_suspended": 0,
+      "probation_months": 6,
+      "fine_amount": 0.0,
+      "community_service_hours": 20,
+      "conditions": ["Drug testing", "No new arrests", "Community service"],
+      "outcome_description": "Pretrial diversion; charges dismissed after 6 months compliance"
+    },
+    "date": "2025",
+    "source": "verified_corpus",
+    "verification_status": "confirmed",
+    "source_ref": "Western Circuit PD office case data (anonymized)",
+    "notes": "Primary caregiver for minor child. Prosecutor agreed to diversion."
+  }
+]

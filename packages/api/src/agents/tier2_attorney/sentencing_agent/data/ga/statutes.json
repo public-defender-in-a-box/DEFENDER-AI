@@ -1,0 +1,191 @@
+{
+  "O.C.G.A. § 16-13-30(j)(1)": {
+    "citation": "O.C.G.A. § 16-13-30(j)(1)",
+    "title": "Possession of marijuana — One ounce or less",
+    "summary": "It is unlawful for any person to possess marijuana. Possession of one ounce or less of marijuana is punishable as a misdemeanor under O.C.G.A. § 16-13-2(b).",
+    "penalty": null,
+    "related_statutes": [
+      "O.C.G.A. § 16-13-2(b)",
+      "O.C.G.A. § 16-13-2(a)",
+      "O.C.G.A. § 16-13-30(j)(2)"
+    ],
+    "notes": [
+      "Defines the offense of marijuana possession",
+      "Punishment for one ounce or less is set by § 16-13-2(b)",
+      "Quantities exceeding one ounce are charged under § 16-13-30(j)(2) as a felony"
+    ],
+    "source": "Official Code of Georgia Annotated",
+    "last_verified": "2026-01-15"
+  },
+  "O.C.G.A. § 16-13-2(b)": {
+    "citation": "O.C.G.A. § 16-13-2(b)",
+    "title": "Possession of one ounce or less of marijuana — Misdemeanor punishment",
+    "summary": "Any person who is charged with possession of one ounce or less of marijuana shall be guilty of a misdemeanor and, upon conviction thereof, shall be punished by imprisonment for not more than 12 months or a fine not to exceed $1,000.00, or both.",
+    "penalty": {
+      "max_jail_days": 365,
+      "max_fine": 1000.00,
+      "mandatory_minimum_days": null,
+      "probation_eligible": true,
+      "suspended_sentence_eligible": true
+    },
+    "related_statutes": [
+      "O.C.G.A. § 16-13-30(j)(1)",
+      "O.C.G.A. § 16-13-2(a)",
+      "O.C.G.A. § 17-10-3",
+      "O.C.G.A. § 42-8-34"
+    ],
+    "notes": [
+      "Applies only when quantity is one ounce or less",
+      "Quantities exceeding one ounce are charged under § 16-13-30(j)(2) as a felony"
+    ],
+    "source": "Official Code of Georgia Annotated",
+    "last_verified": "2026-01-15"
+  },
+  "O.C.G.A. § 16-13-2(a)": {
+    "citation": "O.C.G.A. § 16-13-2(a)",
+    "title": "Conditional discharge for first offense possession",
+    "summary": "Upon a first drug offense where the person has not been previously convicted of any drug offense, the court may — without entering a judgment of guilt — defer proceedings and place the person on probation for a period not to exceed three years upon reasonable conditions.",
+    "penalty": null,
+    "related_statutes": [
+      "O.C.G.A. § 16-13-2(b)",
+      "O.C.G.A. § 35-3-37"
+    ],
+    "notes": [
+      "One-time availability — cannot be used more than once",
+      "Probation period up to three years, not a fixed duration",
+      "Successful completion may allow record restriction under § 35-3-37",
+      "Record relief is not automatic — requires sealing/restriction review",
+      "Court has full discretion on whether to grant conditional discharge"
+    ],
+    "source": "Official Code of Georgia Annotated",
+    "last_verified": "2026-01-15"
+  },
+  "O.C.G.A. § 17-10-3": {
+    "citation": "O.C.G.A. § 17-10-3",
+    "title": "Punishment for misdemeanors generally",
+    "summary": "Except as otherwise provided by law, every crime declared to be a misdemeanor shall be punished by a fine not to exceed $1,000.00 or by confinement in the county or other jail for a total term not to exceed 12 months, or both. The court may allow the sentence to be served on weekends if the sentence is six months or less.",
+    "penalty": {
+      "max_jail_days": 365,
+      "max_fine": 1000.00,
+      "mandatory_minimum_days": null,
+      "probation_eligible": true,
+      "suspended_sentence_eligible": true
+    },
+    "related_statutes": [
+      "O.C.G.A. § 42-8-34",
+      "O.C.G.A. § 16-13-2(b)"
+    ],
+    "notes": [
+      "Weekend confinement is only available if the imposed sentence is six months or less",
+      "General misdemeanor punishment framework; specific statutes may override"
+    ],
+    "source": "Official Code of Georgia Annotated",
+    "last_verified": "2026-01-15"
+  },
+  "O.C.G.A. § 42-8-34": {
+    "citation": "O.C.G.A. § 42-8-34",
+    "title": "Probation and suspended sentences for misdemeanor offenses",
+    "summary": "The court may suspend the execution of a sentence or place the defendant on probation under such rules and regulations as the court deems proper. A special monthly fee of $25.00 applies when probation or a suspended sentence is imposed for violations of § 16-13-2(b).",
+    "penalty": null,
+    "related_statutes": [
+      "O.C.G.A. § 17-10-3",
+      "O.C.G.A. § 16-13-2(b)"
+    ],
+    "notes": [
+      "Probation or suspension remains discretionary",
+      "Special $25.00 monthly fee under § 42-8-34(d)(2) applies to marijuana misdemeanor probation/suspended sentences",
+      "Court sets terms and conditions of probation"
+    ],
+    "source": "Official Code of Georgia Annotated",
+    "last_verified": "2026-01-15"
+  },
+  "O.C.G.A. § 15-18-80 et seq.": {
+    "citation": "O.C.G.A. § 15-18-80 et seq.",
+    "title": "Pretrial diversion programs",
+    "summary": "Authorizes the establishment of pretrial intervention and diversion programs. Each judicial circuit's district attorney may operate a pretrial diversion program allowing eligible defendants to participate in community supervision and conditions in exchange for charge dismissal upon successful completion.",
+    "penalty": null,
+    "related_statutes": [
+      "O.C.G.A. § 16-13-2(a)"
+    ],
+    "notes": [
+      "Availability varies by judicial circuit — controlled by the local district attorney",
+      "Typically requires prosecutor agreement for enrollment",
+      "Successful completion results in charge dismissal by the prosecutor",
+      "May include community service, drug testing, supervision fees, and other conditions",
+      "Not available in all circuits or for all offenses"
+    ],
+    "source": "Official Code of Georgia Annotated",
+    "last_verified": "2026-01-15"
+  },
+  "O.C.G.A. § 15-1-15": {
+    "citation": "O.C.G.A. § 15-1-15",
+    "title": "Drug court divisions",
+    "summary": "Authorizes the creation of drug court divisions within superior, state, juvenile, and municipal courts. Drug courts provide judicially supervised treatment-oriented alternatives for eligible substance-related offenses. Successful completion may allow dismissal or charge reduction depending on program posture.",
+    "penalty": null,
+    "related_statutes": [
+      "O.C.G.A. § 15-1-18"
+    ],
+    "notes": [
+      "Availability varies by county and judicial circuit",
+      "Program acceptance and conditions determined locally",
+      "May accept misdemeanor marijuana cases depending on local program rules",
+      "Operates as an accountability court under the umbrella of O.C.G.A. § 15-1-18",
+      "Completion outcomes vary: before judgment may allow dismissal; after sentence may support modification"
+    ],
+    "source": "Official Code of Georgia Annotated",
+    "last_verified": "2026-01-15"
+  },
+  "O.C.G.A. § 15-1-17": {
+    "citation": "O.C.G.A. § 15-1-17",
+    "title": "Veterans court divisions",
+    "summary": "Authorizes the creation of veterans court divisions within superior, state, juvenile, and municipal courts. Veterans courts serve eligible veterans and active-duty military members with treatment-oriented, judicially supervised alternatives.",
+    "penalty": null,
+    "related_statutes": [
+      "O.C.G.A. § 15-1-18"
+    ],
+    "notes": [
+      "Requires military service — veteran or active-duty status",
+      "Availability varies by county and judicial circuit",
+      "Operates as an accountability court under the umbrella of O.C.G.A. § 15-1-18",
+      "Completion outcomes vary — may include dismissal, reduction, or sentence modification",
+      "Typically includes VA treatment engagement, mentorship, drug testing, and regular court appearances"
+    ],
+    "source": "Official Code of Georgia Annotated",
+    "last_verified": "2026-01-15"
+  },
+  "O.C.G.A. § 15-1-18": {
+    "citation": "O.C.G.A. § 15-1-18",
+    "title": "Council of Accountability Court Judges — Accountability courts umbrella",
+    "summary": "Creates the Council of Accountability Court Judges and defines accountability courts as an umbrella category encompassing drug courts, veterans courts, mental health courts, DUI courts, and family treatment courts. This statute provides the certification and governance framework rather than creating a standalone diversion program.",
+    "penalty": null,
+    "related_statutes": [
+      "O.C.G.A. § 15-1-15",
+      "O.C.G.A. § 15-1-17"
+    ],
+    "notes": [
+      "Umbrella/governance statute, not a standalone diversion program",
+      "Individual accountability court types are authorized by their own statutes (§ 15-1-15, § 15-1-17, etc.)",
+      "Council provides certification standards, best practices, and oversight",
+      "Used for directory/context purposes in this agent, not as a direct diversion option"
+    ],
+    "source": "Official Code of Georgia Annotated",
+    "last_verified": "2026-01-15"
+  },
+  "O.C.G.A. § 35-3-37": {
+    "citation": "O.C.G.A. § 35-3-37",
+    "title": "Record restriction and sealing",
+    "summary": "Provides for the restriction (sealing) of criminal history records under specified conditions. After successful completion of conditional discharge under § 16-13-2(a), a person may petition for record restriction. Record restriction is not automatic and requires a separate legal process.",
+    "penalty": null,
+    "related_statutes": [
+      "O.C.G.A. § 16-13-2(a)"
+    ],
+    "notes": [
+      "Record restriction is not automatic — requires petition and court review",
+      "Applies after successful completion of conditional discharge or other qualifying dispositions",
+      "Restricted records are not destroyed but are shielded from general public access",
+      "Certain agencies retain access to restricted records"
+    ],
+    "source": "Official Code of Georgia Annotated",
+    "last_verified": "2026-01-15"
+  }
+}
