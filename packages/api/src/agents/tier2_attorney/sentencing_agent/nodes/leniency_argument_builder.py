@@ -12,7 +12,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from ..config import TEMPERATURE_ANALYSIS
+from src.services.llm_service import call_llm
+
 from ..models.outputs import DepartureArgument, NodeAuditRecord
 from ..models.state import SentencingGraphState
 
@@ -128,15 +129,15 @@ def _build_deterministic_candidates(state: SentencingGraphState) -> list[dict[st
     return candidates
 
 
-def _build_llm_prompt(state: SentencingGraphState, candidates: list[dict[str, Any]]) -> str:
-    """Build the LLM prompt for leniency argument explanation."""
+def _build_llm_prompt(state: SentencingGraphState, candidates: list[dict[str, Any]]) -> tuple[str, str]:
+    """Build the system and user prompts for leniency argument generation."""
+    system_prompt = PROMPT_PATH.read_text()
+
     input_data = state["input"]
     fact_sheet = state.get("mitigation_fact_sheet")
     guideline_range = state.get("guideline_range")
 
-    prompt = PROMPT_PATH.read_text()
-    prompt += f"""
-
+    user_prompt = f"""
 OFFENSE DETAILS:
 - Statute: {input_data.offense_details.statute}
 - Description: {input_data.offense_details.charge_description}
@@ -154,9 +155,9 @@ CANDIDATE ARGUMENTS:
 DIVERSION OPTIONS:
 {json.dumps([opt.model_dump() for opt in (state.get("diversion_options") or [])], default=str, indent=2)}
 
-Generate a JSON array of refined leniency arguments. For each candidate, assess its strength based on the available facts and return the full argument object.
-"""
-    return prompt
+Return valid JSON array matching the required schema."""
+
+    return system_prompt, user_prompt
 
 
 def _parse_llm_response(raw: dict[str, Any]) -> list[DepartureArgument]:
@@ -237,10 +238,8 @@ async def leniency_argument_builder(state: SentencingGraphState) -> SentencingGr
     candidates = _build_deterministic_candidates(state)
 
     try:
-        from src.services.llm_service import call_llm
-
-        prompt = _build_llm_prompt(state, candidates)
-        raw = await call_llm(prompt, max_tokens=4096)
+        system_prompt, user_prompt = _build_llm_prompt(state, candidates)
+        raw = await call_llm(user_prompt, system=system_prompt, max_tokens=4096)
         arguments = _parse_llm_response(raw)
 
         if not arguments:

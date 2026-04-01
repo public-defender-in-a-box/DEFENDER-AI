@@ -6,18 +6,9 @@ from pathlib import Path
 # Agent version
 AGENT_VERSION = "0.2.0"
 
-# LLM model configuration — no hard-coded dated model IDs
-MODEL_SENTENCING_ANALYSIS = os.getenv("MODEL_SENTENCING_ANALYSIS", "sonnet")
-MODEL_NARRATIVE_DRAFT = os.getenv("MODEL_NARRATIVE_DRAFT", "sonnet")
-MODEL_COMPLEX_OVERRIDE = os.getenv("MODEL_COMPLEX_OVERRIDE", "")
-
 # Feature flags for MVP
 ENABLE_UNVERIFIED_RESEARCH = False
 ENABLE_VECTOR_SEARCH = False
-
-# Temperature guidance
-TEMPERATURE_ANALYSIS = 0.15
-TEMPERATURE_NARRATIVE = 0.45
 
 # Data paths
 DATA_DIR = Path(__file__).parent / "data" / "ga"

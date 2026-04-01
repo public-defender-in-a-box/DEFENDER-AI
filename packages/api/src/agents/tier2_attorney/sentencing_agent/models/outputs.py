@@ -135,6 +135,8 @@ class SentencingAgentOutput(BaseModel):
     ethics_flags: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
 
+    privilege_warning: str = "ATTORNEY-CLIENT PRIVILEGED MATERIAL"
+
     disclaimer: str = (
         "DRAFT — ATTORNEY REVIEW REQUIRED. This output is decision support only. "
         "All sentencing calculations, diversion assessments, and mitigation arguments "

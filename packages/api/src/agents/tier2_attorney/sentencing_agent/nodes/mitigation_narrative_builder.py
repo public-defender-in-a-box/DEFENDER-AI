@@ -11,7 +11,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from ..config import TEMPERATURE_NARRATIVE
+from src.services.llm_service import call_llm
+
 from ..models.outputs import MitigationNarrative, NodeAuditRecord
 from ..models.state import SentencingGraphState
 
@@ -20,14 +21,14 @@ logger = logging.getLogger(__name__)
 PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "mitigation_narrative.txt"
 
 
-def _build_narrative_prompt(state: SentencingGraphState) -> str:
-    """Build the LLM prompt for mitigation narrative drafting."""
+def _build_narrative_prompt(state: SentencingGraphState) -> tuple[str, str]:
+    """Build the system and user prompts for mitigation narrative drafting."""
+    system_prompt = PROMPT_PATH.read_text()
+
     input_data = state["input"]
     fact_sheet = state.get("mitigation_fact_sheet")
 
-    prompt = PROMPT_PATH.read_text()
-    prompt += f"""
-
+    user_prompt = f"""
 OFFENSE CONTEXT:
 - Statute: {input_data.offense_details.statute}
 - Description: {input_data.offense_details.charge_description}
@@ -36,9 +37,9 @@ OFFENSE CONTEXT:
 MITIGATION FACT SHEET:
 {json.dumps(fact_sheet, default=str, indent=2) if fact_sheet else "No facts available — narrative cannot be drafted."}
 
-Draft the mitigation narrative based ONLY on the facts provided above. Return JSON only.
-"""
-    return prompt
+Draft the mitigation narrative based ONLY on the facts provided above. Return JSON only."""
+
+    return system_prompt, user_prompt
 
 
 def _parse_narrative_response(raw: dict[str, Any]) -> MitigationNarrative:
@@ -118,10 +119,8 @@ async def mitigation_narrative_builder(state: SentencingGraphState) -> Sentencin
         return state
 
     try:
-        from src.services.llm_service import call_llm
-
-        prompt = _build_narrative_prompt(state)
-        raw = await call_llm(prompt, max_tokens=4096)
+        system_prompt, user_prompt = _build_narrative_prompt(state)
+        raw = await call_llm(user_prompt, system=system_prompt, max_tokens=4096)
         narrative = _parse_narrative_response(raw)
 
         if not narrative.full_narrative:
