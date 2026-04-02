@@ -46,9 +46,12 @@ class DisclosureTrackingAgent(BaseAgent):
 
         Output: ConfidenceRated wrapper around DisclosureTrackingOutput dict
         """
-        self.log_action("disclosure_tracking_started", {
-            "case_id": input_data.get("case_id", ""),
-        })
+        self.log_action(
+            "disclosure_tracking_started",
+            {
+                "case_id": input_data.get("case_id", ""),
+            },
+        )
 
         # ── Gather inputs ─────────────────────────────────────────────
         discovery_docs = input_data.get("discovery_documents", [])
@@ -63,11 +66,11 @@ class DisclosureTrackingAgent(BaseAgent):
 
         # Serialize complex inputs for LLM
         charges_text = (
-            json.dumps(charges, indent=2) if isinstance(charges, (dict, list))
-            else str(charges)
+            json.dumps(charges, indent=2) if isinstance(charges, (dict, list)) else str(charges)
         )
         facts_text = (
-            json.dumps(intake_facts, indent=2) if isinstance(intake_facts, dict)
+            json.dumps(intake_facts, indent=2)
+            if isinstance(intake_facts, dict)
             else str(intake_facts)
         )
         docs_text = (
@@ -94,13 +97,19 @@ class DisclosureTrackingAgent(BaseAgent):
         # ── Pass 1: Document Classification & Ledger ──────────────────
         self.log_action("pass1_document_classification_started")
         ledger_and_highlights = await self._classify_documents(
-            docs_text, charges_text, facts_text,
+            docs_text,
+            charges_text,
+            facts_text,
         )
 
         # ── Pass 2: Dynamic Checklist Generation ──────────────────────
         self.log_action("pass2_checklist_generation_started")
         checklist = await self._generate_checklist(
-            charges_text, case_type, facts_text, officers_text, jurisdiction,
+            charges_text,
+            case_type,
+            facts_text,
+            officers_text,
+            jurisdiction,
         )
 
         # ── Pass 3: Gap Detection & Red Flag Analysis ─────────────────
@@ -145,30 +154,31 @@ class DisclosureTrackingAgent(BaseAgent):
             "officer_records": gaps_and_officers.get("officer_records", []),
             "compliance_report": compliance.get("compliance_report"),
             "draft_demand_letter": (
-                "DRAFT — ATTORNEY REVIEW REQUIRED\n\n"
-                + drafts.get("draft_demand_letter", "")
+                "DRAFT — ATTORNEY REVIEW REQUIRED\n\n" + drafts.get("draft_demand_letter", "")
             ),
             "draft_motion_to_compel": (
-                "DRAFT — ATTORNEY REVIEW REQUIRED\n\n"
-                + drafts.get("draft_motion_to_compel", "")
+                "DRAFT — ATTORNEY REVIEW REQUIRED\n\n" + drafts.get("draft_motion_to_compel", "")
             ),
             "client_summary": compliance.get("client_summary", ""),
-            "exculpatory_highlights": ledger_and_highlights.get(
-                "exculpatory_highlights", []
-            ),
+            "exculpatory_highlights": ledger_and_highlights.get("exculpatory_highlights", []),
         }
 
         # ── Compute confidence ────────────────────────────────────────
         confidence = self._compute_confidence(
-            discovery_docs, checklist, gaps_and_officers.get("gaps", []),
+            discovery_docs,
+            checklist,
+            gaps_and_officers.get("gaps", []),
         )
 
-        self.log_action("disclosure_tracking_completed", {
-            "ledger_items": len(output["discovery_ledger"]),
-            "checklist_items": len(output["checklist"]),
-            "gaps_found": len(output["gaps"]),
-            "confidence": confidence,
-        })
+        self.log_action(
+            "disclosure_tracking_completed",
+            {
+                "ledger_items": len(output["discovery_ledger"]),
+                "checklist_items": len(output["checklist"]),
+                "gaps_found": len(output["gaps"]),
+                "confidence": confidence,
+            },
+        )
 
         return self.wrap_output(output, confidence=confidence)
 

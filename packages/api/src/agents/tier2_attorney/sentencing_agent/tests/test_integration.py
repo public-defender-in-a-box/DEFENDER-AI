@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from ..graph import run_sentencing_analysis, state_to_output
+from ..graph import run_sentencing_analysis
 from ..models.inputs import (
     CasePhase,
     ConductType,
@@ -35,20 +35,14 @@ class TestFullPipelineIntegration:
 
     @pytest.fixture
     def mock_llm(self):
-        """Mock the LLM service to avoid real API calls.
-
-        The LLM nodes use lazy local imports (from src.services.llm_service import call_llm),
-        so we inject a mock call_llm module before running the graph.
-        """
-        import sys
-        from types import ModuleType
-        from unittest.mock import MagicMock
-
+        """Mock call_llm in both LLM node modules."""
         narrative_response = {
             "summary": "Test mitigation summary.",
             "full_narrative": "Test full narrative for the defendant.",
             "key_themes": ["employment_stability", "low_public_safety_risk"],
-            "supporting_facts": [{"fact_id": "auto-1", "text": "Employed", "used_in": "paragraph 1"}],
+            "supporting_facts": [
+                {"fact_id": "auto-1", "text": "Employed", "used_in": "paragraph 1"}
+            ],
             "paragraph_fact_map": [{"paragraph": "Test full narrative", "fact_ids": ["auto-1"]}],
             "unsupported_claim_warnings": [],
             "tone_notes": "Professional tone",
@@ -66,19 +60,18 @@ class TestFullPipelineIntegration:
             }
         ]
 
-        mock_call_llm = AsyncMock(side_effect=[leniency_response, narrative_response])
+        leniency_mod = "src.agents.tier2_attorney.sentencing_agent.nodes.leniency_argument_builder"
+        narrative_mod = (
+            "src.agents.tier2_attorney.sentencing_agent.nodes.mitigation_narrative_builder"
+        )
 
-        # Create mock modules if they don't exist
-        if "src.services" not in sys.modules:
-            sys.modules["src.services"] = ModuleType("src.services")
-        mock_llm_module = ModuleType("src.services.llm_service")
-        mock_llm_module.call_llm = mock_call_llm
-        sys.modules["src.services.llm_service"] = mock_llm_module
-
-        yield mock_call_llm
-
-        # Reset side_effect for multiple calls per test
-        mock_call_llm.reset_mock()
+        with (
+            patch(f"{leniency_mod}.call_llm", new_callable=AsyncMock) as mock_len,
+            patch(f"{narrative_mod}.call_llm", new_callable=AsyncMock) as mock_narr,
+        ):
+            mock_len.return_value = leniency_response
+            mock_narr.return_value = narrative_response
+            yield mock_narr
 
     @pytest.mark.asyncio
     async def test_in_scope_case_produces_valid_output(self, mock_llm):
@@ -145,7 +138,10 @@ class TestFullPipelineIntegration:
         assert output.scope_status == "in_scope"
         assert output.guideline_range is not None
         # May have few comparables but should still have valid output
-        assert any("comparable" in w.lower() or "corpus" in w.lower() for w in output.warnings) or len(output.comparable_sentences) >= 0
+        assert (
+            any("comparable" in w.lower() or "corpus" in w.lower() for w in output.warnings)
+            or len(output.comparable_sentences) >= 0
+        )
 
     @pytest.mark.asyncio
     async def test_self_reported_history_caps_confidence(self, mock_llm):
@@ -245,7 +241,9 @@ class TestRegressionPriorDraftMistakes:
             "input": SentencingAgentInput(
                 case_id="regression-3",
                 case_phase=CasePhase.PRETRIAL,
-                jurisdiction_context=JurisdictionContext(county="Clarke", judicial_circuit="Western"),
+                jurisdiction_context=JurisdictionContext(
+                    county="Clarke", judicial_circuit="Western"
+                ),
                 offense_details=OffenseDetails(
                     statute="O.C.G.A. § 16-13-30(j)(1)",
                     charge_description="Simple possession of marijuana",

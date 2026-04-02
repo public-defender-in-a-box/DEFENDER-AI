@@ -30,3 +30,10 @@ line-length = 100
 
 [tool.ruff]
 line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = [
+    "tests",
+    "src/agents/tier2_attorney/sentencing_agent/tests",
+]
+asyncio_mode = "auto"

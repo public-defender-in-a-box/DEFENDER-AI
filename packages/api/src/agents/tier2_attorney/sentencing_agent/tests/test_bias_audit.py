@@ -60,9 +60,7 @@ class TestDemographicInvariance:
     def test_age_does_not_change_scope(self):
         """Different ages should not change scope determination."""
         for age in [18, 25, 40, 65]:
-            input_data = _base_input(
-                personal_circumstances=PersonalCircumstances(age=age)
-            )
+            input_data = _base_input(personal_circumstances=PersonalCircumstances(age=age))
             in_scope, _ = is_mvp_in_scope(input_data.offense_details)
             assert in_scope is True
 
@@ -70,9 +68,7 @@ class TestDemographicInvariance:
         """Different ages should produce identical exposure calculations."""
         ranges = []
         for age in [18, 25, 40, 65]:
-            input_data = _base_input(
-                personal_circumstances=PersonalCircumstances(age=age)
-            )
+            input_data = _base_input(personal_circumstances=PersonalCircumstances(age=age))
             result = calculate_guideline_range(
                 input_data.offense_details,
                 input_data.criminal_history,
@@ -137,9 +133,7 @@ class TestPromptPayloadSafety:
 
     def test_fact_sheet_excludes_age_from_themes(self):
         """Age should not be extracted as a mitigation theme."""
-        input_data = _base_input(
-            personal_circumstances=PersonalCircumstances(age=22)
-        )
+        input_data = _base_input(personal_circumstances=PersonalCircumstances(age=22))
         fact_sheet = build_mitigation_fact_sheet(input_data)
         # Age should not appear as a standalone fact or theme
         for fact in fact_sheet["facts"]:
@@ -147,9 +141,7 @@ class TestPromptPayloadSafety:
 
     def test_fact_sheet_does_not_include_raw_demographics(self):
         """Raw demographic fields (age, gender) should not be in fact texts."""
-        input_data = _base_input(
-            personal_circumstances=PersonalCircumstances(age=22)
-        )
+        input_data = _base_input(personal_circumstances=PersonalCircumstances(age=22))
         fact_sheet = build_mitigation_fact_sheet(input_data)
         for fact in fact_sheet["facts"]:
             text = fact.get("text", "").lower()

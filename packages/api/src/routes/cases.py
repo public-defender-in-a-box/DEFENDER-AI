@@ -103,8 +103,7 @@ async def get_case_summary(case_id: str):
         color = colors.get(str(level), "#6b7280")
         return f'<span style="background:{color};color:white;padding:2px 8px;border-radius:4px;font-size:0.8em;font-weight:600">{_esc(level)}</span>'
 
-    html_parts = [
-        f"""<!DOCTYPE html>
+    html_parts = [f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8">
 <title>Case {_esc(case_id)} — DEFENDER AI</title>
 <style>
@@ -127,20 +126,17 @@ async def get_case_summary(case_id: str):
   .step-pending {{ background: #f1f5f9; color: #9ca3af; }}
 </style></head><body>
 <h1>Case {_esc(case_id)}</h1>
-"""
-    ]
+"""]
 
     # Low confidence warning
     low_conf = cp_data.get("_low_confidence_flag") or pi_data.get("_low_confidence_flag")
     if low_conf:
-        html_parts.append(
-            """
+        html_parts.append("""
 <div style="background:#fef2f2;border:2px solid #ef4444;border-radius:8px;padding:16px;margin:16px 0">
 <strong style="color:#dc2626">&#9888; LOW CONFIDENCE — ATTORNEY REVIEW REQUIRED</strong><br>
 One or more pipeline stages returned low confidence results.
 The data below has been flagged and should be independently verified before relying on it.
-</div>"""
-        )
+</div>""")
 
     # Pipeline status bar
     all_stages = [
@@ -181,8 +177,7 @@ The data below has been flagged and should be independently verified before rely
 
     # Defendant
     if defendant:
-        html_parts.append(
-            f"""
+        html_parts.append(f"""
 <h2>Defendant</h2>
 <div class="card">
 <strong>{_esc(defendant.get('name', 'UNKNOWN'))}</strong><br>
@@ -190,8 +185,7 @@ DOB: {_esc(defendant.get('date_of_birth', 'Unknown'))}<br>
 Address: {_esc(defendant.get('address', 'Unknown'))}<br>
 Custody: {_esc(defendant.get('custody_status', 'Unknown'))}<br>
 Prior record: {'Yes — ' + _esc(defendant.get('prior_record_details', '')) if defendant.get('prior_record_mentioned') else 'None mentioned'}
-</div>"""
-        )
+</div>""")
 
     # Charges
     if charges:
@@ -199,15 +193,13 @@ Prior record: {'Yes — ' + _esc(defendant.get('prior_record_details', '')) if d
         for c in charges:
             statute = c.get("statute", {})
             penalty = c.get("penalty_range", {})
-            html_parts.append(
-                f"""
+            html_parts.append(f"""
 <div class="card">
 <strong>Count {_esc(c.get('count_number', '?'))}: {_esc(c.get('charge_description', ''))}</strong>
 {_badge(str(round(c.get('confidence', 0), 2)) + ' confidence')}<br>
 Statute: <code>{_esc(statute.get('code', ''))}</code><br>
 Degree: {_esc(c.get('degree', ''))}<br>
-Classification: {_esc(c.get('classification', ''))}<br>"""
-            )
+Classification: {_esc(c.get('classification', ''))}<br>""")
             if penalty:
                 html_parts.append(
                     f"Penalty: {_esc(penalty.get('minimum', '?'))} — {_esc(penalty.get('maximum', '?'))}"
@@ -245,44 +237,38 @@ Classification: {_esc(c.get('classification', ''))}<br>"""
         html_parts.append(f"<h2>Misconduct Flags ({len(misconduct)})</h2>")
         for m in misconduct:
             card_cls = "card-red" if m.get("severity") == "high" else "card-yellow"
-            html_parts.append(
-                f"""
+            html_parts.append(f"""
 <div class="card {card_cls}">
 {_badge(m.get('severity', '?'))} <strong>{_esc(m.get('category', ''))}</strong>
 — {_esc(m.get('subcategory', ''))}<br>
 {_esc(m.get('description', ''))}<br>
 <span class="meta">Factual basis: {_esc(m.get('factual_basis', ''))}</span><br>
 <span class="meta">Legal significance: {_esc(m.get('legal_significance', ''))}</span>
-</div>"""
-            )
+</div>""")
 
     # Rights Flags from Pre-Interview
     if rfs:
         html_parts.append(f"<h2>Preliminary Rights Flags ({len(rfs)})</h2>")
         for rf in rfs:
             card_cls = "card-red" if rf.get("severity") == "high" else "card-yellow"
-            html_parts.append(
-                f"""
+            html_parts.append(f"""
 <div class="card {card_cls}">
 {_badge(rf.get('severity', '?'))} <strong>{_esc(rf.get('type', ''))}</strong><br>
 {_esc(rf.get('description', ''))}<br>
 <span class="meta">Basis: {_esc(rf.get('basis', ''))}</span><br>
 <span class="meta">Investigate: {_esc(rf.get('investigation_needed', ''))}</span>
-</div>"""
-            )
+</div>""")
 
     # Targeted Questions
     if tqs:
         html_parts.append(f"<h2>Targeted Intake Questions ({len(tqs)})</h2>")
         html_parts.append("<table><tr><th>Priority</th><th>Question</th><th>Targets</th></tr>")
         for q in tqs:
-            html_parts.append(
-                f"""<tr>
+            html_parts.append(f"""<tr>
 <td>{_badge(q.get('priority', '?'))}</td>
 <td>{_esc(q.get('question', ''))}</td>
 <td class="meta">{_esc(q.get('relevant_element', ''))}</td>
-</tr>"""
-            )
+</tr>""")
         html_parts.append("</table>")
 
     # Persons of Interest
@@ -292,55 +278,47 @@ Classification: {_esc(c.get('classification', ''))}<br>"""
             "<table><tr><th>Name</th><th>Role</th><th>Badge/Agency</th><th>Details</th></tr>"
         )
         for p in persons:
-            html_parts.append(
-                f"""<tr>
+            html_parts.append(f"""<tr>
 <td><strong>{_esc(p.get('name', '?'))}</strong></td>
 <td>{_esc(p.get('role', '?'))}</td>
 <td>{_esc(p.get('badge_number', '') or '')} {_esc(p.get('agency', '') or '')}</td>
 <td class="meta">{_esc(p.get('involvement_summary', '') or p.get('potential_impeachment_notes', ''))}</td>
-</tr>"""
-            )
+</tr>""")
         html_parts.append("</table>")
 
     # Factual Allegations
     if allegations:
         html_parts.append(f"<h2>Factual Allegations ({len(allegations)})</h2>")
         for a in allegations:
-            html_parts.append(
-                f"""
+            html_parts.append(f"""
 <div class="card">
 <strong>{_esc(a.get('allegation_id', a.get('id', '?')))}</strong>: {_esc(a.get('summary', a.get('allegation', '')))}
 {_badge(str(round(a.get('confidence', 0), 2)))}<br>
 <span class="meta">{_esc(a.get('detail', ''))}</span>
 {'<br><strong style=color:#166534>Exculpatory potential:</strong> ' + _esc(a.get('exculpatory_notes', '')) if a.get('exculpatory_potential') else ''}
-</div>"""
-            )
+</div>""")
 
     # Collateral Consequence Alerts
     if collateral:
         html_parts.append(f"<h2>Collateral Consequence Alerts ({len(collateral)})</h2>")
         for cc in collateral:
-            html_parts.append(
-                f"""
+            html_parts.append(f"""
 <div class="card card-blue">
 {_badge(cc.get('severity', '?'))} <strong>{_esc(cc.get('category', ''))}</strong><br>
 {_esc(cc.get('description', ''))}<br>
 <span class="meta">Ask at intake: {_esc(cc.get('intake_question', ''))}</span>
-</div>"""
-            )
+</div>""")
 
     # Known Facts
     if known_facts:
         html_parts.append(f"<h2>Known Facts from Documents ({len(known_facts)})</h2>")
         html_parts.append("<table><tr><th>Fact</th><th>Category</th><th>Verify?</th></tr>")
         for kf in known_facts:
-            html_parts.append(
-                f"""<tr>
+            html_parts.append(f"""<tr>
 <td>{_esc(kf.get('fact', ''))}</td>
 <td>{_esc(kf.get('category', ''))}</td>
 <td>{'Yes' if kf.get('verify_with_client') else 'No'}</td>
-</tr>"""
-            )
+</tr>""")
         html_parts.append("</table>")
 
     # Legal Brief
@@ -374,26 +352,22 @@ Classification: {_esc(c.get('classification', ''))}<br>"""
             "<table><tr><th>Description</th><th>Type</th><th>Chain of Custody</th></tr>"
         )
         for e in evidence:
-            html_parts.append(
-                f"""<tr>
+            html_parts.append(f"""<tr>
 <td>{_esc(e.get('description', ''))}</td>
 <td>{_esc(e.get('type', ''))}</td>
 <td class="meta">{_esc(e.get('chain_of_custody_notes', '') or 'N/A')}</td>
-</tr>"""
-            )
+</tr>""")
         html_parts.append("</table>")
 
     # Confidence summary
     conf_summary = meta.get("confidence_summary", {})
     if conf_summary:
         total = sum(conf_summary.values())
-        html_parts.append(
-            f"""
+        html_parts.append(f"""
 <h2>Confidence Summary</h2>
 <div class="card">
 <strong>{total} items extracted</strong> — {meta.get('review_required_count', 0)} needing attorney review<br><br>
-<div style="display:flex;height:24px;border-radius:4px;overflow:hidden;margin:8px 0">"""
-        )
+<div style="display:flex;height:24px;border-radius:4px;overflow:hidden;margin:8px 0">""")
         colors = {
             "very_high": "#22c55e",
             "high": "#4ade80",
@@ -408,32 +382,26 @@ Classification: {_esc(c.get('classification', ''))}<br>"""
                 html_parts.append(
                     f'<div style="background:{color};width:{pct}%" title="{bucket}: {count}"></div>'
                 )
-        html_parts.append(
-            f"""</div>
+        html_parts.append(f"""</div>
 <span class="meta">Very High: {conf_summary.get('very_high', 0)} | High: {conf_summary.get('high', 0)} | Medium: {conf_summary.get('medium', 0)} | Low: {conf_summary.get('low', 0)} | Very Low: {conf_summary.get('very_low', 0)}</span>
-</div>"""
-        )
+</div>""")
 
     # Ethical flags
     ethical_flags = state.get("ethical_flags", [])
     if ethical_flags:
         html_parts.append(f"<h2>Ethical Flags ({len(ethical_flags)})</h2>")
         for ef in ethical_flags:
-            html_parts.append(
-                f"""
+            html_parts.append(f"""
 <div class="card card-red">
 {_badge(ef.get('priority', '?'))} <strong>{_esc(ef.get('category', ''))}</strong><br>
 {_esc(ef.get('description', ''))}<br>
 <span class="meta">Source: {_esc(ef.get('agent_source', ''))}</span>
-</div>"""
-            )
+</div>""")
 
-    html_parts.append(
-        """
+    html_parts.append("""
 <hr style="margin-top:40px">
 <p class="meta">Generated by DEFENDER AI — Attorney review required before any action is taken.
 All outputs are attorney work product and protected by attorney-client privilege.</p>
-</body></html>"""
-    )
+</body></html>""")
 
     return "\n".join(html_parts)

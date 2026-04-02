@@ -51,13 +51,17 @@ def _compute_confidence_factors(state: SentencingGraphState) -> dict[str, float]
     # Local context
     has_county = bool(input_data.jurisdiction_context.county)
     has_circuit = bool(input_data.jurisdiction_context.judicial_circuit)
-    factors["local_context_present"] = 1.0 if (has_county and has_circuit) else (0.6 if has_county else 0.2)
+    factors["local_context_present"] = (
+        1.0 if (has_county and has_circuit) else (0.6 if has_county else 0.2)
+    )
 
     # Diversion availability quality
     diversion_opts = state.get("diversion_options") or []
     if diversion_opts:
         confirmed = sum(1 for d in diversion_opts if d.availability_status == "confirmed_available")
-        factors["diversion_availability_quality"] = min(1.0, confirmed / max(len(diversion_opts), 1))
+        factors["diversion_availability_quality"] = min(
+            1.0, confirmed / max(len(diversion_opts), 1)
+        )
     else:
         factors["diversion_availability_quality"] = 0.0
 
@@ -97,7 +101,11 @@ def _compute_section_confidences(state: SentencingGraphState) -> list[SectionCon
         SectionConfidence(
             section_name="sentencing_exposure",
             score=0.95 if guideline else 0.0,
-            reasons=["Deterministic calculation from verified statute data"] if guideline else ["Not calculated"],
+            reasons=(
+                ["Deterministic calculation from verified statute data"]
+                if guideline
+                else ["Not calculated"]
+            ),
         )
     )
 
@@ -124,7 +132,9 @@ def _compute_section_confidences(state: SentencingGraphState) -> list[SectionCon
     else:
         narr_score = 0.0
         reasons = ["No narrative generated"]
-    sections.append(SectionConfidence(section_name="mitigation_narrative", score=narr_score, reasons=reasons))
+    sections.append(
+        SectionConfidence(section_name="mitigation_narrative", score=narr_score, reasons=reasons)
+    )
 
     # Comparable sentences
     comparables = state.get("comparable_sentences") or []
@@ -186,7 +196,9 @@ def output_assembler(state: SentencingGraphState) -> SentencingGraphState:
     # Narrative unsupported claims check
     narrative = state.get("mitigation_narrative")
     if narrative and narrative.unsupported_claim_warnings:
-        flags.append("UNSUPPORTED_CLAIMS_IN_NARRATIVE: memo mitigation section marked EDIT_REQUIRED")
+        flags.append(
+            "UNSUPPORTED_CLAIMS_IN_NARRATIVE: memo mitigation section marked EDIT_REQUIRED"
+        )
 
     # Section confidences
     section_confidence = _compute_section_confidences(state)

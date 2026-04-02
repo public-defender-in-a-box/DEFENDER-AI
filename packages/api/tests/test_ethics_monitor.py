@@ -52,9 +52,7 @@ class TestPrivilegeProtection:
     @pytest.mark.asyncio
     async def test_pii_ssn_blocked(self, monitor: EthicsMonitorAgent):
         """SSN in output triggers CRITICAL block."""
-        result = await monitor.run(
-            _make_input(data="Client SSN is 123-45-6789 for records.")
-        )
+        result = await monitor.run(_make_input(data="Client SSN is 123-45-6789 for records."))
         assert result["blocked"] is True
         flag_cats = [f["category"] for f in result["flags"]]
         assert "PRIVILEGE" in flag_cats
@@ -64,17 +62,13 @@ class TestPrivilegeProtection:
     @pytest.mark.asyncio
     async def test_pii_email_blocked(self, monitor: EthicsMonitorAgent):
         """Email address in output triggers CRITICAL block."""
-        result = await monitor.run(
-            _make_input(data="Contact client at john.doe@example.com")
-        )
+        result = await monitor.run(_make_input(data="Contact client at john.doe@example.com"))
         assert result["blocked"] is True
 
     @pytest.mark.asyncio
     async def test_pii_phone_blocked(self, monitor: EthicsMonitorAgent):
         """Phone number in output triggers CRITICAL block."""
-        result = await monitor.run(
-            _make_input(data="Call defendant at 404-555-1234")
-        )
+        result = await monitor.run(_make_input(data="Call defendant at 404-555-1234"))
         assert result["blocked"] is True
 
     @pytest.mark.asyncio
@@ -100,7 +94,8 @@ class TestPrivilegeProtection:
             )
         )
         priv_flags = [
-            f for f in result["flags"]
+            f
+            for f in result["flags"]
             if f["category"] == "PRIVILEGE" and f["priority"] in ("CRITICAL", "HIGH")
         ]
         assert len(priv_flags) == 0
@@ -108,18 +103,14 @@ class TestPrivilegeProtection:
     @pytest.mark.asyncio
     async def test_draft_without_review_disclaimer(self, monitor: EthicsMonitorAgent):
         """DRAFT in output without ATTORNEY REVIEW REQUIRED flagged."""
-        result = await monitor.run(
-            _make_input(data="DRAFT motion for bond reduction.")
-        )
+        result = await monitor.run(_make_input(data="DRAFT motion for bond reduction."))
         priv_flags = [f for f in result["flags"] if f["category"] == "PRIVILEGE"]
         assert len(priv_flags) >= 1
 
     @pytest.mark.asyncio
     async def test_clean_output_no_privilege_flags(self, monitor: EthicsMonitorAgent):
         """Clean output with no PII or drafts passes without privilege flags."""
-        result = await monitor.run(
-            _make_input(data="The statute of limitations is 4 years.")
-        )
+        result = await monitor.run(_make_input(data="The statute of limitations is 4 years."))
         priv_flags = [f for f in result["flags"] if f["category"] == "PRIVILEGE"]
         assert len(priv_flags) == 0
 
@@ -154,8 +145,7 @@ class TestUPLBoundary:
             )
         )
         upl_critical = [
-            f for f in result["flags"]
-            if f["category"] == "UPL" and f["priority"] == "CRITICAL"
+            f for f in result["flags"] if f["category"] == "UPL" and f["priority"] == "CRITICAL"
         ]
         assert len(upl_critical) >= 2
 
@@ -170,8 +160,7 @@ class TestUPLBoundary:
             )
         )
         upl_critical = [
-            f for f in result["flags"]
-            if f["category"] == "UPL" and f["priority"] == "CRITICAL"
+            f for f in result["flags"] if f["category"] == "UPL" and f["priority"] == "CRITICAL"
         ]
         assert len(upl_critical) == 0
 
@@ -185,7 +174,11 @@ class TestUPLBoundary:
             )
         )
         upl_flags = [f for f in result["flags"] if f["category"] == "UPL"]
-        assert any("not legal advice" in f["description"].lower() or "disclaimer" in f["description"].lower() for f in upl_flags)
+        assert any(
+            "not legal advice" in f["description"].lower()
+            or "disclaimer" in f["description"].lower()
+            for f in upl_flags
+        )
 
     @pytest.mark.asyncio
     async def test_client_facing_with_disclaimer_passes(self, monitor: EthicsMonitorAgent):
@@ -201,7 +194,8 @@ class TestUPLBoundary:
             )
         )
         upl_disclaimer_flags = [
-            f for f in result["flags"]
+            f
+            for f in result["flags"]
             if f["category"] == "UPL" and "disclaimer" in f["description"].lower()
         ]
         assert len(upl_disclaimer_flags) == 0
@@ -331,9 +325,7 @@ class TestCompetenceFloor:
     @pytest.mark.asyncio
     async def test_low_confidence_flagged(self, monitor: EthicsMonitorAgent):
         """LOW confidence output triggers MEDIUM competence flag."""
-        result = await monitor.run(
-            _make_input(confidence="LOW")
-        )
+        result = await monitor.run(_make_input(confidence="LOW"))
         comp_flags = [f for f in result["flags"] if f["category"] == "COMPETENCE"]
         assert len(comp_flags) >= 1
         assert any("LOW confidence" in f["description"] for f in comp_flags)
@@ -341,18 +333,14 @@ class TestCompetenceFloor:
     @pytest.mark.asyncio
     async def test_unrated_confidence_flagged(self, monitor: EthicsMonitorAgent):
         """UNRATED confidence triggers HIGH competence flag."""
-        result = await monitor.run(
-            _make_input(confidence="UNRATED")
-        )
+        result = await monitor.run(_make_input(confidence="UNRATED"))
         comp_flags = [f for f in result["flags"] if f["category"] == "COMPETENCE"]
         assert any("UNRATED" in f["description"] for f in comp_flags)
 
     @pytest.mark.asyncio
     async def test_null_data_blocked(self, monitor: EthicsMonitorAgent):
         """Null data triggers CRITICAL competence block."""
-        result = await monitor.run(
-            _make_input(data=None)
-        )
+        result = await monitor.run(_make_input(data=None))
         assert result["blocked"] is True
         comp_flags = [f for f in result["flags"] if f["category"] == "COMPETENCE"]
         assert any(f["priority"] == "CRITICAL" for f in comp_flags)
@@ -360,9 +348,7 @@ class TestCompetenceFloor:
     @pytest.mark.asyncio
     async def test_empty_data_flagged(self, monitor: EthicsMonitorAgent):
         """Empty dict data triggers HIGH competence flag."""
-        result = await monitor.run(
-            _make_input(data={})
-        )
+        result = await monitor.run(_make_input(data={}))
         comp_flags = [f for f in result["flags"] if f["category"] == "COMPETENCE"]
         assert any("empty" in f["description"].lower() for f in comp_flags)
 
@@ -378,9 +364,7 @@ class TestCompetenceFloor:
     @pytest.mark.asyncio
     async def test_high_confidence_passes(self, monitor: EthicsMonitorAgent):
         """HIGH confidence output passes competence check cleanly."""
-        result = await monitor.run(
-            _make_input(confidence="HIGH", data="Valid analysis output.")
-        )
+        result = await monitor.run(_make_input(confidence="HIGH", data="Valid analysis output."))
         comp_flags = [f for f in result["flags"] if f["category"] == "COMPETENCE"]
         assert len(comp_flags) == 0
 
@@ -424,7 +408,8 @@ class TestHallucinationDetection:
             )
         )
         hal_flags = [
-            f for f in result["flags"]
+            f
+            for f in result["flags"]
             if f["category"] == "HALLUCINATION" and "statute" in f["description"].lower()
         ]
         assert len(hal_flags) == 0
@@ -487,7 +472,10 @@ class TestHallucinationDetection:
             )
         )
         hal_flags = [f for f in result["flags"] if f["category"] == "HALLUCINATION"]
-        assert any("hedging" in f["description"].lower() or "confidence" in f["description"].lower() for f in hal_flags)
+        assert any(
+            "hedging" in f["description"].lower() or "confidence" in f["description"].lower()
+            for f in hal_flags
+        )
 
     @pytest.mark.asyncio
     async def test_clean_output_no_hallucination_flags(self, monitor: EthicsMonitorAgent):
@@ -518,7 +506,8 @@ class TestHallucinationDetection:
         )
         # fact_gatherer is not in CITATION_PRODUCING_AGENTS
         hal_citation_flags = [
-            f for f in result["flags"]
+            f
+            for f in result["flags"]
             if f["category"] == "HALLUCINATION" and "UNVERIFIED" in f["description"]
         ]
         assert len(hal_citation_flags) == 0
@@ -547,8 +536,8 @@ class TestCrossPillarIntegration:
         )
         assert result["blocked"] is True
         categories = {f["category"] for f in result["flags"]}
-        assert "PRIVILEGE" in categories   # SSN leak
-        assert "BIAS" in categories        # stereotyping
+        assert "PRIVILEGE" in categories  # SSN leak
+        assert "BIAS" in categories  # stereotyping
         assert "HALLUCINATION" in categories  # invalid statute
         assert "COMPETENCE" in categories  # LOW confidence
 
@@ -569,9 +558,7 @@ class TestCrossPillarIntegration:
     @pytest.mark.asyncio
     async def test_audit_trail_populated(self, monitor: EthicsMonitorAgent):
         """Every ethics check produces audit entries."""
-        result = await monitor.run(
-            _make_input(data="Simple test output.")
-        )
+        result = await monitor.run(_make_input(data="Simple test output."))
         assert len(result["audit_entries"]) >= 1
 
     @pytest.mark.asyncio

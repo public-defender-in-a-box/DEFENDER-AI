@@ -259,8 +259,7 @@ def sample_pass2_result() -> dict:
                 "id": "D001",
                 "topic": "Consent to search",
                 "officer_account": "Defendant verbally consented to search",
-                "client_account": "Officer said 'easy way or hard way'; client "
-                "felt no choice",
+                "client_account": "Officer said 'easy way or hard way'; client " "felt no choice",
                 "significance": "CRITICAL",
                 "possible_explanations": [
                     "Officer mischaracterized coerced compliance as consent",

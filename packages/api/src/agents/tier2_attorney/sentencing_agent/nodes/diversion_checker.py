@@ -65,7 +65,10 @@ def _find_local_programs(
             continue
         if prog["county"].lower() == county.lower():
             matches.append(prog)
-        elif judicial_circuit and prog.get("judicial_circuit", "").lower() == judicial_circuit.lower():
+        elif (
+            judicial_circuit
+            and prog.get("judicial_circuit", "").lower() == judicial_circuit.lower()
+        ):
             matches.append(prog)
     return matches
 
@@ -106,7 +109,11 @@ def check_pretrial_diversion(
             "Requires prosecutor agreement for enrollment",
             "Availability varies by judicial circuit",
         ],
-        outcome_if_completed=best["completion_outcome"] if best else "Charges dismissed by prosecutor upon successful completion",
+        outcome_if_completed=(
+            best["completion_outcome"]
+            if best
+            else "Charges dismissed by prosecutor upon successful completion"
+        ),
         typical_duration=best.get("typical_duration_months") if best else "6-12 months",
         conditions=best.get("conditions", []) if best else ["Varies by program"],
         recommendation_notes="Pretrial diversion requires prosecutor cooperation. Defense counsel should initiate contact with the DA's office.",
@@ -154,7 +161,11 @@ def check_drug_court(
         availability_status=avail,
         preliminary_eligibility=eligibility,
         eligibility_factors=factors,
-        outcome_if_completed=best["completion_outcome"] if best else "Varies — may include dismissal or charge reduction",
+        outcome_if_completed=(
+            best["completion_outcome"]
+            if best
+            else "Varies — may include dismissal or charge reduction"
+        ),
         typical_duration=best.get("typical_duration_months") if best else "12-18 months",
         conditions=best.get("conditions", []) if best else ["Varies by program"],
         recommendation_notes="Drug court participation is an intensive, judicially supervised treatment alternative.",
@@ -201,9 +212,17 @@ def check_veterans_court(
             "Military service indicated — veteran or active-duty status required",
             "Local program acceptance criteria must be verified",
         ],
-        outcome_if_completed=best["completion_outcome"] if best else "Varies — may include dismissal, reduction, or sentence modification",
+        outcome_if_completed=(
+            best["completion_outcome"]
+            if best
+            else "Varies — may include dismissal, reduction, or sentence modification"
+        ),
         typical_duration=best.get("typical_duration_months") if best else "12-24 months",
-        conditions=best.get("conditions", []) if best else ["VA treatment engagement", "Regular court appearances"],
+        conditions=(
+            best.get("conditions", [])
+            if best
+            else ["VA treatment engagement", "Regular court appearances"]
+        ),
         recommendation_notes="Veterans court is appropriate for defendants with military service. Verify eligibility with the local program.",
         source_ref=best.get("source_note") if best else None,
     )
@@ -275,7 +294,9 @@ def diversion_checker(state: SentencingGraphState) -> SentencingGraphState:
     ptd = check_pretrial_diversion(input_data, directory)
     options.append(ptd)
     if ptd.availability_status == "unknown":
-        attorney_decision_points.append("Pretrial diversion availability unknown — verify with local DA's office")
+        attorney_decision_points.append(
+            "Pretrial diversion availability unknown — verify with local DA's office"
+        )
 
     # 3. Drug court
     dc = check_drug_court(input_data, directory)
@@ -287,7 +308,9 @@ def diversion_checker(state: SentencingGraphState) -> SentencingGraphState:
     vc = check_veterans_court(input_data, directory)
     if vc is not None:
         options.append(vc)
-        attorney_decision_points.append("Veteran status indicated — explore veterans court eligibility")
+        attorney_decision_points.append(
+            "Veteran status indicated — explore veterans court eligibility"
+        )
 
     state["diversion_options"] = options
     state["warnings"] = warnings

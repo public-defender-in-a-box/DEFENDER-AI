@@ -15,10 +15,10 @@ from enum import Enum
 
 from pydantic import BaseModel, Field
 
-
 # ---------------------------------------------------------------------------
 # Enums
 # ---------------------------------------------------------------------------
+
 
 class EthicalCategory(str, Enum):
     """Categories of ethical flags raised by the monitor."""
@@ -36,9 +36,9 @@ class FlagPriority(str, Enum):
     """Priority levels — determines merge decision in the Orchestrator."""
 
     CRITICAL = "CRITICAL"  # Hard block — output NOT merged
-    HIGH = "HIGH"          # Merged with flag — attorney review required
-    MEDIUM = "MEDIUM"      # Merged and logged
-    LOW = "LOW"            # Logged only
+    HIGH = "HIGH"  # Merged with flag — attorney review required
+    MEDIUM = "MEDIUM"  # Merged and logged
+    LOW = "LOW"  # Logged only
 
 
 class BiasCategory(str, Enum):
@@ -66,6 +66,7 @@ class PrivilegeViolationType(str, Enum):
 # Core flag model
 # ---------------------------------------------------------------------------
 
+
 class EthicalFlag(BaseModel):
     """A single ethical or compliance concern raised by the monitor."""
 
@@ -84,6 +85,7 @@ class EthicalFlag(BaseModel):
 # Audit trail
 # ---------------------------------------------------------------------------
 
+
 class AuditEntry(BaseModel):
     """An entry in the system-wide audit log."""
 
@@ -98,6 +100,7 @@ class AuditEntry(BaseModel):
 # ---------------------------------------------------------------------------
 # Pillar 1: Privilege Protection
 # ---------------------------------------------------------------------------
+
 
 class PrivilegeCheckResult(BaseModel):
     """Result of a privilege-protection scan on a single agent output."""
@@ -125,6 +128,7 @@ PrivilegeCheckResult.model_rebuild()
 # Pillar 2: UPL Boundary
 # ---------------------------------------------------------------------------
 
+
 class UPLCheckResult(BaseModel):
     """Result of a UPL (unauthorized practice of law) scan."""
 
@@ -149,6 +153,7 @@ UPLCheckResult.model_rebuild()
 # Pillar 3: Bias Audit
 # ---------------------------------------------------------------------------
 
+
 class BiasIndicator(BaseModel):
     """A single detected bias signal."""
 
@@ -171,6 +176,7 @@ class BiasAuditResult(BaseModel):
 # Pillar 4: Competence Floor
 # ---------------------------------------------------------------------------
 
+
 class CompetenceCheckResult(BaseModel):
     """Result of a competence-floor check on an agent output."""
 
@@ -185,6 +191,7 @@ class CompetenceCheckResult(BaseModel):
 # ---------------------------------------------------------------------------
 # Pillar 5: Hallucination Detection
 # ---------------------------------------------------------------------------
+
 
 class HallucinationIndicator(BaseModel):
     """A single hallucination signal detected in an agent output."""
@@ -209,6 +216,7 @@ class HallucinationCheckResult(BaseModel):
 # ---------------------------------------------------------------------------
 # Composite ethics review result
 # ---------------------------------------------------------------------------
+
 
 class EthicsReviewResult(BaseModel):
     """Full ethics review result combining all pillars."""

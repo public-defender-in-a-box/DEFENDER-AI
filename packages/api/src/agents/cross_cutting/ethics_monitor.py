@@ -122,10 +122,10 @@ BIAS_AUDITABLE_AGENTS: set[str] = {
 
 # Fields that should never contain raw client PII in non-encrypted outputs
 CLIENT_PII_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),          # SSN
-    re.compile(r"\b\d{9}\b"),                        # SSN without dashes
+    re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),  # SSN
+    re.compile(r"\b\d{9}\b"),  # SSN without dashes
     re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"),  # email
-    re.compile(r"\b\d{3}[-.]?\d{3}[-.]?\d{4}\b"),   # phone number
+    re.compile(r"\b\d{3}[-.]?\d{3}[-.]?\d{4}\b"),  # phone number
 ]
 
 # Agents that produce client-facing content
@@ -147,15 +147,63 @@ ATTORNEY_WORK_PRODUCT_AGENTS: set[str] = {
 # Pillar 5 — Hallucination detection patterns
 
 # Georgia statute format: O.C.G.A. § XX-XX-XX (Title 16 for crimes)
-GEORGIA_STATUTE_PATTERN = re.compile(
-    r"O\.C\.G\.A\.?\s*§\s*(\d{1,2})-(\d{1,2})-(\d{1,4})"
-)
+GEORGIA_STATUTE_PATTERN = re.compile(r"O\.C\.G\.A\.?\s*§\s*(\d{1,2})-(\d{1,2})-(\d{1,4})")
 
 # Valid Georgia title numbers (subset — titles that exist in O.C.G.A.)
 VALID_GEORGIA_TITLES: set[int] = {
-    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
-    21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
-    39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
 }
 
 # Case citation pattern: Name v. Name, Volume Reporter Page (Year)
@@ -345,7 +393,9 @@ class EthicsMonitorAgent(BaseAgent):
 
         # Check 3: Draft outputs need review disclaimer
         if "DRAFT" in data_str and "ATTORNEY REVIEW REQUIRED" not in data_str:
-            if not any(v.violation_type == "MISSING_ATTORNEY_REVIEW_DISCLAIMER" for v in violations):
+            if not any(
+                v.violation_type == "MISSING_ATTORNEY_REVIEW_DISCLAIMER" for v in violations
+            ):
                 violation = PrivilegeViolationDetail(
                     violation_type="MISSING_PRIVILEGE_DISCLAIMER",
                     description="Draft output missing ATTORNEY REVIEW REQUIRED disclaimer.",
@@ -364,7 +414,9 @@ class EthicsMonitorAgent(BaseAgent):
 
         # Check 4: Encryption metadata should be present for client-related data
         metadata = output.get("metadata", {})
-        encryption_verified = metadata.get("encrypted", False) if isinstance(metadata, dict) else False
+        encryption_verified = (
+            metadata.get("encrypted", False) if isinstance(metadata, dict) else False
+        )
 
         detail = PrivilegeCheckResult(
             agent_id=agent_id,
@@ -486,8 +538,7 @@ class EthicsMonitorAgent(BaseAgent):
                 )
 
         disclaimer_present = any(
-            marker in content_lower
-            for marker in ["not legal advice", "consult your attorney"]
+            marker in content_lower for marker in ["not legal advice", "consult your attorney"]
         )
 
         detail = UPLCheckResult(
@@ -542,10 +593,21 @@ class EthicsMonitorAgent(BaseAgent):
             # Check for correlation patterns — demographic term near
             # recommendation, sentence, or outcome language
             outcome_terms = [
-                "sentence", "sentencing", "recommend", "recommendation",
-                "plea", "incarceration", "probation", "prison",
-                "penalty", "punishment", "outcome", "risk",
-                "likelihood", "predict", "recidivism",
+                "sentence",
+                "sentencing",
+                "recommend",
+                "recommendation",
+                "plea",
+                "incarceration",
+                "probation",
+                "prison",
+                "penalty",
+                "punishment",
+                "outcome",
+                "risk",
+                "likelihood",
+                "predict",
+                "recidivism",
             ]
 
             correlations_found: list[str] = []
@@ -901,7 +963,8 @@ class EthicsMonitorAgent(BaseAgent):
 
                     # Flag if many citations are unverified — higher fabrication risk
                     unverified_count = sum(
-                        1 for c in citations_list
+                        1
+                        for c in citations_list
                         if isinstance(c, dict) and c.get("verification_status") == "UNVERIFIED"
                     )
                     total_citations = len(citations_list)
@@ -950,9 +1013,17 @@ class EthicsMonitorAgent(BaseAgent):
         confidence = output.get("confidence", "UNRATED")
         if confidence == "HIGH":
             hedge_words = [
-                "possibly", "perhaps", "might", "may be", "uncertain",
-                "unclear", "not sure", "it appears", "seemingly",
-                "it is believed", "allegedly",
+                "possibly",
+                "perhaps",
+                "might",
+                "may be",
+                "uncertain",
+                "unclear",
+                "not sure",
+                "it appears",
+                "seemingly",
+                "it is believed",
+                "allegedly",
             ]
             hedge_count = sum(1 for w in hedge_words if w in data_lower)
             if hedge_count >= 3:

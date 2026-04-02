@@ -54,7 +54,11 @@ def _extract_facts_from_circumstances(
         )
 
     # Employment
-    if circumstances.employment_status and circumstances.employment_status.lower() not in ("unknown", "n/a", ""):
+    if circumstances.employment_status and circumstances.employment_status.lower() not in (
+        "unknown",
+        "n/a",
+        "",
+    ):
         text = f"Employment status: {circumstances.employment_status}"
         if circumstances.employment_details:
             text += f" — {circumstances.employment_details}"
@@ -92,7 +96,11 @@ def _extract_facts_from_circumstances(
         )
 
     # Education
-    if circumstances.education_status and circumstances.education_status.lower() not in ("unknown", "n/a", ""):
+    if circumstances.education_status and circumstances.education_status.lower() not in (
+        "unknown",
+        "n/a",
+        "",
+    ):
         text = f"Education status: {circumstances.education_status}"
         if circumstances.education_details:
             text += f" — {circumstances.education_details}"
