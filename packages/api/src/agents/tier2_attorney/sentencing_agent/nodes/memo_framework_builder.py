@@ -25,9 +25,7 @@ def build_memo_framework(state: SentencingGraphState) -> SentencingMemoFramework
     comparables = state.get("comparable_sentences") or []
     departure_args = state.get("departure_arguments") or []
 
-    has_unsupported_claims = bool(
-        narrative and narrative.unsupported_claim_warnings
-    )
+    has_unsupported_claims = bool(narrative and narrative.unsupported_claim_warnings)
 
     sections = [
         {
@@ -55,20 +53,22 @@ def build_memo_framework(state: SentencingGraphState) -> SentencingMemoFramework
         {
             "heading": "Statutory Sentencing Exposure",
             "content": (
-                f"Under O.C.G.A. § 16-13-2(b), this offense carries a maximum of "
-                f"{guideline_range.statutory_maximum} days imprisonment and/or a fine up to "
-                f"${guideline_range.fine_maximum:,.2f}. "
-                f"There is no mandatory minimum. "
-                f"Time-served credit: {guideline_range.time_served_credit_days} day(s). "
-                + (
-                    "Weekend service is available if any jail sentence imposed is six months or less. "
-                    if guideline_range.weekend_service_possible
-                    else ""
+                (
+                    f"Under O.C.G.A. § 16-13-2(b), this offense carries a maximum of "
+                    f"{guideline_range.statutory_maximum} days imprisonment and/or a fine up to "
+                    f"${guideline_range.fine_maximum:,.2f}. "
+                    f"There is no mandatory minimum. "
+                    f"Time-served credit: {guideline_range.time_served_credit_days} day(s). "
+                    + (
+                        "Weekend service is available if any jail sentence imposed is six months or less. "
+                        if guideline_range.weekend_service_possible
+                        else ""
+                    )
+                    + "Probation and suspended sentences are available at the Court's discretion."
                 )
-                + "Probation and suspended sentences are available at the Court's discretion."
-            )
-            if guideline_range
-            else "[Exposure calculation unavailable — attorney must calculate manually]",
+                if guideline_range
+                else "[Exposure calculation unavailable — attorney must calculate manually]"
+            ),
             "attorney_action": "ANNOTATION_REQUIRED",
             "engagement_level": "HIGH",
         },
@@ -80,7 +80,11 @@ def build_memo_framework(state: SentencingGraphState) -> SentencingMemoFramework
         },
         {
             "heading": "Mitigating Factors",
-            "content": narrative.full_narrative if narrative else "[Mitigation narrative pending — attorney input required]",
+            "content": (
+                narrative.full_narrative
+                if narrative
+                else "[Mitigation narrative pending — attorney input required]"
+            ),
             "attorney_action": "EDIT_REQUIRED" if has_unsupported_claims else "EDIT_REQUIRED",
             "engagement_level": "MEDIUM",
         },

@@ -7,7 +7,6 @@ import anthropic
 
 from src.config import settings
 
-
 client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
 
 

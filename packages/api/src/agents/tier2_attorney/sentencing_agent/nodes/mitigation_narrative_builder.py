@@ -73,7 +73,9 @@ def _fallback_narrative(state: SentencingGraphState) -> MitigationNarrative:
         summary=summary,
         full_narrative=full_narrative,
         key_themes=themes,
-        supporting_facts=[{"fact_id": f.get("fact_id", ""), "text": f.get("text", "")} for f in facts],
+        supporting_facts=[
+            {"fact_id": f.get("fact_id", ""), "text": f.get("text", "")} for f in facts
+        ],
         paragraph_fact_map=[],
         unsupported_claim_warnings=["Narrative generated as fallback — full LLM drafting failed"],
         tone_notes="Fallback narrative — attorney should draft complete narrative",

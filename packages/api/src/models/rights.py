@@ -47,7 +47,9 @@ class MirandaAnalysis(BaseModel):
     """Detailed analysis of Miranda rights compliance."""
 
     miranda_given: bool | None = None  # None = unknown
-    timing: str = ""  # BEFORE_QUESTIONING, DURING_QUESTIONING, AFTER_QUESTIONING, NOT_GIVEN, UNKNOWN
+    timing: str = (
+        ""  # BEFORE_QUESTIONING, DURING_QUESTIONING, AFTER_QUESTIONING, NOT_GIVEN, UNKNOWN
+    )
     custodial: bool | None = None
     statements_before_miranda: list[str] = []
     statements_after_miranda: list[str] = []
@@ -115,9 +117,7 @@ class RightsScannerOutput(BaseModel):
     )
     miranda_analysis: MirandaAnalysis = Field(default_factory=MirandaAnalysis)
     search_analysis: SearchAnalysis = Field(default_factory=SearchAnalysis)
-    sixth_amendment_analysis: SixthAmendmentAnalysis = Field(
-        default_factory=SixthAmendmentAnalysis
-    )
+    sixth_amendment_analysis: SixthAmendmentAnalysis = Field(default_factory=SixthAmendmentAnalysis)
     eighth_amendment_analysis: EighthAmendmentAnalysis = Field(
         default_factory=EighthAmendmentAnalysis
     )

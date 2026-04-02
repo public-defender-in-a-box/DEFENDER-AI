@@ -40,7 +40,10 @@ def is_mvp_in_scope(offense: OffenseDetails) -> tuple[bool, str | None]:
             term in desc_lower
             for term in ["simple possession", "possession of marijuana", "possession of less than"]
         ):
-            return False, "Conduct type unknown and charge description does not indicate simple possession"
+            return (
+                False,
+                "Conduct type unknown and charge description does not indicate simple possession",
+            )
 
     if offense.quantity_value is None:
         return False, "Quantity missing; cannot confirm misdemeanor threshold"
@@ -128,14 +131,18 @@ def scope_gate(state: SentencingGraphState) -> SentencingGraphState:
     # Check criminal history verification
     if input_data.criminal_history.verification_status.value == "self_reported":
         warnings.append("Criminal history is self-reported only — confidence will be capped")
-        ethics_flags.append("SELF_REPORTED_CRIMINAL_HISTORY: verification recommended before relying on diversion eligibility")
+        ethics_flags.append(
+            "SELF_REPORTED_CRIMINAL_HISTORY: verification recommended before relying on diversion eligibility"
+        )
 
     if input_data.criminal_history.verification_status.value == "unknown":
         warnings.append("Criminal history verification status unknown — treat as unverified")
 
     # Conduct type warning
     if input_data.offense_details.conduct_type == ConductType.UNKNOWN:
-        warnings.append("Conduct type is UNKNOWN — inferred as simple possession from charge description")
+        warnings.append(
+            "Conduct type is UNKNOWN — inferred as simple possession from charge description"
+        )
 
     state["scope_status"] = "in_scope"
     state["out_of_scope_reason"] = None

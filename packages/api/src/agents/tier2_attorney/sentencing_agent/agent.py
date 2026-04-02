@@ -38,11 +38,14 @@ class SentencingAgent(BaseAgent):
             output_dict = output.model_dump()
 
             confidence = output.confidence_score
-            self.log_action("sentencing_analysis_completed", {
-                "case_id": case_id,
-                "scope_status": output.scope_status,
-                "confidence": confidence,
-            })
+            self.log_action(
+                "sentencing_analysis_completed",
+                {
+                    "case_id": case_id,
+                    "scope_status": output.scope_status,
+                    "confidence": confidence,
+                },
+            )
 
             return self.wrap_output(output_dict, confidence=confidence)
 
@@ -88,7 +91,8 @@ class SentencingAgent(BaseAgent):
             ),
             offense_details=OffenseDetails(
                 statute=first_charge.get("statute_section") or first_charge.get("statute", ""),
-                charge_description=first_charge.get("offense_title") or first_charge.get("description", ""),
+                charge_description=first_charge.get("offense_title")
+                or first_charge.get("description", ""),
                 enhancements=first_charge.get("enhancements", []),
             ),
             criminal_history=PriorRecord(

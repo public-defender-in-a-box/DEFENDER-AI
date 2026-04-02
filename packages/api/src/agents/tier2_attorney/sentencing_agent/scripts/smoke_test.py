@@ -24,8 +24,12 @@ from src.agents.tier2_attorney.sentencing_agent.nodes.scope_gate import scope_ga
 from src.agents.tier2_attorney.sentencing_agent.nodes.authority_loader import authority_loader
 from src.agents.tier2_attorney.sentencing_agent.nodes.exposure_calculator import exposure_calculator
 from src.agents.tier2_attorney.sentencing_agent.nodes.diversion_checker import diversion_checker
-from src.agents.tier2_attorney.sentencing_agent.nodes.mitigation_fact_sheet import mitigation_fact_sheet_node
-from src.agents.tier2_attorney.sentencing_agent.nodes.comparable_sentence_lookup import comparable_sentence_lookup
+from src.agents.tier2_attorney.sentencing_agent.nodes.mitigation_fact_sheet import (
+    mitigation_fact_sheet_node,
+)
+from src.agents.tier2_attorney.sentencing_agent.nodes.comparable_sentence_lookup import (
+    comparable_sentence_lookup,
+)
 
 
 def main():
@@ -96,7 +100,9 @@ def main():
     state = diversion_checker(state)
     print(f"   Options: {len(state['diversion_options'])}")
     for opt in state["diversion_options"]:
-        print(f"   - {opt.program_name}: avail={opt.availability_status}, elig={opt.preliminary_eligibility}")
+        print(
+            f"   - {opt.program_name}: avail={opt.availability_status}, elig={opt.preliminary_eligibility}"
+        )
 
     print("5. Mitigation Fact Sheet...")
     state = mitigation_fact_sheet_node(state)

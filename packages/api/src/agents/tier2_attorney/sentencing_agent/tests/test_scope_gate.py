@@ -96,7 +96,12 @@ class TestIsMvpInScope:
         )
         in_scope, reason = is_mvp_in_scope(offense)
         assert in_scope is False
-        assert "sale" in reason.lower() or "distribution" in reason.lower() or "PWID" in reason or "excludes" in reason.lower()
+        assert (
+            "sale" in reason.lower()
+            or "distribution" in reason.lower()
+            or "PWID" in reason
+            or "excludes" in reason.lower()
+        )
 
     def test_rejects_sale(self):
         offense = OffenseDetails(
