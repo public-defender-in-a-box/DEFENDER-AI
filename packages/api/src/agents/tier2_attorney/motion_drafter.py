@@ -26,7 +26,7 @@ class MotionDrafterAgent(BaseAgent):
         case_law = input_data.get("case_law", {})
         statutes = input_data.get("statutes", {})
         facts = input_data.get("intake_facts", {})
-        jurisdiction = input_data.get("jurisdiction", "IL")
+        jurisdiction = input_data.get("jurisdiction", "GA")
 
         prompt = f"""You are a motion drafting agent for a public defender in {jurisdiction}.
 

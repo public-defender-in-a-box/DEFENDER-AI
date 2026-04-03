@@ -45,7 +45,7 @@ enum PipelineStage {
 model Case {
   id           String        @id @default(cuid())
   caseNumber   String?
-  jurisdiction String        @default("IL")
+  jurisdiction String        @default("GA")
   stage        PipelineStage @default(CREATED)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
