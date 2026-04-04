@@ -1,5 +1,6 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AGENT_KEYS, AGENT_DISPLAY_NAMES, type AgentKey, type AgentStatus } from "@/lib/events";
 
@@ -12,7 +13,7 @@ function StatusIcon({ status }: { status: AgentStatus }) {
     case "COMPLETE":
       return <span className="text-pd-green" title="Complete">&#10003;</span>;
     case "RUNNING":
-      return <span className="animate-spin text-pd-blue" title="Running">&#9696;</span>;
+      return <Loader2 className="h-4 w-4 animate-spin text-pd-blue" aria-label="Running" />;
     case "FAILED":
       return <span className="text-pd-red" title="Failed">&#10007;</span>;
     case "QUEUED":

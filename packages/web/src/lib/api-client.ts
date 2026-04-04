@@ -63,30 +63,6 @@ async function apiFetch<T>(
   return res.json() as Promise<T>;
 }
 
-// --- In-memory cache for CaseDetail to avoid redundant fetches ---
-
-const caseDetailCache = new Map<
-  string,
-  { data: CaseDetail; fetchedAt: number }
->();
-const CACHE_TTL_MS = 3000; // 3 seconds
-
-async function getCaseCached(caseId: string): Promise<CaseDetail> {
-  const cached = caseDetailCache.get(caseId);
-  const now = Date.now();
-  if (cached && now - cached.fetchedAt < CACHE_TTL_MS) {
-    return cached.data;
-  }
-  const data = await apiFetch<CaseDetail>(`/api/v1/cases/${caseId}`);
-  caseDetailCache.set(caseId, { data, fetchedAt: now });
-  return data;
-}
-
-/** Invalidate the cache for a case (call after mutations). */
-export function invalidateCaseCache(caseId: string): void {
-  caseDetailCache.delete(caseId);
-}
-
 // --- Upload ---
 
 async function uploadDocument(
@@ -112,7 +88,7 @@ async function listCases(): Promise<CaseSummary[]> {
 }
 
 async function getCase(caseId: string): Promise<CaseDetail> {
-  return getCaseCached(caseId);
+  return apiFetch<CaseDetail>(`/api/v1/cases/${caseId}`);
 }
 
 async function getCaseStatus(caseId: string): Promise<CaseStatusResponse> {
@@ -120,14 +96,17 @@ async function getCaseStatus(caseId: string): Promise<CaseStatusResponse> {
 }
 
 async function getCaseState(caseId: string): Promise<CaseState> {
-  const detail = await getCaseCached(caseId);
+  const detail = await getCase(caseId);
   return mapCaseDetailToCaseState(detail);
 }
 
-// --- Agent Outputs (extracted from cached CaseDetail) ---
+// --- Agent Outputs ---
+// These are convenience functions for direct API use.
+// In components, prefer the SWR hooks from use-case.ts which derive agent
+// data from the cached CaseDetail without extra fetches.
 
 async function getMotions(caseId: string): Promise<MotionDrafterOutput> {
-  const detail = await getCaseCached(caseId);
+  const detail = await getCase(caseId);
   if (!detail.draft_motions) {
     return { motions: [] };
   }
@@ -135,17 +114,17 @@ async function getMotions(caseId: string): Promise<MotionDrafterOutput> {
 }
 
 async function getPleaTrialAssessment(caseId: string): Promise<PleaTrialOutput | null> {
-  const detail = await getCaseCached(caseId);
+  const detail = await getCase(caseId);
   return detail.plea_trial_assessment?.data ?? null;
 }
 
 async function getSentencingAnalysis(caseId: string): Promise<SentencingOutput | null> {
-  const detail = await getCaseCached(caseId);
+  const detail = await getCase(caseId);
   return detail.sentencing_analysis?.data ?? null;
 }
 
 async function getBradyAnalysis(caseId: string): Promise<BradyAnalysisOutput | null> {
-  const detail = await getCaseCached(caseId);
+  const detail = await getCase(caseId);
   return detail.brady_analysis?.data ?? null;
 }
 
@@ -160,7 +139,6 @@ async function submitAnnotation(
   sectionId: string,
   annotation: AnnotationSubmission
 ): Promise<{ status: string }> {
-  invalidateCaseCache(caseId);
   return apiFetch<{ status: string }>(
     `/api/v1/cases/${caseId}/review/${sectionId}/annotate`,
     {
@@ -174,7 +152,6 @@ async function approveSection(
   caseId: string,
   sectionId: string
 ): Promise<{ status: string }> {
-  invalidateCaseCache(caseId);
   return apiFetch<{ status: string }>(
     `/api/v1/cases/${caseId}/review/${sectionId}/approve`,
     {

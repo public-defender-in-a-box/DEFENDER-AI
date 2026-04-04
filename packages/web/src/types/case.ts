@@ -64,21 +64,21 @@ export interface CaseState {
   // Identity
   id: string;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
   jurisdiction: string;
   caseNumber?: string;
 
   // Pipeline
   stage: PipelineStage;
-  stageHistory: Array<{
+  stageHistory?: Array<{
     stage: PipelineStage;
     enteredAt: string;
     exitedAt?: string;
   }>;
 
   // Attorney
-  attorneyId: string;
-  attorneyConfig: {
+  attorneyId?: string;
+  attorneyConfig?: {
     jurisdiction: string;
     preferences: Record<string, unknown>;
   };
@@ -108,13 +108,13 @@ export interface CaseState {
 
   // Cross-cutting
   ethicalFlags: EthicalFlag[];
-  auditLog: AuditEntry[];
+  auditLog?: AuditEntry[];
 
   // Attorney Review
   reviewStatus: Record<string, ReviewStatus>;
 
   // Raw documents
-  documents: Array<{
+  documents?: Array<{
     id: string;
     type: "COMPLAINT" | "INDICTMENT" | "ARREST_REPORT" | "DISCOVERY" | "OTHER";
     fileName: string;

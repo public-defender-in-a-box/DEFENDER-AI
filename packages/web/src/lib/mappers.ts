@@ -3,20 +3,16 @@ import type { CaseDetail, CaseState, ConfidenceLevel, ReviewStatus } from "@/typ
 /**
  * Maps a snake_case CaseDetail API response to a camelCase CaseState object.
  * The backend returns snake_case keys; the frontend CaseState uses camelCase.
+ *
+ * Fields the backend doesn't provide (stageHistory, auditLog, documents,
+ * attorneyId, attorneyConfig) are omitted — they are optional on CaseState.
  */
 export function mapCaseDetailToCaseState(detail: CaseDetail): CaseState {
   return {
     id: detail.id,
     createdAt: detail.created_at,
-    updatedAt: detail.created_at, // Backend doesn't expose updated_at separately
     jurisdiction: detail.jurisdiction,
     stage: detail.stage as CaseState["stage"],
-    stageHistory: [],
-    attorneyId: "",
-    attorneyConfig: {
-      jurisdiction: detail.jurisdiction,
-      preferences: {},
-    },
 
     // Tier 1 Outputs
     chargeProcessing: detail.charge_processing,
@@ -43,13 +39,9 @@ export function mapCaseDetailToCaseState(detail: CaseDetail): CaseState {
 
     // Cross-cutting
     ethicalFlags: detail.ethical_flags ?? [],
-    auditLog: [],
 
     // Attorney Review
     reviewStatus: detail.review_status ?? {},
-
-    // Documents
-    documents: [],
   };
 }
 

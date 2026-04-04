@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useCases } from "@/hooks/use-case";
-import { DraftBanner } from "@/components/layout/draft-banner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
@@ -14,7 +13,6 @@ export default function CasesPage() {
 
   return (
     <div className="space-y-4">
-      <DraftBanner />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900">Cases</h1>
         <Link

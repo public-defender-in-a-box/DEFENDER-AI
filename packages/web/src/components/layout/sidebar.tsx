@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { useCase } from "@/hooks/use-case";
+import type { CaseDetail } from "@/types/case";
 
 const mainNav = [
   { label: "Dashboard", href: "/cases" },
@@ -13,7 +15,7 @@ const mainNav = [
 interface CaseNavItem {
   label: string;
   href: string;
-  agentKey?: string;
+  agentKey?: keyof CaseDetail;
 }
 
 function caseNav(caseId: string): CaseNavItem[] {
@@ -27,15 +29,28 @@ function caseNav(caseId: string): CaseNavItem[] {
   ];
 }
 
-/** Status dot: green = data available, gray = pending/not started. */
-function StatusDot({ available }: { available: boolean }) {
+type DotStatus = "available" | "flagged" | "pending";
+
+function StatusDot({ status }: { status: DotStatus }) {
+  const colorClass =
+    status === "available"
+      ? "bg-pd-green"
+      : status === "flagged"
+        ? "bg-pd-amber"
+        : "bg-slate-300";
+
   return (
     <span
-      className={`ml-auto inline-block h-2 w-2 rounded-full ${
-        available ? "bg-pd-green" : "bg-slate-300"
-      }`}
+      className={`ml-auto inline-block h-2 w-2 rounded-full ${colorClass}`}
     />
   );
+}
+
+function getAgentDotStatus(detail: CaseDetail | undefined, agentKey: keyof CaseDetail): DotStatus {
+  if (!detail) return "pending";
+  const value = detail[agentKey];
+  if (value === null || value === undefined) return "pending";
+  return "available";
 }
 
 export function Sidebar() {
@@ -44,6 +59,8 @@ export function Sidebar() {
   // Extract caseId from path like /cases/CASE-abc123/...
   const caseMatch = pathname.match(/^\/cases\/([^/]+)/);
   const caseId = caseMatch ? caseMatch[1] : null;
+
+  const { data: detail } = useCase(caseId);
 
   return (
     <aside className="flex w-56 flex-col border-r bg-pd-gray">
@@ -92,7 +109,7 @@ export function Sidebar() {
                 <Link href={item.href} className="flex w-full items-center">
                   {item.label}
                   {item.agentKey !== undefined && (
-                    <StatusDot available={false} />
+                    <StatusDot status={getAgentDotStatus(detail, item.agentKey)} />
                   )}
                 </Link>
               </Button>

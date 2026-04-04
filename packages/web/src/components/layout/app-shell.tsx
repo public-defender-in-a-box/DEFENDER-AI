@@ -4,6 +4,7 @@ import { Sidebar } from "./sidebar";
 import { Header } from "./header";
 import { ErrorBoundary } from "@/components/shared/error-boundary";
 import { usePathname } from "next/navigation";
+import { useCase } from "@/hooks/use-case";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -16,6 +17,8 @@ export function AppShell({ children }: AppShellProps) {
   const caseMatch = pathname.match(/^\/cases\/([^/]+)/);
   const caseId = caseMatch ? caseMatch[1] : undefined;
 
+  const { data: detail } = useCase(caseId ?? null);
+
   return (
     <div className="flex min-h-screen">
       <Sidebar />
@@ -23,7 +26,11 @@ export function AppShell({ children }: AppShellProps) {
         <div className="privilege-warning text-center">
           ATTORNEY-CLIENT PRIVILEGED MATERIAL
         </div>
-        <Header caseId={caseId} />
+        <Header
+          caseId={caseId}
+          stage={detail?.stage}
+          jurisdiction={detail?.jurisdiction}
+        />
         <main className="flex-1 p-6">
           <ErrorBoundary>{children}</ErrorBoundary>
         </main>

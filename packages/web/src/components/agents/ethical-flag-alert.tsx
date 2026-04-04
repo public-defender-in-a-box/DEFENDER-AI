@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { EthicalFlag } from "@/types/case";

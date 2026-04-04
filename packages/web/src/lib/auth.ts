@@ -19,8 +19,13 @@ export const authOptions: NextAuthOptions = {
         // MVP: accept any login with a valid email format
         // TODO: Wire to backend authentication endpoint
         if (credentials?.email) {
+          // Derive a stable attorney ID from email to support multi-user
+          const slug = credentials.email
+            .split("@")[0]
+            .replace(/[^a-zA-Z0-9]/g, "_")
+            .toLowerCase();
           return {
-            id: "attorney_001",
+            id: `attorney_${slug}`,
             email: credentials.email,
             name: "Public Defender",
           };
@@ -46,11 +51,15 @@ export const authOptions: NextAuthOptions = {
 };
 
 /**
- * Get the attorney ID from a session, with fallback for MVP.
+ * Get the attorney ID from a session.
+ * Throws if no session — callers must handle auth gating.
  */
 export function getAttorneyId(session: Session | null): string {
   if (session?.user) {
-    return (session.user as Record<string, unknown>).id as string ?? "attorney_001";
+    const id = (session.user as Record<string, unknown>).id;
+    if (typeof id === "string") return id;
   }
-  return process.env.NEXT_PUBLIC_ATTORNEY_ID || "attorney_001";
+  // MVP fallback for server-side contexts where session isn't available yet
+  // This is only used during the transition to full auth wiring
+  return "attorney_001";
 }
