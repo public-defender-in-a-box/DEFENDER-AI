@@ -16,6 +16,7 @@ import type {
   ComprehensionCheckResult,
   ReviewStatusResponse,
 } from "@/types/review";
+import { mapCaseDetailToCaseState } from "./mappers";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -37,11 +38,19 @@ async function apiFetch<T>(
 ): Promise<T> {
   const url = `${API_BASE}${path}`;
 
+  const headers: Record<string, string> = {
+    "X-Attorney-Id": process.env.NEXT_PUBLIC_ATTORNEY_ID || "attorney_001",
+  };
+
+  // Only set Content-Type for JSON requests (not FormData)
+  if (!(options.body instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
+  }
+
   const res = await fetch(url, {
     ...options,
     headers: {
-      "Content-Type": "application/json",
-      "X-Attorney-Id": process.env.NEXT_PUBLIC_ATTORNEY_ID || "attorney_001",
+      ...headers,
       ...options.headers,
     },
   });
@@ -52,6 +61,30 @@ async function apiFetch<T>(
   }
 
   return res.json() as Promise<T>;
+}
+
+// --- In-memory cache for CaseDetail to avoid redundant fetches ---
+
+const caseDetailCache = new Map<
+  string,
+  { data: CaseDetail; fetchedAt: number }
+>();
+const CACHE_TTL_MS = 3000; // 3 seconds
+
+async function getCaseCached(caseId: string): Promise<CaseDetail> {
+  const cached = caseDetailCache.get(caseId);
+  const now = Date.now();
+  if (cached && now - cached.fetchedAt < CACHE_TTL_MS) {
+    return cached.data;
+  }
+  const data = await apiFetch<CaseDetail>(`/api/v1/cases/${caseId}`);
+  caseDetailCache.set(caseId, { data, fetchedAt: now });
+  return data;
+}
+
+/** Invalidate the cache for a case (call after mutations). */
+export function invalidateCaseCache(caseId: string): void {
+  caseDetailCache.delete(caseId);
 }
 
 // --- Upload ---
@@ -66,21 +99,10 @@ async function uploadDocument(
   if (documentType) formData.append("document_type", documentType);
   if (jurisdiction) formData.append("jurisdiction", jurisdiction);
 
-  const url = `${API_BASE}/api/v1/upload`;
-  const res = await fetch(url, {
+  return apiFetch<UploadResponse>("/api/v1/upload", {
     method: "POST",
-    headers: {
-      "X-Attorney-Id": process.env.NEXT_PUBLIC_ATTORNEY_ID || "attorney_001",
-    },
     body: formData,
   });
-
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new ApiError(res.status, error.detail || "Upload failed");
-  }
-
-  return res.json();
 }
 
 // --- Cases ---
@@ -90,7 +112,7 @@ async function listCases(): Promise<CaseSummary[]> {
 }
 
 async function getCase(caseId: string): Promise<CaseDetail> {
-  return apiFetch<CaseDetail>(`/api/v1/cases/${caseId}`);
+  return getCaseCached(caseId);
 }
 
 async function getCaseStatus(caseId: string): Promise<CaseStatusResponse> {
@@ -98,13 +120,14 @@ async function getCaseStatus(caseId: string): Promise<CaseStatusResponse> {
 }
 
 async function getCaseState(caseId: string): Promise<CaseState> {
-  return apiFetch<CaseState>(`/api/v1/cases/${caseId}`);
+  const detail = await getCaseCached(caseId);
+  return mapCaseDetailToCaseState(detail);
 }
 
-// --- Agent Outputs ---
+// --- Agent Outputs (extracted from cached CaseDetail) ---
 
 async function getMotions(caseId: string): Promise<MotionDrafterOutput> {
-  const detail = await getCase(caseId);
+  const detail = await getCaseCached(caseId);
   if (!detail.draft_motions) {
     return { motions: [] };
   }
@@ -112,17 +135,17 @@ async function getMotions(caseId: string): Promise<MotionDrafterOutput> {
 }
 
 async function getPleaTrialAssessment(caseId: string): Promise<PleaTrialOutput | null> {
-  const detail = await getCase(caseId);
+  const detail = await getCaseCached(caseId);
   return detail.plea_trial_assessment?.data ?? null;
 }
 
 async function getSentencingAnalysis(caseId: string): Promise<SentencingOutput | null> {
-  const detail = await getCase(caseId);
+  const detail = await getCaseCached(caseId);
   return detail.sentencing_analysis?.data ?? null;
 }
 
 async function getBradyAnalysis(caseId: string): Promise<BradyAnalysisOutput | null> {
-  const detail = await getCase(caseId);
+  const detail = await getCaseCached(caseId);
   return detail.brady_analysis?.data ?? null;
 }
 
@@ -137,6 +160,7 @@ async function submitAnnotation(
   sectionId: string,
   annotation: AnnotationSubmission
 ): Promise<{ status: string }> {
+  invalidateCaseCache(caseId);
   return apiFetch<{ status: string }>(
     `/api/v1/cases/${caseId}/review/${sectionId}/annotate`,
     {
@@ -150,6 +174,7 @@ async function approveSection(
   caseId: string,
   sectionId: string
 ): Promise<{ status: string }> {
+  invalidateCaseCache(caseId);
   return apiFetch<{ status: string }>(
     `/api/v1/cases/${caseId}/review/${sectionId}/approve`,
     {

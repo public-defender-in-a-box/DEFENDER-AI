@@ -16,7 +16,7 @@ export function formatStage(stage: string): string {
 export function confidenceColor(level: string): string {
   switch (level) {
     case "HIGH": return "#16a34a";
-    case "MEDIUM": return "#f59e0b";
+    case "MEDIUM": return "#d97706";
     case "LOW": return "#ef4444";
     default: return "#6b7280";
   }

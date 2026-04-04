@@ -1,3 +1,6 @@
+import type { ReviewStatus } from "./review";
+export type { ReviewStatus } from "./review";
+
 /** Pipeline stage tracking */
 export type PipelineStage =
   | "CREATED"
@@ -20,7 +23,6 @@ export type VerificationStatus =
   | "UNCONFIRMED"
   | "OVERRULED"
   | "SUPERSEDED";
-export type ReviewStatus = "PENDING_REVIEW" | "IN_REVIEW" | "ATTORNEY_APPROVED";
 export type EthicalFlagPriority = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
 
 export interface ConfidenceRated<T> {

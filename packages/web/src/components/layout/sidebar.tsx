@@ -10,15 +10,32 @@ const mainNav = [
   { label: "Upload", href: "/upload" },
 ];
 
-function caseNav(caseId: string) {
+interface CaseNavItem {
+  label: string;
+  href: string;
+  agentKey?: string;
+}
+
+function caseNav(caseId: string): CaseNavItem[] {
   return [
     { label: "Overview", href: `/cases/${caseId}` },
-    { label: "Motions", href: `/cases/${caseId}/motions` },
-    { label: "Plea / Trial", href: `/cases/${caseId}/plea-trial` },
-    { label: "Sentencing", href: `/cases/${caseId}/sentencing` },
+    { label: "Motions", href: `/cases/${caseId}/motions`, agentKey: "draft_motions" },
+    { label: "Plea / Trial", href: `/cases/${caseId}/plea-trial`, agentKey: "plea_trial_assessment" },
+    { label: "Sentencing", href: `/cases/${caseId}/sentencing`, agentKey: "sentencing_analysis" },
     { label: "Timeline", href: `/cases/${caseId}/timeline` },
     { label: "Review", href: `/cases/${caseId}/review` },
   ];
+}
+
+/** Status dot: green = data available, gray = pending/not started. */
+function StatusDot({ available }: { available: boolean }) {
+  return (
+    <span
+      className={`ml-auto inline-block h-2 w-2 rounded-full ${
+        available ? "bg-pd-green" : "bg-slate-300"
+      }`}
+    />
+  );
 }
 
 export function Sidebar() {
@@ -72,7 +89,12 @@ export function Sidebar() {
                 }`}
                 asChild
               >
-                <Link href={item.href}>{item.label}</Link>
+                <Link href={item.href} className="flex w-full items-center">
+                  {item.label}
+                  {item.agentKey !== undefined && (
+                    <StatusDot available={false} />
+                  )}
+                </Link>
               </Button>
             ))}
           </>
