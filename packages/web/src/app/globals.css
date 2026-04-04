@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+    --radius: 0.5rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}
+
+@layer components {
+  /* Confidence badges */
+  .badge-high {
+    @apply inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800;
+  }
+  .badge-medium {
+    @apply inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800;
+  }
+  .badge-low {
+    @apply inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800;
+  }
+
+  /* Verification status */
+  .citation-verified {
+    @apply text-green-700 font-medium;
+  }
+  .citation-unverified {
+    @apply text-amber-600 font-medium italic;
+  }
+
+  /* Attorney review states */
+  .review-pending {
+    @apply border-l-4 border-amber-400 bg-amber-50 p-4;
+  }
+  .review-approved {
+    @apply border-l-4 border-green-400 bg-green-50 p-4;
+  }
+
+  /* Draft warning banner */
+  .draft-warning {
+    @apply bg-amber-50 border border-amber-300 text-amber-800 px-4 py-3 rounded-md text-sm font-medium;
+  }
+
+  /* Privilege warning banner */
+  .privilege-warning {
+    @apply bg-red-50 border border-red-300 text-red-800 px-4 py-2 rounded-md text-xs font-semibold uppercase tracking-wide;
+  }
+}
