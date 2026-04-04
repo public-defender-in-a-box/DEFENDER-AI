@@ -16,3 +16,21 @@ export interface ComprehensionCheck {
   question: string;
   expectedKeywords: string[];
 }
+
+// --- API request/response types ---
+
+export interface AnnotationSubmission {
+  text: string;
+  agrees_with_system: boolean;
+  reasoning: string;
+}
+
+export interface ComprehensionCheckResult {
+  passed: boolean;
+  feedback?: string;
+}
+
+export interface ReviewStatusResponse {
+  case_id: string;
+  sections: ReviewSection[];
+}

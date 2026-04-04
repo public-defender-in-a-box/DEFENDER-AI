@@ -1,3 +1,6 @@
+import type { ReviewStatus } from "./review";
+export type { ReviewStatus } from "./review";
+
 /** Pipeline stage tracking */
 export type PipelineStage =
   | "CREATED"
@@ -20,7 +23,6 @@ export type VerificationStatus =
   | "UNCONFIRMED"
   | "OVERRULED"
   | "SUPERSEDED";
-export type ReviewStatus = "PENDING_REVIEW" | "IN_REVIEW" | "ATTORNEY_APPROVED";
 export type EthicalFlagPriority = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
 
 export interface ConfidenceRated<T> {
@@ -119,6 +121,58 @@ export interface CaseState {
     storageUrl: string;
     uploadedAt: string;
   }>;
+}
+
+// --- API-facing summary types (for list/detail endpoints) ---
+
+export interface CaseSummary {
+  id: string;
+  stage: string;
+  jurisdiction: string;
+  created_at: string;
+}
+
+export interface CaseDetail {
+  id: string;
+  stage: string;
+  jurisdiction: string;
+  created_at: string;
+  charge_processing: ConfidenceRated<ChargeProcessingOutput> | null;
+  pre_interview_research: ConfidenceRated<PreInterviewResearchOutput> | null;
+  intake_summary: ConfidenceRated<IntakeSummaryOutput> | null;
+  case_prep_memo: ConfidenceRated<CasePrepOutput> | null;
+  statute_analysis: ConfidenceRated<StatuteAnalysisOutput> | null;
+  case_law_research: ConfidenceRated<CaseLawOutput> | null;
+  citation_verification: ConfidenceRated<CitationVerificationOutput> | null;
+  fact_gathering: ConfidenceRated<FactGatheringOutput> | null;
+  rights_violation_analysis: ConfidenceRated<RightsViolationOutput> | null;
+  collateral_consequences: ConfidenceRated<CollateralConsequencesOutput> | null;
+  personal_circumstances: ConfidenceRated<PersonalCircumstancesOutput> | null;
+  draft_motions: ConfidenceRated<MotionDrafterOutput> | null;
+  brady_analysis: ConfidenceRated<BradyAnalysisOutput> | null;
+  plea_trial_assessment: ConfidenceRated<PleaTrialOutput> | null;
+  sentencing_analysis: ConfidenceRated<SentencingOutput> | null;
+  ethical_flags: EthicalFlag[];
+  review_status: Record<string, ReviewStatus>;
+}
+
+export interface CaseStatusResponse {
+  current_stage: string;
+  completed_stages: string[];
+  blocked: boolean;
+  blocked_reason?: string;
+}
+
+export interface UploadResponse {
+  case_id: string;
+  file_name: string;
+  document_type: string;
+  jurisdiction: string;
+  text_length: number;
+  status: string;
+  summary_url: string;
+  status_url: string;
+  message: string;
 }
 
 // Forward declarations — full definitions in agents.ts
