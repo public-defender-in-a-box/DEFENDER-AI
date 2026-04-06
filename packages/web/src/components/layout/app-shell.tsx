@@ -17,7 +17,17 @@ export function AppShell({ children }: AppShellProps) {
   const caseMatch = pathname.match(/^\/cases\/([^/]+)/);
   const caseId = caseMatch ? caseMatch[1] : undefined;
 
+  // Hook must be called unconditionally (React rules of hooks)
   const { data: detail } = useCase(caseId ?? null);
+
+  // Auth and client-facing routes get a minimal shell (no sidebar/header)
+  const isAuthRoute = pathname === "/login" || pathname === "/register";
+  const isClientRoute =
+    pathname.startsWith("/intake") || pathname === "/status";
+
+  if (isAuthRoute || isClientRoute) {
+    return <>{children}</>;
+  }
 
   return (
     <div className="flex min-h-screen">

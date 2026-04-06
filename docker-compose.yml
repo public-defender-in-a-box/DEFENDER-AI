@@ -1,0 +1,32 @@
+version: "3.9"
+
+# DEFENDER AI — Docker Compose
+# Run: docker compose up --build
+# Then open http://localhost:3000
+
+services:
+  backend:
+    build:
+      context: ./packages/api
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    volumes:
+      - ./packages/api/src:/app/src:ro
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./packages/web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+      - NEXTAUTH_SECRET=defender-ai-dev-secret-change-in-production
+      - NEXTAUTH_URL=http://localhost:3000
+    depends_on:
+      - backend
+    restart: unless-stopped
