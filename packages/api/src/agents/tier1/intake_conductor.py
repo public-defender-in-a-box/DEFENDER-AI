@@ -1286,6 +1286,11 @@ class IntakeConductorAgent(BaseAgent):
         elapsed = (datetime.now(timezone.utc) - start_time).total_seconds()
 
         intake_output = {
+            "_disclaimer": (
+                "This information is not legal advice and was collected for "
+                "informational purposes only. Please consult your attorney "
+                "before relying on any of it."
+            ),
             "intake_id": intake_id,
             "matter_id": matter_id,
             "processing_timestamp": datetime.now(timezone.utc).isoformat(),

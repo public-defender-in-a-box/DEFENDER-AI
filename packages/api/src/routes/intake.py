@@ -572,10 +572,25 @@ async def _finalize_interview(
     session: IntakeSession,
     orch: Any,
 ) -> None:
-    """Run the full IntakeConductorAgent batch processing and advance the pipeline."""
+    """Run the full IntakeConductorAgent batch processing and advance the pipeline.
+
+    Emits several WebSocket progress pings along the way so the client UI
+    does not appear frozen during the ~1-2 minute LLM-heavy batch run.
+    """
     session.completed = True
     logger.info("Starting finalization for case %s with %d phases of responses",
                 session.case_id, len(session.responses))
+
+    async def _ping(text: str) -> None:
+        try:
+            await websocket.send_json(_msg("system", text))
+        except Exception:
+            pass  # Best-effort — don't let a dead socket kill finalization
+
+    await _ping(
+        "Thanks for completing the interview. Organizing everything you told "
+        "us now \u2014 this usually takes about a minute."
+    )
 
     conductor = IntakeConductorAgent()
     try:
@@ -591,6 +606,11 @@ async def _finalize_interview(
         logger.exception("IntakeConductorAgent.run() FAILED for %s", session.case_id)
         raise
 
+    await _ping(
+        "Interview summary is ready. Running a final ethics review before "
+        "building your attorney's case memo..."
+    )
+
     # Feed output to orchestrator to advance pipeline -> INTAKE_COMPLETE
     try:
         merge_result = await orch.receive_agent_output("intake_conductor", result)
@@ -603,11 +623,9 @@ async def _finalize_interview(
         logger.exception("receive_agent_output FAILED for %s", session.case_id)
         raise
 
-    await websocket.send_json(
-        _msg(
-            "system",
-            "Thank you. We're preparing your information for your attorney now...",
-        )
+    await _ping(
+        "Your responses have been saved. Drafting the case preparation memo "
+        "for your attorney now..."
     )
 
     # Kick off Case Prep Conductor automatically. If it fails, intake still

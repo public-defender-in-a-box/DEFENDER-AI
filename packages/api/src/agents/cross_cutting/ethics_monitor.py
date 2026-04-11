@@ -134,6 +134,21 @@ CLIENT_FACING_AGENTS: set[str] = {
     "fact_gatherer",
 }
 
+# For intake-style agents, these output subfields hold verbatim client speech
+# (facts, quoted responses, raw inconsistencies). Client speech is an INPUT to
+# the system, not agent-generated prose, so we exclude it from UPL phrase
+# matching. Agent-generated fields like summaries, recommendations, and
+# instructions are still scanned.
+CLIENT_VERBATIM_SUBFIELDS: set[str] = {
+    "extracted_facts",
+    "interview_phases",
+    "pending_follow_ups",
+    "inconsistencies_with_charges",
+    "inconsistency_analysis",
+    "subagent_triggers",
+    "subagent_packages",
+}
+
 # Agents that produce attorney work-product (need privilege disclaimers)
 ATTORNEY_WORK_PRODUCT_AGENTS: set[str] = {
     "motion_drafter",
@@ -448,18 +463,36 @@ class EthicsMonitorAgent(BaseAgent):
         """
         flags: list[dict[str, Any]] = []
         violations: list[UPLViolationDetail] = []
-        data_str = str(output.get("data", ""))
+        raw_data = output.get("data", "")
+        data_str = str(raw_data)
         content_lower = data_str.lower()
+
+        # For intake-style agents, client verbatim speech (fact details,
+        # interview transcripts, follow-ups) is INPUT to the system, not
+        # agent-generated prose. Build a filtered view that excludes those
+        # subtrees so UPL phrases coming out of the client's mouth don't
+        # trigger false-positive CRITICAL flags. Agent-generated summaries,
+        # instructions, recommended_action fields, etc. are still scanned.
+        if agent_id in CLIENT_FACING_AGENTS and isinstance(raw_data, dict):
+            filtered = {
+                k: v for k, v in raw_data.items() if k not in CLIENT_VERBATIM_SUBFIELDS
+            }
+            scan_str = str(filtered)
+            scan_lower = scan_str.lower()
+        else:
+            scan_str = data_str
+            scan_lower = content_lower
 
         # Check 1: UPL violation phrases in client-facing content
         if is_client_facing or agent_id in CLIENT_FACING_AGENTS:
             for phrase in UPL_VIOLATION_PHRASES:
-                if phrase in content_lower:
-                    # Extract surrounding context (up to 80 chars)
-                    idx = content_lower.index(phrase)
+                if phrase in scan_lower:
+                    # Extract surrounding context (up to 80 chars) from the
+                    # same blob we matched against so the snippet is accurate.
+                    idx = scan_lower.index(phrase)
                     start = max(0, idx - 40)
-                    end = min(len(content_lower), idx + len(phrase) + 40)
-                    context = data_str[start:end]
+                    end = min(len(scan_lower), idx + len(phrase) + 40)
+                    context = scan_str[start:end]
 
                     violation = UPLViolationDetail(
                         phrase_matched=phrase,
@@ -481,7 +514,9 @@ class EthicsMonitorAgent(BaseAgent):
                         )
                     )
 
-            # Check 2: Client-facing outputs need a disclaimer
+            # Check 2: Client-facing outputs need a disclaimer. We check the
+            # full stringified data (not the filtered view) so a disclaimer
+            # placed anywhere in the output still counts.
             has_disclaimer = any(
                 marker in content_lower
                 for marker in [
