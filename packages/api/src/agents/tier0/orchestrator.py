@@ -104,6 +104,15 @@ _AGENT_CONFIG: dict[str, dict[str, Any]] = {
         "is_client_facing": False,
         "required_stage": PipelineStage.INTAKE_COMPLETE,
     },
+    # Alias: CasePrepAgent.agent_id is "case_prep_conductor" (see tier1/case_prep.py).
+    # Keep both keys pointing at the same config so callers using either id work.
+    "case_prep_conductor": {
+        "state_field": "case_prep_memo",
+        "start_stage": PipelineStage.CASE_PREP_IN_PROGRESS,
+        "complete_stage": PipelineStage.CASE_PREP_COMPLETE,
+        "is_client_facing": False,
+        "required_stage": PipelineStage.INTAKE_COMPLETE,
+    },
     "disclosure_tracking": {
         "state_field": "disclosure_tracking",
         "start_stage": PipelineStage.CASE_PREP_IN_PROGRESS,
