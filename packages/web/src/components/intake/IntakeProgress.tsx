@@ -2,17 +2,23 @@ interface IntakeProgressProps {
   completionPercentage: number;
   questionsAnswered: number;
   totalQuestions: number;
+  phaseName?: string;
 }
 
 export function IntakeProgress({
   completionPercentage,
   questionsAnswered,
   totalQuestions,
+  phaseName,
 }: IntakeProgressProps) {
   return (
     <div style={{ marginBottom: "1rem" }}>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem" }}>
-        <span>{questionsAnswered} of {totalQuestions} topics covered</span>
+        <span>
+          {phaseName ? <strong>{phaseName}</strong> : null}
+          {phaseName ? " — " : ""}
+          {questionsAnswered} of {totalQuestions} topics covered
+        </span>
         <span>{completionPercentage}%</span>
       </div>
       <div style={{
@@ -26,6 +32,7 @@ export function IntakeProgress({
           width: `${completionPercentage}%`,
           background: "#3b82f6",
           borderRadius: 3,
+          transition: "width 0.3s ease",
         }} />
       </div>
     </div>

@@ -1,6 +1,5 @@
 """Configuration for the Sentencing & Mitigation Agent."""
 
-import os
 from pathlib import Path
 
 # Agent version

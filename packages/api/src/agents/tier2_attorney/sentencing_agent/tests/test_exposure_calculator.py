@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 
 from ..models.inputs import OffenseDetails, PriorRecord
 from ..nodes.exposure_calculator import calculate_guideline_range, exposure_calculator

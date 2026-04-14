@@ -7,7 +7,6 @@ selection does not use race/ethnicity.
 
 from __future__ import annotations
 
-import pytest
 
 from ..models.inputs import (
     CasePhase,
@@ -21,7 +20,7 @@ from ..models.inputs import (
     VerificationStatus,
 )
 from ..nodes.comparable_sentence_lookup import find_comparable_sentences
-from ..nodes.diversion_checker import conditional_discharge_prelim, diversion_checker
+from ..nodes.diversion_checker import conditional_discharge_prelim
 from ..nodes.exposure_calculator import calculate_guideline_range
 from ..nodes.mitigation_fact_sheet import build_mitigation_fact_sheet
 from ..nodes.scope_gate import is_mvp_in_scope

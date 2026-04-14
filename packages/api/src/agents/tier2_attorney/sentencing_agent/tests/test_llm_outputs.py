@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 
 from ..nodes.leniency_argument_builder import _fallback_arguments, _parse_llm_response
 from ..nodes.mitigation_narrative_builder import _fallback_narrative, _parse_narrative_response

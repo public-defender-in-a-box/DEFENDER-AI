@@ -16,7 +16,6 @@ from ..models.inputs import VerificationStatus
 from ..models.outputs import (
     NodeAuditRecord,
     SectionConfidence,
-    SentencingAgentOutput,
 )
 from ..models.state import SentencingGraphState
 

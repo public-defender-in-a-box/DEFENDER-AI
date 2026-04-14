@@ -13,7 +13,6 @@ from typing import Any
 
 from ..config import PROGRAM_DIRECTORY_PATH
 from ..models.inputs import (
-    PersonalCircumstances,
     PriorRecord,
     SentencingAgentInput,
     VerificationStatus,

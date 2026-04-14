@@ -13,7 +13,6 @@ from ..models.inputs import (
     PriorRecord,
     QuantityUnit,
     SentencingAgentInput,
-    VerificationStatus,
 )
 from ..nodes.scope_gate import is_mvp_in_scope, quantity_in_ounces, scope_gate
 

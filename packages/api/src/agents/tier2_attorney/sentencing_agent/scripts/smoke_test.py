@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
+# ruff: noqa: E402
 """Smoke test — runs a quick deterministic-only check of the sentencing agent."""
 
-import json
 import sys
 from pathlib import Path
 
@@ -21,9 +21,15 @@ from src.agents.tier2_attorney.sentencing_agent.models.inputs import (
     VerificationStatus,
 )
 from src.agents.tier2_attorney.sentencing_agent.nodes.scope_gate import scope_gate
-from src.agents.tier2_attorney.sentencing_agent.nodes.authority_loader import authority_loader
-from src.agents.tier2_attorney.sentencing_agent.nodes.exposure_calculator import exposure_calculator
-from src.agents.tier2_attorney.sentencing_agent.nodes.diversion_checker import diversion_checker
+from src.agents.tier2_attorney.sentencing_agent.nodes.authority_loader import (
+    authority_loader,
+)
+from src.agents.tier2_attorney.sentencing_agent.nodes.exposure_calculator import (
+    exposure_calculator,
+)
+from src.agents.tier2_attorney.sentencing_agent.nodes.diversion_checker import (
+    diversion_checker,
+)
 from src.agents.tier2_attorney.sentencing_agent.nodes.mitigation_fact_sheet import (
     mitigation_fact_sheet_node,
 )

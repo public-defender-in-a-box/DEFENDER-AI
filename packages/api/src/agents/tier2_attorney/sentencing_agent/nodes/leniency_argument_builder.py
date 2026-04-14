@@ -30,7 +30,6 @@ def _build_deterministic_candidates(state: SentencingGraphState) -> list[dict[st
     fact_sheet = state.get("mitigation_fact_sheet")
     guideline_range = state.get("guideline_range")
 
-    facts = fact_sheet.get("facts", []) if fact_sheet else []
     themes = fact_sheet.get("themes", []) if fact_sheet else []
 
     # Always available for misdemeanor

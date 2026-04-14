@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 
 from ..models.inputs import PriorRecord, VerificationStatus
 from ..nodes.diversion_checker import conditional_discharge_prelim, diversion_checker
