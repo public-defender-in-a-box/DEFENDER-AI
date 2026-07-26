@@ -197,3 +197,42 @@ async def _run_pipeline(
         case_id,
         merge["decision"],
     )
+
+    # --- Intake Conductor (batch mode — no interactive responses) ---
+    from src.agents.tier1.intake_conductor import IntakeConductorAgent
+
+    can_run, reason = orchestrator.can_run_agent("intake_conductor")
+    if not can_run:
+        logger.error("Cannot run intake_conductor for %s: %s", case_id, reason)
+        return
+
+    orchestrator.mark_agent_started("intake_conductor")
+
+    charge_data = (
+        orchestrator.case_state.charge_processing
+        if orchestrator.case_state
+        else {}
+    ) or {}
+    if "data" in charge_data and "confidence" in charge_data:
+        charge_data = charge_data["data"]
+
+    try:
+        intake_agent = IntakeConductorAgent()
+        intake_result = await intake_agent.run(
+            {
+                "charge_data": charge_data,
+                "matter_id": case_id,
+                "responses": {},
+            }
+        )
+    except Exception as e:
+        await orchestrator.handle_agent_failure("intake_conductor", str(e))
+        logger.exception("Intake conductor failed for %s", case_id)
+        return
+
+    merge = await orchestrator.receive_agent_output("intake_conductor", intake_result)
+    logger.info(
+        "Intake conductor complete for %s (decision: %s)",
+        case_id,
+        merge["decision"],
+    )

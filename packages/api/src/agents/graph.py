@@ -175,12 +175,68 @@ async def pre_interview_node(state: GraphState) -> GraphState:
 
 
 async def intake_node(state: GraphState) -> GraphState:
-    """Node: Intake Conductor — placeholder for interactive chat.
+    """Node: Intake Conductor — runs the intake agent in batch mode.
 
-    In production, this is interactive via WebSocket. In the pipeline test,
-    this marks the case as ready for intake.
+    In production, interactive intake happens via WebSocket. In the pipeline,
+    the agent runs with whatever pre-recorded responses are available in
+    state (if any), then merges its output through the Orchestrator.
     """
-    state["current_stage"] = "INTAKE_IN_PROGRESS"
+    from src.agents.tier0.orchestrator import OrchestratorAgent
+    from src.agents.tier1.intake_conductor import IntakeConductorAgent
+    from src.models.case_state import PipelineStage
+
+    orchestrator = OrchestratorAgent()
+    await orchestrator.run(
+        {
+            "case_id": state["case_id"],
+            "attorney_id": state["case_state"].get("attorney_id", ""),
+            "jurisdiction": state["case_state"].get("jurisdiction", "GA"),
+        }
+    )
+
+    # Reconstruct state from previous pipeline stages
+    orchestrator._case_state.charge_processing = state["case_state"].get("charge_processing")
+    orchestrator._case_state.pre_interview_research = state["case_state"].get(
+        "pre_interview_research"
+    )
+    orchestrator._case_state.advance_stage(PipelineStage.PRE_INTERVIEW_COMPLETE)
+
+    can_run, reason = orchestrator.can_run_agent("intake_conductor")
+    if not can_run:
+        logger.warning("Cannot run intake_conductor: %s", reason)
+        state["error"] = reason
+        return state
+
+    orchestrator.mark_agent_started("intake_conductor")
+
+    agent = IntakeConductorAgent()
+
+    charge_data = state["case_state"].get("charge_processing", {})
+    if "data" in charge_data and "confidence" in charge_data:
+        charge_data = charge_data["data"]
+
+    try:
+        result = await agent.run(
+            {
+                "charge_data": charge_data,
+                "matter_id": state["case_id"],
+                "responses": state["case_state"].get("intake_responses", {}),
+            }
+        )
+    except Exception as e:
+        failure = await orchestrator.handle_agent_failure("intake_conductor", str(e))
+        state["error"] = failure["error"]
+        state["case_state"] = orchestrator.get_case_state_snapshot()
+        return state
+
+    merge_result = await orchestrator.receive_agent_output("intake_conductor", result)
+
+    state["case_state"] = orchestrator.get_case_state_snapshot()
+    state["current_stage"] = state["case_state"].get("stage", "INTAKE_COMPLETE")
+
+    if merge_result["decision"] in ("BLOCKED_ETHICS_P1", "FAILED"):
+        state["error"] = merge_result.get("reason", "Merge blocked")
+
     return state
 
 
@@ -203,6 +259,13 @@ def should_continue_after_pre_interview(state: GraphState) -> str:
     if state.get("error"):
         return END
     return "intake"
+
+
+def should_continue_after_intake(state: GraphState) -> str:
+    """Route after intake — stop on error."""
+    if state.get("error"):
+        return END
+    return "case_prep"
 
 
 def build_pipeline() -> StateGraph:
@@ -229,7 +292,11 @@ def build_pipeline() -> StateGraph:
         should_continue_after_pre_interview,
         {"intake": "intake", END: END},
     )
-    graph.add_edge("intake", "case_prep")
+    graph.add_conditional_edges(
+        "intake",
+        should_continue_after_intake,
+        {"case_prep": "case_prep", END: END},
+    )
     graph.add_edge("case_prep", END)
 
     return graph
