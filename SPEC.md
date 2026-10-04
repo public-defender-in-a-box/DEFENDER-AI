@@ -1,11 +1,14 @@
-# Defender AI — Architecture & Phase Plan v2.0
+# Defender AI — Architecture & Phase Plan v2.1
 
 **Audience:** Claude Code
-**Supersedes:** `GettingClaudeChatUpToSpeed(9.4.26).md` (inaccurate — see §2) and
-the `18.9.2026` local-only Defender Toolkit spec (different product; its
-citation and integrity architecture is carried forward here, its scope
-limitations are not)
-**Date:** October 2026
+**Supersedes:** `GettingClaudeChatUpToSpeed(9.4.26).md` and the `18.9.2026`
+local-only Defender Toolkit spec (different product; its citation and integrity
+architecture is carried forward here, its scope limitations are not)
+**Date:** October 2026. v2.1 (October 4, 2026) follows Phase 0: phases reordered
+by capability gained, Phase 2 split into 2a and 2b, and §2, §3.2 and §5.3 rewritten
+against the real tree.
+**Companion phase documents:** `PHASE_1_MODEL_GATEWAY.md`,
+`PHASE_3_EVIDENCE_ANALYSIS.md` (now Phase 4). Maintained alongside this file.
 
 ---
 
@@ -13,29 +16,31 @@ limitations are not)
 
 Read `CLAUDE.md` before this document. It contains the invariants.
 
-The single most important thing to understand: **this is a research instrument.**
-The system is supposed to attempt the whole defender workflow, including the
-parts a deployable product must never do. Its guardrails are sensors, not
-filters. If you find yourself about to suppress an output, stop — record and
-classify it instead.
+The single most important thing to understand: **the goal is the most capable
+tool we can build.** The system is supposed to attempt the whole defender
+workflow, including the parts a deployable product must never do, because it is
+never deployed (`CLAUDE.md` §1.1). Its guardrails are sensors, not filters — if
+you find yourself about to suppress an output, stop and record it instead, since
+you cannot improve a failure you cannot see. And prefer a capability a user can
+actually reach over one that exists only in the tree.
 
-**Before writing any code, produce a reconciliation report.** §2 states the
-repository's measured condition as of October 1, 2026. Verify it, then report:
+**Phase 0 is complete (PR #13).** Before starting any phase:
 
-1. What has changed since that audit.
-2. Where this spec contradicts a decision already in the code, and which should
-   win.
-3. Anything here you think is wrong, impractical, or would weaken the study.
-
-Then propose a revised Phase 0 and stop.
+1. Read `docs/INVENTORY.md`. It is generated from the tree and checked in CI; it,
+   not this document, is the authority on what exists, what is registered, and
+   what the running app can reach.
+2. Where this spec and the inventory disagree, say so and say which should win.
+3. Report your plan for the phase, including anything here you think is wrong or
+   impractical, and stop for approval (`CLAUDE.md` §8).
 
 ---
 
 ## 1. What this is
 
-A nineteen-agent system that takes a synthetic criminal matter from charging
-document through discovery analysis, research, intake, and attorney-facing
-work product — instrumented throughout so that its failures are measurable.
+A multi-agent system that takes a synthetic criminal matter from charging
+document through discovery analysis, research, intake, and attorney-facing work
+product — built to be as capable as we can make it, and instrumented enough that
+we know where it stands. The repo holds 24 agents; stop saying "nineteen."
 
 **Jurisdiction:** Georgia. O.C.G.A. Title 16 (Crimes and Offenses), Title 17
 (Criminal Procedure), Title 24 (Evidence).
@@ -48,94 +53,32 @@ the document-volume features; it has almost no discovery.
 
 **What is new in v2:** a Tier 2 Evidence Analysis group (§7), a provenance
 primitive that makes every assertion checkable (§5), and a measurement layer
-(§8) that turns the pipeline into an experiment.
+(§8) that tells us whether a change made the tool better.
 
 ---
 
-## 2. Verified state of the repository
+## 2. State of the repository
 
-> **Superseded, October 4, 2026.** This section measured a local clone last updated
-> March 21, 2026, not the repository. The verified state is in
-> `docs/RECONCILIATION_2026-10-04.md`; the current state is `docs/INVENTORY.md`
-> (generated, CI-checked). Phase 0 was revised and executed per that report's §4–5.
+This section used to hold an audit dated October 1, 2026. It measured a local clone
+27 commits stale and was wrong on nearly every count (`CLAUDE.md` §8.1;
+`docs/RECONCILIATION_2026-10-04.md`). It is deliberately not replaced with another
+snapshot. **The current state is `docs/INVENTORY.md`.**
 
-Measured October 1, 2026 by direct inspection of all branches and the full
-fifteen-commit history. Treat narrative claims about this codebase — including
-these — as stale after Phase 0 builds the generator.
+Defects still open after Phase 0, each with the phase that closes it:
 
-### Real
-
-| Component | Lines | Tests | Note |
-|---|---|---|---|
-| `tier1/intake_conductor.py` | 1,101 | ~6 | Five-phase interview. Largest build. |
-| `tier1/charge_processing.py` | 783 | ~5 | Works. Most load-bearing component. |
-| `tier2_attorney/motion_drafter.py` | 563 | ~17 | Plus 409 lines of five Georgia templates. Best tested. |
-| `tier0/orchestrator.py` | 476 | ~3 | Sequencing, confidence gate, merge decisions. Sound. |
-| `tests/test_pipeline_integration.py` | 566 | — | Real coverage of upload → state. |
-| `tier1/pre_interview.py` | 234 | 0 | Partial. |
-
-### Not real, despite prior documentation
-
-- `cross_cutting/ethics_monitor.py` — **140 lines, 0 tests.** Four checks: a LOW
-  confidence flag, a substring scan of eight hardcoded phrases, a disclaimer
-  presence check, one agent-specific check. No bias audit. No hallucination
-  detection. Defeated by paraphrase.
-- `tier2_attorney/sentencing_agent.py` — 57-line stub. The multi-node sentencing
-  sub-pipeline described in prior docs **has never existed in any commit.**
-- Disclosure tracking — **no such file has ever existed.**
-- Thirteen Tier 2 agents are 35–65 line stubs: docstring, one prompt,
-  `wrap_output()`. No corpus lookup, no post-processing, no tests.
-- `src/corpus/data/` contains only `.gitkeep`. Every citation ever produced by
-  this system is unverified by construction.
-- `services/llm_service.py` — 42 lines. No retry, no timeout, no token
-  accounting, no schema validation, bare `json.loads`. Its docstring claims all
-  three features it lacks. All nineteen agents route through it.
-- `routes/_store.py` — module-level dict. Every case lost on restart. The Prisma
-  schema in `packages/web/prisma/` is unused by the backend.
-- Only **five of nineteen** agents appear in the Orchestrator's `_AGENT_CONFIG`:
-  charge processing, pre-interview research, intake conductor, case prep,
-  disclosure tracking (which maps to a nonexistent file). The other fourteen have
-  no state slot and no path into `CaseState`.
-- A 524-line Rights Violation Scanner with 20 tests is unmerged on
-  `Mark-Rights-Violation-Scanner`; `main` carries a 65-line stub.
-
-### Repository hygiene problems found October 4, 2026
-
-These block clean work and must be fixed in Phase 0 before anything else.
-
-- **`main` is behind both feature branches.** Two of the four substantial
-  components are not on `main`:
-  - `motion-drafter` is 2 commits ahead (the real 563-line Motion Drafter, its
-    five templates, and 335 lines of tests). `main` carries a 61-line stub.
-  - `Mark-Rights-Violation-Scanner` is 2 commits ahead (the 524-line Rights
-    Violation Scanner and 20 tests). `main` carries a 65-line stub.
-
-  Anyone reconciling against `main` is reconciling against the oldest state of
-  the project. Merge both before any other Phase 0 work.
-
-- **Line-ending churn makes `git diff` useless.** 104 files report as modified
-  with exactly 9,747 insertions and 9,747 deletions — every line deleted and
-  re-added unchanged. This is CRLF/LF normalization churn, almost certainly from
-  the repository living inside a OneDrive-synced folder on Windows. No content is
-  at risk, but no diff is readable and formatting checks are unreliable. Fix with
-  a `.gitattributes` containing `* text=auto eol=lf`, then
-  `git add --renormalize .` and commit the normalization as its own commit.
-
-- **The repository is inside OneDrive.** `.git/index.lock` operations already
-  fail intermittently. A synced folder and a git index are a known bad
-  combination. Move the working copy outside OneDrive before Phase 1.
-
-### Known defects to fix in passing
-
-- `CaseState.jurisdiction` defaults to `"IL"` while the upload route and graph
-  nodes default to `"GA"`. Fix to `"GA"`.
-- `agents/graph.py` is truncated: `intake` and `case_prep` nodes only set a stage
-  string. Real intake runs outside the graph through the WebSocket route.
-- The Orchestrator constructs a fresh instance per graph node and re-hydrates
-  state by hand, holding a `_orchestrator_ref` containing a raw `id()`. This will
-  not survive persistence.
-- `packages/web/package.json` declares `"test": "jest"` with no jest installed.
-- Auth accepts any syntactically valid email and returns a hardcoded attorney.
+| Defect | Phase |
+|---|---|
+| `services/llm_service.py` (41 lines, 22 importers): no schema validation, no token accounting (`response.usage` is discarded), bare `json.loads`. Retries and timeouts are only the SDK's defaults. The default model `claude-sonnet-4-20250514` is deprecated (the SDK warns of end-of-life on June 15, 2026). | 1 |
+| 45 `except Exception` blocks across 21 agent modules, most turning a failure into a well-formed empty success. | 1 |
+| The Orchestrator blocks on `CRITICAL` ethics flags, and LOW-confidence outputs skip the ethics check entirely. | 1 |
+| No persistence (`routes/_store.py` is a module-level dict); a case cannot be re-run; Orchestrator state (`_blocked`, `_merge_history`, `_human_review_required`) lives outside `CaseState`. | 2a |
+| Sequencing compares positions in the `PipelineStage` enum, which cannot express a branching pipeline. | 2a |
+| Two execution paths: routes drive agents, while `agents/graph.py` compiles a LangGraph pipeline no route uses (its `orchestrator_init_node`, holding a raw `id()`, is dead code). | 2a |
+| 18 of 24 agents are unreachable from the app; 8 `CaseState` slots have no writer. | 2b |
+| Frontend types for Motions, Plea/Trial and Sentencing were written against the old stubs' outputs, not the real agents. | 2b |
+| `src/corpus/data/` is empty, and `.gitignore` excludes `src/corpus/data/*.json`. | 3 |
+| Uploads accept any file and OCR images (`CLAUDE.md` §2, §7). | 2b, 4 |
+| `packages/web/package.json` declares `"test": "jest"` with no jest installed. Auth accepts any email and returns a hardcoded attorney. | Deferred (§9.1) |
 
 ---
 
@@ -149,20 +92,24 @@ These block clean work and must be fixed in Phase 0 before anything else.
    sequencing, routes every output through the Ethics Sensor, records merge
    decisions, and handles partial failure without collapsing the run.
 
-### 3.2 Revised agent hierarchy
+### 3.2 Agent hierarchy
+
+Roles, and the module that implements each. **No status tags on purpose:** the
+last set went stale within a week. `STATUS` (REAL / PARTIAL / STUB), registration,
+reachability and test counts come from `docs/INVENTORY.md`.
 
 ```
 TIER 0 — ORCHESTRATOR
-    └── Case Orchestrator              tier0/orchestrator.py          [REAL]
+    └── Case Orchestrator              tier0/orchestrator.py
 
 TIER 1 — CONDUCTORS
-    ├── Charge Processing              tier1/charge_processing.py     [REAL]
-    ├── Discovery Intake               tier1/discovery_intake.py      [NEW]
-    ├── Pre-Interview Research         tier1/pre_interview.py         [PARTIAL]
-    ├── Intake Conductor               tier1/intake_conductor.py      [REAL]
-    └── Case Prep Conductor            tier1/case_prep.py             [STUB]
+    ├── Charge Processing              tier1/charge_processing.py
+    ├── Discovery Intake               tier1/discovery_intake.py           [planned: Phase 4]
+    ├── Pre-Interview Research         tier1/pre_interview.py
+    ├── Intake Conductor               tier1/intake_conductor.py
+    └── Case Prep Conductor            tier1/case_prep.py
 
-TIER 2 — EVIDENCE ANALYSIS                                            [NEW GROUP]
+TIER 2 — EVIDENCE ANALYSIS                                                 [planned: Phase 4]
     ├── Record Ledger                  tier2_evidence/record_ledger.py
     ├── Tabular Analyzer               tier2_evidence/tabular_analyzer.py
     ├── Timeline Builder               tier2_evidence/timeline_builder.py
@@ -171,29 +118,42 @@ TIER 2 — EVIDENCE ANALYSIS                                            [NEW GRO
     └── Witness Profiler               tier2_evidence/witness_profiler.py
 
 TIER 2 — RESEARCH
-    ├── Statute Agent                  tier2_research/statute_agent.py       [STUB]
-    ├── Case Law Agent                 tier2_research/case_law_agent.py      [STUB]
-    ├── Citation Verifier              tier2_research/citation_verifier.py   [STUB]
-    └── Recency Monitor                tier2_research/recency_monitor.py     [STUB]
+    ├── Research Orchestrator          tier2_research/research_orchestrator.py
+    ├── Statutes                       tier2_research/ga_statutes_agent.py
+    ├── Case Law (Georgia criminal)    tier2_research/ga_criminal_case_law.py
+    ├── Case Law (constitutional)      tier2_research/constitutional_case_law.py
+    ├── Citation Verification          tier2_research/citation_verification.py
+    └── Recency Monitor                tier2_research/recency_monitor.py
 
 TIER 2 — INTAKE SPECIALISTS
-    ├── Rights Violation Scanner       tier2_intake/rights_scanner.py   [UNMERGED: 524 ln]
-    ├── Collateral Consequences        tier2_intake/collateral_agent.py      [STUB]
-    └── Personal Circumstances         tier2_intake/personal_circumstances.py [STUB]
+    ├── Rights Violation Scanner       tier2_intake/rights_scanner.py
+    ├── Fact Gatherer                  tier2_intake/fact_gatherer.py
+    ├── Collateral Consequences        tier2_intake/collateral_agent.py
+    └── Personal Circumstances         tier2_intake/personal_circumstances.py
 
 TIER 2 — ATTORNEY PREP
-    ├── Motion Drafter                 tier2_attorney/motion_drafter.py      [REAL]
-    ├── Brady Candidate Surfacer       tier2_attorney/brady_agent.py         [STUB]
-    ├── Plea/Trial Assessment          tier2_attorney/plea_trial_analyst.py  [STUB]
-    └── Sentencing & Mitigation        tier2_attorney/sentencing_agent.py    [STUB]
+    ├── Motion Drafter                 tier2_attorney/motion_drafter.py
+    ├── Disclosure Tracking            tier2_attorney/disclosure_tracking.py
+    ├── Brady Candidate Surfacer       tier2_attorney/brady_agent.py
+    ├── Plea/Trial Assessment          tier2_attorney/plea_trial_analyst.py
+    └── Sentencing & Mitigation        tier2_attorney/sentencing_agent/    (10-node package)
 
 CROSS-CUTTING
-    ├── Ethics Sensor                  cross_cutting/ethics_sensor.py   [REPLACES monitor]
-    └── Measurement Recorder           cross_cutting/measurements.py         [NEW]
+    ├── Ethics Monitor → Ethics Sensor cross_cutting/ethics_monitor.py → ethics_sensor.py
+    │                                  (non-blocking from Phase 1; replaced in Phase 5)
+    └── Measurement Recorder           cross_cutting/measurements.py        [planned]
 ```
 
-`fact_gatherer.py` is folded into the Intake Conductor and should be deleted
-rather than left as a stub.
+Three single-prompt stubs are kept on purpose next to the research agents that
+superseded them: `statute_agent.py`, `case_law_agent.py`, `citation_verifier.py`.
+They are labeled `STUB` in every output and serve as a naive-baseline comparison.
+
+Two placements are open and get decided when the agent is wired or replaced:
+
+- **Disclosure Tracking** overlaps the Brady Candidate Surfacer (a stub) and
+  Discovery Intake. Decide in Phase 2b, when it is wired.
+- **Fact Gatherer** is a real agent. Whether Record Ledger population subsumes it
+  is decided in Phase 4, against its replacement, not before.
 
 ### 3.3 Revised pipeline
 
@@ -220,6 +180,9 @@ discovery gives the Intake Conductor something to test the client's account
 against — which is what makes the inconsistency detection meaningful rather than
 a comparison against the charging document alone.
 
+Matters with no discovery (the possession case) skip Discovery Intake and Evidence
+Analysis. Phase 2a's per-agent `depends_on` makes that expressible.
+
 ### 3.4 New pipeline stages
 
 Insert into `PipelineStage` after `CHARGES_PROCESSED`:
@@ -227,6 +190,9 @@ Insert into `PipelineStage` after `CHARGES_PROCESSED`:
 ```
 DISCOVERY_INGEST → DISCOVERY_INGESTED → EVIDENCE_ANALYSIS → EVIDENCE_ANALYSIS_COMPLETE
 ```
+
+From Phase 2a, sequencing comes from per-agent `depends_on` slot lists.
+`PipelineStage` remains a status for display, not the dependency rule.
 
 ---
 
@@ -251,7 +217,11 @@ measurements:          dict           # default_factory=dict — Sensor + per-ru
 run_metadata:          dict           # git SHA, model name/version, prompt versions
 ```
 
-Also: change `jurisdiction` default from `"IL"` to `"GA"`.
+The `jurisdiction` default is already `"GA"` (Phase 0).
+
+These slots, and the §5 provenance primitive, land together in Phase 2a's
+migration so `CaseState` changes shape once. If Phase 1 needs `run_metadata` or
+`measurements` earlier, it adds them then.
 
 Keep the existing slots. Do not restructure `CaseState` into a nested shape in
 this phase — the flat slot layout is working and the migration cost is not worth
@@ -333,15 +303,34 @@ class Assertion(BaseModel):
 
 ### 5.3 The verification rule
 
-Mechanical and testable:
+Models are bad at character offsets, and PDF text extraction introduces ligatures,
+hyphenation and whitespace drift. A byte-for-byte check against a *model-produced*
+locator would mostly count those, not fabrication. So the work is split:
 
-> On write, fetch the stored source at `locator` and compare it byte-for-byte to
-> `source_text`. On mismatch, **drop the assertion**, increment
-> `measurements.verification_failures`, and log the dropped text for analysis.
+1. The model supplies the assertion, a **verbatim quote**, and a hint (artifact and
+   page). It never computes offsets.
+2. A deterministic **resolver** searches the stored source for the quote and
+   computes the locator. `source_text` is the stored text at that computed locator,
+   so it is byte-identical to the source by construction.
+3. Each assertion gets one outcome, counted per agent in
+   `measurements.verification_failures`:
+   - `NOT_FOUND`: the quote occurs nowhere in the matter's sources. **Drop the
+     assertion.** Do not repair it, do not surface it with a warning; log the
+     dropped text with agent, model and prompt version. This rate is the
+     fabrication rate.
+   - `FOUND_ELSEWHERE`: the quote is real but not where the hint said. Keep it with
+     the computed locator, so the reader sees its true source, and count the miss.
+   - `FOUND_AFTER_NORMALIZATION`: found only after one documented canonicalization
+     (Unicode NFC, whitespace collapsed, ligatures expanded). Keep it and count it
+     separately, so extraction noise never inflates the fabrication rate.
 
-Do not repair. Do not surface with a warning. The drop count is a headline
-research metric — a model whose assertions fail verification 30% of the time is a
-finding, and you only get that number by dropping rather than fixing.
+Tabular locators verify by re-execution instead: re-run the stored `predicate`
+against the artifact (whose SHA-256 must still match) and compare `row_count` and
+the row set.
+
+The drop count is a headline number. A model whose quotes are `NOT_FOUND` 30% of
+the time is a finding, and you only get that number by dropping rather than
+fixing.
 
 ---
 
@@ -373,8 +362,9 @@ attorney-prep work. Those are where its judgment adds something.
 
 ## 7. The Evidence Analysis group
 
-The detailed, buildable spec for this group is `PHASE_3_EVIDENCE_ANALYSIS.md`.
-What follows is the architectural summary.
+The detailed, buildable spec for this group is `PHASE_3_EVIDENCE_ANALYSIS.md`
+(file name kept; the group is now Phase 4). What follows is the architectural
+summary.
 
 ### 7.1 Why this group, and why now
 
@@ -429,7 +419,7 @@ attribution signals, produced-volume versus cited-volume, location sequence
 plausibility, selection-integrity and null-pattern checks — is specified in
 `PHASE_3_EVIDENCE_ANALYSIS.md` §4.
 
-### 7.3 Why this is the right thing to build next
+### 7.3 Why this group matters
 
 1. It is the only capability both practitioners asked for that is also
    immediately tractable.
@@ -437,8 +427,8 @@ plausibility, selection-integrity and null-pattern checks — is specified in
    regardless of model strength. That makes it the study's control condition and
    the cleanest result we can produce: here is what code does perfectly, here is
    where handing the task to a model degraded it, measured.
-3. Building it forces the §5 provenance primitive into existence, which every
-   later phase needs.
+3. It is the first heavy user of the §5 provenance primitive (schema built in
+   Phase 2a), so it proves that primitive under load.
 4. It is the most demonstrable feature in the system. "The State produced 8,412
    messages, quoted six, and the seventy-two hours before the alleged offense are
    absent from the production" is a sentence that lands with a practitioner.
@@ -459,8 +449,9 @@ value.
 
 ## 8. The measurement layer
 
-What makes this a study rather than a demo. Build it in Phase 5 and backfill
-metrics for everything already built.
+How you find out whether the tool is getting better. Build it in Phase 5 and
+backfill metrics for everything already built. It is instrumentation in service
+of capability (`CLAUDE.md` §1) — do not let a metric displace a feature.
 
 Per run, record to a `measurements` store:
 
@@ -469,7 +460,7 @@ Per run, record to a `measurements` store:
 | Assertions emitted, by `judgment_class` | The headline result: how much of the output is recital versus advice |
 | Verification failure rate, per agent | Hallucination rate, measured not estimated |
 | Fabricated-citation count | Citations that are well-formed but name nonexistent authority. The most dangerous category. Count separately. |
-| Keyword-filter vs. judge disagreement | The gap between cheap and real advice detection, which is itself publishable |
+| Keyword-filter vs. judge disagreement | Tells you whether the cheap check can be trusted, so you know when to spend a judge call |
 | Abstention rate | How often the system correctly declines |
 | Deterministic vs. model accuracy on the same task | The control condition from §6 |
 | Bias probe deltas | Same matter, varied demographics, nothing else changed |
@@ -484,23 +475,36 @@ Metrics are emitted as structured records, never only as prose.
 Each phase ends with a stop and a report. Phases 0–2 are prerequisites with no
 demonstrable output; say so plainly rather than making them look like features.
 
+**Ordering principle:** phases are ordered by **capability gained per unit of
+work**, not by architectural tidiness. The goal is the most capable tool we can
+build (`CLAUDE.md` §1); instrumentation serves that and therefore comes after the
+capabilities it measures, not before.
+
+The largest single gap in this project is not a missing feature. It is that
+**18 of 24 agents cannot be reached from the running application** and nothing
+survives a restart. There are roughly 9,000 lines of working, tested agent code — a
+41-file sentencing package, five research agents, Disclosure Tracking, the Motion
+Drafter, plea/trial, the Rights Scanner, three intake specialists — that no user can
+invoke. Phase 2 (2a, then 2b) exists to close that, and it is why corpus work moved
+ahead of new features.
+
 | Phase | Builds | Why here |
 |---|---|---|
-| **0** | Ground truth, in this order: (a) merge `motion-drafter` and `Mark-Rights-Violation-Scanner` into `main`; (b) add `.gitattributes` and renormalize line endings as a standalone commit; (c) mark every stub with a module-level `STATUS = "STUB"` and a test asserting it is absent from `_AGENT_CONFIG`; (d) write a generator that derives the project inventory from the tree and run it in CI; (e) fix the CI `testpaths` override so no test directory is silently skipped. | A month of planning was lost to a briefing that described intentions as reality, and `main` currently lacks half the real code. Steps (a) and (b) must come first or every later reconciliation is against the wrong tree and every diff is unreadable. The generator in (d) is ~150 lines and permanently closes the drift failure mode. |
-| **1** | Model gateway: retry with backoff, timeouts, token accounting, per-agent Pydantic response schemas with typed errors instead of bare `JSONDecodeError`. Then a cassette layer recording every request/response to disk keyed by prompt hash, replayed in tests. | Nineteen agents depend on one 42-line file; hardening it upgrades all of them. The cassette layer is why this ranks second — it makes integration tests free, fast and deterministic, which is the actual reason there are 43 tests instead of 200. Every later phase is cheaper to test once it exists. |
-| **2** | The §5 provenance primitive, and persistence. SQLite with Alembic migrations in `packages/api` — **not** the Prisma schema, which lives in the web package and would guarantee drift. Retire `_store.py`. Fix the Orchestrator's per-node reconstruction and the `id()` reference. | Both change `CaseState`'s shape, so do them in one migration rather than two. Retrofitting provenance later means rewriting whatever is built in between. SQLite keeps the system portable to a laptop later without re-architecting. |
-| **3** | **The Evidence Analysis group.** See `PHASE_3_EVIDENCE_ANALYSIS.md`. Substages: 3a ingest and profiling, 3b the tabular registry, 3c ledger population, 3d timeline and proof matrix, 3e evidence blocking. | The feature the practitioners asked for and the study's control condition. **3a and 3b are mostly deterministic and can begin in parallel with Phase 1** — the part of this feature that matters most needs the least foundation. |
-| **4** | The Georgia corpus, for real. O.C.G.A. Titles 16, 17, 24 as structured records with section text. Georgia appellate opinions via Caselaw Access Project or CourtListener bulk data. Pattern jury instructions, criminal volume. Then make the citation verifier mean something: resolve every emitted cite against the corpus, store the matched text as a span, mark `VERIFIED` only on exact match, drop what will not resolve. Mark pre-2022 criminal expert-testimony authority `SUPERSEDED` (see `CLAUDE.md` §4.1). | The credibility unlock, and it must precede the Sensor rewrite because citation verification *is* the hallucination measurement. Building the Sensor first means building it twice. The pattern jury instructions are a closed-corpus template-fill problem with zero hallucination risk, and both practitioners asked for exactly that tool. |
-| **5** | Replace the Ethics Monitor with the Ethics Sensor and the measurement layer (§8). Three layers: deterministic structural checks, citation verification against Phase 4, and an adversarial judge call with a written rubric. It classifies and records; it does not block. Backfill metrics for Phases 0–4. Test it properly. | Paraphrased advice is semantic and no keyword list will catch it. Layering means the cheap checks handle most cases and the expensive judge runs only on what survives — and the layers degrade independently. |
-| **6** | The evaluation harness: 20–50 synthetic Georgia matters with planted ground truth — known elements, a planted suppression issue, a planted *Brady* problem, contradictory witness times, a fabricated-citation trap, and a phone extraction with a known missing window. Score the system against all of it. | The only phase that produces publishable output. It converts "we built a thing" into "we measured a thing," which is the difference between a demo and an independent study. It also becomes the regression suite. |
+| **0** ✅ | Ground truth. Delivered in PR #13: merged five branches (PRs #5, #6, #7, the plea/trial branch, and the IL→GA fix), fixed CI (black, ruff pinned, `testpaths` honored), `STATUS` on every agent module stamped into every output envelope, `scripts/inventory.py` generating `docs/INVENTORY.md` with a CI staleness check, `.gitattributes`. | Complete. The reconciliation that preceded it found that the October 1 audit had described a 27-commit-stale clone (`CLAUDE.md` §8.1); the generator keeps that from happening again. |
+| **1** | **Model gateway, failure semantics, and the sensor switch.** See `PHASE_1_MODEL_GATEWAY.md`. Typed gateway with required per-agent response schemas; the 45 `except Exception` blocks that turn failures into empty successes; two-model cassettes; CRITICAL flags merge instead of blocking. | First because it is a capability blocker, not a measurement nicety: today an auth failure makes Charge Processing return a well-formed zero-charge "success," and no agent's output is schema-validated. Nothing built on top of that can be trusted. 22 modules depend on the one file being replaced. |
+| **2a** | **Persistence and re-runnability.** SQLite with Alembic in `packages/api` (**not** the Prisma schema — it lives in the web package and would guarantee drift); retire `_store.py`; key state on `(case_id, run_id)` so a case can be re-run; move `_blocked`, `_merge_history` and `_human_review_required` into persisted state; replace enum-position sequencing with per-agent `depends_on` slot lists so the pipeline can branch and skip; settle on **one** execution path (route handlers or the LangGraph graph, which no route uses today) and remove the other's dead code. Add the §4 slots and the §5 provenance primitive in the same migration (schema only; Phases 3 and 4 are its first writers). | Everything in 2b needs state that survives a restart and a case that can run more than once. Doing provenance in the same migration avoids a second `CaseState` rewrite later. `(case_id, run_id)` is also what makes any repeated run possible at all. |
+| **2b** | **Reach.** Wire every REAL agent into `_AGENT_CONFIG` and make it runnable from the app, **one agent at a time**, filling the eight orphaned `CaseState` slots. Each agent needs: an input adapter that builds its input from `CaseState` (the agents were written against different `CaseState` shapes — the Motion Drafter and Plea/Trial fixtures disagree); an output contract shared by backend and frontend; a route; and one end-to-end test through the API. The frontend pages for Motions, Plea/Trial and Sentencing exist, but their types were written against the old stubs: the Sentencing page expects federal-guidelines fields (offense level, criminal history category) that do not exist in Georgia. Rewrite each page's types against the real agent. Start with Sentencing (71 tests; matches the possession slice). Also: the `NOT FOR USE ON REAL MATTERS` banner (response header, UI, CLI) and the synthetic-fixture test (`CLAUDE.md` §2), since 2b touches the whole API surface. | **The single largest capability jump available.** About 9,000 lines of working, tested agent code become usable. It is mostly integration against code that already works, but not only plumbing: input adapters and output contracts are real design work, which is why it goes one agent at a time. |
+| **3** | **The Georgia corpus and real citation verification.** O.C.G.A. Titles 16, 17, 24 as structured records with section text. Georgia appellate opinions via Caselaw Access Project or CourtListener bulk data. Pattern jury instructions, criminal volume. Resolve every emitted cite against the corpus by the §5.3 resolver, store matched text, mark `VERIFIED` only on exact match. Attach `SUPERSEDED` to the *legal proposition* and trigger on the date of the underlying proceeding, not the opinion date (`CLAUDE.md` §4.1). | Moved up from 4. Until this lands, all five research agents produce confident fiction and their real capability is zero — which caps the whole tool regardless of how many agents are wired in. Also unblocks `.gitignore`, which currently excludes `src/corpus/data/*.json` and would silently keep the corpus out of commits. |
+| **4** | **The Evidence Analysis group.** See `PHASE_3_EVIDENCE_ANALYSIS.md` (filename retained; it is now Phase 4). Substages: ingest and profiling, the tabular registry, ledger population, timeline and proof matrix, evidence blocking. Needs a skip path for matters with no discovery (§3.3). Discovery Intake also carries `provenance_class` on every ingested artifact and quarantines image and video files (`CLAUDE.md` §2, §7). | The genuinely new capability, and the one both practitioners asked for. Deliberately after corpus and reach: it is the biggest build on this list and it should sit on a foundation where agents are reachable and citations resolve. Its deterministic substages can start early if someone has spare capacity. |
+| **5** | Replace the keyword Ethics Monitor with the three-layer Sensor and the measurement layer (§8): deterministic structural checks, citation verification against Phase 3, and an adversarial judge call with a written rubric. Backfill metrics for earlier phases. | Paraphrased advice is semantic; no keyword list catches it. After Phase 3 because citation verification is the layer that does the real work, and building the Sensor first means building it twice. |
+| **6** | The regression and capability harness: 20–50 synthetic Georgia matters with planted ground truth — known elements, a planted suppression issue, a planted *Brady* problem, contradictory witness times, a fabricated-citation trap, a phone extraction with a known missing window. Score the system against all of it, on both pinned models. | This is how you find out how capable the tool actually is, and how you know whether the next change helped. Treat it as a regression suite you run constantly, not a one-off evaluation at the end. |
 
 ### 9.1 What is deliberately deferred
 
 Media transcription (§7.4, hooks only). Real authentication. Multi-user. The
-truncated `graph.py` intake and case-prep nodes stay truncated until Phase 3
-lands — do not fix them in isolation, because the pipeline reshapes in §3.3.
-Jury selection and the suppression-hearing simulator are post-Phase-6 and should
-not be scoped now.
+frontend `jest` setup. Do not fix `graph.py` in isolation: Phase 2a decides whether
+it becomes the single execution path or is retired. Jury selection and the
+suppression-hearing simulator are post-Phase-6 and should not be scoped now.
 
 ---
 
@@ -519,7 +523,11 @@ not be scoped now.
 4. **The bias probe design.** Varying demographic attributes and holding
    everything else constant sounds simple and is not. Worth deciding before
    Phase 5 rather than during it.
-5. **Validation partner.** Prof. Hines offered introductions — her husband,
+5. **Which two models to pin.** Phase 1's recorded test runs and Phase 6's scoring
+   are tied to specific model versions. The current default
+   (`claude-sonnet-4-20250514`) is deprecated. Decide before Phase 1 records
+   anything.
+6. **Validation partner.** Prof. Hines offered introductions — her husband,
    Amanda Grantham, and contacts in the Athens PD office. Under the research
    framing the ask is "help us find where this breaks," which is a much easier
    yes than "will you use this."

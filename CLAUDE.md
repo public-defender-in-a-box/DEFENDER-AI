@@ -7,35 +7,50 @@ both and reported your plan.
 
 ## 1. What this project is
 
-**Defender AI is a research instrument, not a product.**
+**Defender AI is an attempt to build the most capable system we can for the work
+a public defender does, and to find out how much of that work it can actually
+do.**
 
-It is a multi-agent system that attempts the full public defender workflow —
-charge analysis, discovery review, legal research, client intake, motion
-drafting, plea assessment, sentencing exposure — end to end. It is built by four
-law students as an independent study.
+Charge analysis, discovery review, legal research, client intake, motion
+drafting, plea assessment, sentencing exposure — the whole workflow, end to end.
+Built by four law students. The question driving it is how far current models and
+tooling can be pushed on this task, and the answer is supposed to be a working
+tool, not a description of one.
 
-Its purpose is **to find out how far current models and tooling can be pushed on
-this task, and to document precisely where and why they fail.** The deliverable
-is the system *plus* a rigorous account of its limits. A measured failure is a
-result. An unmeasured success is nothing.
+**The goal is the tool.** Measurement exists to tell us where the tool stands and
+which changes improve it. It is the instrument panel, not the destination. When
+the choice is between a capability that works and a metric that reports, build
+the capability and instrument it afterward.
 
-This framing is load-bearing and it changes the engineering. Read §3 carefully,
-because the rules here are not the rules you would write for a product.
+Two consequences govern the engineering:
 
-### 1.1 It will never be used on a real matter
+- **Reach beats polish.** A capability no user can trigger is worth less than a
+  rough one they can. As of October 2026, 18 of 24 agents cannot be reached from
+  the running application — see §8.1. Closing that gap is worth more than any new
+  agent.
+- **Confident wrong answers are the one unacceptable failure.** Not because they
+  spoil a measurement, but because a tool that invents a citation or silently
+  returns an empty result is worse than no tool. §4 is non-negotiable for that
+  reason alone.
 
-No real client. No real discovery. No deployment. No practitioner uses this to
-prepare an actual case. That constraint is what makes the ambition legitimate: a
-system that drafts motions and assesses pleas would be unauthorized practice of
-law if it touched a real defendant, and it does not.
+### 1.1 It is not deployed, and will not be
 
-Enforce it structurally, not by policy — see §2.
+No real client, no real discovery, no practitioner using it to prepare an actual
+case. This is not a limit on ambition — build the most capable thing you can —
+it is a fact about what software can lawfully do. No program holds bar
+admission, and a system that drafts motions and assesses pleas would be
+unauthorized practice of law the moment it touched a real defendant.
 
-### 1.2 Who the research audience is
+So build it as capable as possible, and enforce the synthetic boundary
+structurally rather than by policy. See §2.
 
-Faculty readers, a criminal defense clinic, and the practitioners who were
-interviewed during design. They will ask: *what did it get wrong, how often, and
-how would you know?* Build so that question has an answer.
+### 1.2 How we know whether it is working
+
+Faculty, a criminal defense clinic, and the practitioners interviewed during
+design will all ask the same question: *what can it actually do, and where does
+it break?* That question needs an answer backed by something other than a demo
+that went well once. Hence §3 and §6 — enough instrumentation to know whether
+last week's change helped.
 
 ---
 
@@ -62,8 +77,8 @@ addresses, fake lab reports.
    they want to test against *their own* public records request output, still no
    — it contains third parties.
 
-This is the one invariant with no research exception. Everything else in this
-document bends to measurement; this does not.
+This is the one invariant with no exception. Every other rule in this document
+can bend if a more capable tool requires it; this one cannot.
 
 ---
 
@@ -71,10 +86,11 @@ document bends to measurement; this does not.
 
 This is the most important section and the one most likely to be misread.
 
-A product version of this system would block its own unsafe outputs. **This
-version records them instead.** A blocked output is lost data. We are trying to
-measure how often and how badly the system crosses lines, which requires letting
-it cross them and capturing what happened.
+A deployable version of this system would block its own unsafe outputs. **This
+version records them instead.** Two reasons, and the second is the practical
+one: a blocked output tells you nothing about why it was blocked, and you cannot
+improve a capability you cannot see fail. Suppression at this stage hides exactly
+the behavior we need to fix.
 
 ### 3.1 What this means concretely
 
@@ -139,16 +155,18 @@ Sensor output goes to a dedicated `measurements` store, never only into prose.
 
 ## 4. Anti-hallucination rules
 
-These do **not** relax under the research framing. They are what makes
-measurement possible: an uncited assertion cannot be scored, so it is worthless
-as data and dangerous as output.
+These do **not** relax, for the reason in §1: a confident wrong answer is the one
+unacceptable failure. An assertion without a source cannot be checked, so it is
+dangerous as output and useless for telling whether the tool is improving.
 
-1. **Every generated assertion carries a locator and verbatim source text.** See
-   `SPEC.md` §5. The `source_text` field must be byte-identical to the stored
-   source at that locator.
-2. **A claim whose source text does not match is dropped and counted.** Do not
-   repair it. Do not surface it with a warning. Drop it, increment the
-   verification-failure counter, and log the claim text for analysis.
+1. **Every generated assertion carries a locator and verbatim source text.** The
+   model supplies the quote; code finds it in the stored source and computes the
+   locator, so `source_text` is byte-identical to the source by construction. The
+   model never computes offsets. See `SPEC.md` §5.3.
+2. **A claim whose quote cannot be found in the source is dropped and counted.** Do
+   not repair it. Do not surface it with a warning. Drop it, increment the
+   verification-failure counter for its failure type (`SPEC.md` §5.3), and log the
+   claim text for analysis.
 3. **Never summarize from model memory.** Always pass the actual source text.
 4. **Retrieve first, then generate.** Never generate and then retrieve to
    justify.
@@ -166,15 +184,25 @@ local corpus, with the matched text stored. Everything else is `UNVERIFIED`.
 
 Note the trap, which is real and worth a test: **O.C.G.A. § 24-7-707** formerly
 governed expert opinion testimony in Georgia criminal proceedings under the
-permissive *Harper* standard. HB 478 (passed March 2022) extended § 24-7-702's
-*Daubert* framework to criminal cases. Georgia criminal opinions predating that
-change state a standard that no longer applies. A corpus that returns them
-without a `SUPERSEDED` marker will produce confidently wrong analysis, and the
-model will not catch it, because its training data contains both eras.
+permissive *Harper* standard. **HB 478** (passed March 30, 2022; effective July 1,
+2022) repealed § 24-7-707 and extended § 24-7-702's *Daubert* framework to
+criminal cases, applying to any motion made or hearing or trial commenced on or
+after July 1, 2022. A corpus that returns *Harper*-era authority for the current
+standard without a `SUPERSEDED` marker will produce confidently wrong analysis,
+and the model will not catch it, because its training data contains both eras.
 
-Confirm the effective date and the current disposition of § 24-7-707 against
-primary sources before relying on either section. Treat this as the worked
-example for the whole recency problem.
+The marker is easy to get wrong in both directions:
+
+- **Trigger on the date of the underlying proceeding, not the opinion date.** A
+  2024 appellate opinion reviewing a 2021 trial correctly applies former
+  § 24-7-707; a 2021 opinion is not wrong about what governed in 2021.
+- **Attach `SUPERSEDED` to the legal proposition**, here the admissibility standard
+  for expert testimony in criminal cases, not to the whole opinion. The same
+  opinion may be good law on every other issue it decides.
+
+These dates were checked on October 4, 2026 against summaries of the enrolled act;
+confirm them against the act's text when the corpus is built. Treat this as the
+worked example for the whole recency problem.
 
 ---
 
@@ -195,9 +223,13 @@ being studied, and the measurements depend on them.
 
 ---
 
-## 6. Reproducibility is a requirement, not a nicety
+## 6. Reproducibility, because otherwise you are guessing
 
-Every pipeline run is a recorded experiment. Persist, for each run:
+You will change prompts, swap models, and rewire agents constantly. Without a
+record of what ran, you cannot tell whether a change improved the tool or whether
+the model had a good day. That is the whole reason this section exists.
+
+Persist, for each run:
 
 - `run_id`, timestamp, git commit SHA
 - model name and version, temperature, and any seed
@@ -206,8 +238,8 @@ Every pipeline run is a recorded experiment. Persist, for each run:
 - input fixture identifier
 - complete output, including dropped assertions and sensor measurements
 
-A result we cannot regenerate is not a result. If a prompt changes and the
-numbers move, we must be able to say which change moved them.
+If a prompt changes and the output quality moves, you must be able to say which
+change moved it. Everything else in this section follows from that.
 
 ---
 
@@ -241,24 +273,52 @@ When you finish a phase, report:
 
 ### 8.1 Trust the generated inventory, not prose
 
-An audit dated October 1, 2026 described this repository as far smaller than it is:
-it measured a local clone last updated March 21, 2026. The verified state is in
-`docs/RECONCILIATION_2026-10-04.md`.
+**`docs/INVENTORY.md` is the only authority on what this repository contains.**
+It is generated from the tree by `scripts/inventory.py` and CI fails if it is
+stale. Everything below is a snapshot and will age; the file will not.
 
-**Do not trust narrative documentation about this repository, including this
-section.** `docs/INVENTORY.md` is generated from the tree by `scripts/inventory.py`,
-and CI fails when it is stale. It is the only inventory to trust: which agents
-exist, their `STATUS`, which are registered with the Orchestrator, which the running
-app can actually reach, and which tests cover them.
+A retraction worth knowing about, because it nearly rerouted the project: an
+audit dated October 1, 2026 claimed this repository was less than half its actual
+size (6,158 lines of Python against 15,365; 43 tests against 185) — a 140-line
+Ethics Monitor, no sentencing package, no Disclosure Tracking agent. **Every one of those claims was false.** The audit
+measured a local clone 27 commits stale and never fetched. Real `main` carried a
+1,127-line Ethics Monitor with 39 tests, a 41-file sentencing package with 71
+tests, and a 573-line Disclosure Tracking agent. The September 4 project briefing
+that the audit attacked was substantially accurate.
 
-**Invariants not yet enforced in code** (deferred by team decision, October 4, 2026,
-until a phase needs them):
+The lesson is the rule at the top of this section, and it applies to prose
+written by a human or a model, confidently or otherwise.
 
-- §2: structural synthetic-only enforcement (`provenance_class`, the fixture test,
-  the banner). Uploads are still accepted as-is.
-- §3.1: the Orchestrator still blocks on `CRITICAL` ethics flags
-  (`BLOCKED_ETHICS_P1`) and skips the ethics check for LOW-confidence outputs.
-- §7: image and video uploads are still OCR'd rather than quarantined.
+Snapshot at PR #13 (October 4, 2026), from `docs/INVENTORY.md`:
+
+- 17,042 lines of Python across 90 files in `packages/api/src`; 7,678 lines of
+  tests; 4,195 lines of TypeScript. 268 test functions; `pytest` reports 293
+  passed, 3 skipped.
+- 24 agents: 17 REAL, 1 PARTIAL, 6 STUB. Ten are registered in `_AGENT_CONFIG`.
+- **Only six are reachable from the running application** — Orchestrator, Ethics
+  Monitor, Charge Processing, Pre-Interview Research, Intake Conductor, and the
+  Case Prep stub. One of those six is a stub. This is the project's largest gap
+  between code written and capability available.
+- Eight `CaseState` output slots have no writer.
+- `src/corpus/data/` holds zero corpus files, so every citation the system has
+  ever produced is unverified by construction.
+- No persistence: `routes/_store.py` is a module-level dict. Cases are lost on
+  restart and **a case cannot be re-run**, because `can_run_agent` refuses an
+  agent whose slot is already filled.
+- 45 `except Exception` blocks across 21 agent modules, most of which convert a
+  failure into a well-formed empty success.
+- The Ethics Monitor is REAL code but keyword-based; Phase 5 replaces it.
+
+**Invariants not yet enforced in code.** Do not assume these hold until the phase
+that builds them has landed:
+
+- §2, synthetic-only: no `provenance_class`, no fixture test, no banner. Uploads
+  are accepted as-is. Banner and fixture test: Phase 2b. `provenance_class`:
+  Phase 4 (Discovery Intake).
+- §3.1, sensor not filter: the Orchestrator still blocks on `CRITICAL` ethics
+  flags (`BLOCKED_ETHICS_P1`), and LOW-confidence outputs skip the ethics check
+  entirely. The blocking switch is Phase 1.
+- §7, contraband: image uploads are OCR'd rather than quarantined. Phase 4.
 
 ---
 
