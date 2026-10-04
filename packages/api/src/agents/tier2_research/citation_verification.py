@@ -15,6 +15,8 @@ from src.agents.base_agent import BaseAgent
 from src.services.courtlistener import CourtListenerClient
 from src.services.llm_service import call_llm
 
+STATUS = "REAL"
+
 logger = logging.getLogger(__name__)
 
 _SYSTEM_PROMPT = """\

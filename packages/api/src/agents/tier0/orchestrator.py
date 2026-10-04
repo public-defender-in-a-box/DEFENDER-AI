@@ -21,6 +21,8 @@ from src.agents.base_agent import BaseAgent
 from src.agents.cross_cutting.ethics_monitor import EthicsMonitorAgent
 from src.models.case_state import CaseState, ConfidenceLevel, PipelineStage
 
+STATUS = "REAL"
+
 logger = logging.getLogger(__name__)
 
 # Confidence threshold — outputs below this are blocked

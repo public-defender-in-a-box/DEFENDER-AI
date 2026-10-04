@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime
@@ -9,6 +10,13 @@ from typing import Any
 
 from src.models.case_state import ConfidenceLevel
 from src.models.ethics import AuditEntry
+
+# Every agent module declares STATUS as one of these:
+#   REAL    - logic beyond a single prompt, with dedicated tests
+#   PARTIAL - more than a stub, known to be unfinished
+#   STUB    - a docstring, one prompt and wrap_output(); no dedicated tests
+# Stubs may stay registered in the Orchestrator because their output is labeled.
+AGENT_STATUSES = ("REAL", "PARTIAL", "STUB")
 
 
 class BaseAgent(ABC):
@@ -50,11 +58,18 @@ class BaseAgent(ABC):
         """Return the agent's audit log."""
         return self._audit_log
 
+    @property
+    def agent_status(self) -> str:
+        """The STATUS declared by the module that defines this agent."""
+        module = sys.modules.get(type(self).__module__)
+        return getattr(module, "STATUS", "UNDECLARED")
+
     def wrap_output(self, data: dict[str, Any], confidence: float) -> dict[str, Any]:
         """Wrap agent output with confidence rating and metadata."""
         return {
             "data": data,
             "confidence": self.score_confidence(confidence).value,
             "source": self.agent_id,
+            "agent_status": self.agent_status,
             "timestamp": datetime.utcnow().isoformat(),
         }

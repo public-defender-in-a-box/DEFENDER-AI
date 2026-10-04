@@ -25,6 +25,8 @@ from src.services.llm_service import call_llm
 from .prompts import MOTION_DRAFTER_SYSTEM_PROMPT, build_motion_user_prompt
 from .templates import TEMPLATES
 
+STATUS = "REAL"
+
 logger = logging.getLogger(__name__)
 
 

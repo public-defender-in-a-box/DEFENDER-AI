@@ -35,6 +35,8 @@ from src.models.intake import (
 )
 from src.services.llm_service import call_llm
 
+STATUS = "REAL"
+
 logger = logging.getLogger(__name__)
 
 

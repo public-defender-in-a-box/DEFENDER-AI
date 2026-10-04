@@ -19,6 +19,8 @@ from src.agents.tier2_research.ga_statutes_agent import GAStatutesAgent
 from src.agents.tier2_research.citation_verification import CitationVerificationAgent
 from src.services.cost_tracker import CostTracker
 
+STATUS = "REAL"
+
 logger = logging.getLogger(__name__)
 
 

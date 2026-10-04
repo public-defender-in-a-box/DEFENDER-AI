@@ -16,6 +16,8 @@ from src.agents.tier2_attorney.plea_trial_prompts import (
 )
 from src.services.llm_service import call_llm
 
+STATUS = "REAL"
+
 logger = logging.getLogger(__name__)
 
 # Default attorney assessment values when not provided

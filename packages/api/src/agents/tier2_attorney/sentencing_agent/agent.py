@@ -14,6 +14,8 @@ from src.agents.base_agent import BaseAgent
 from .graph import run_sentencing_analysis
 from .models.inputs import SentencingAgentInput
 
+STATUS = "REAL"
+
 logger = logging.getLogger(__name__)
 
 
