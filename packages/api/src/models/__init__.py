@@ -10,10 +10,13 @@ from src.models.intake import IntakeMessage as IntakeMessage
 from src.models.research import StatuteAnalysisOutput as StatuteAnalysisOutput
 from src.models.research import CaseLawOutput as CaseLawOutput
 from src.models.research import CitationVerificationOutput as CitationVerificationOutput
+from src.models.motions import DraftMotion as DraftMotion
 from src.models.motions import MotionDrafterOutput as MotionDrafterOutput
 from src.models.rights import RightsScannerInput as RightsScannerInput
 from src.models.rights import RightsScannerOutput as RightsScannerOutput
 from src.models.rights import RightsViolation as RightsViolation
+from src.models.motions import MotionSection as MotionSection
+from src.models.motions import MotionType as MotionType
 from src.models.ethics import AuditEntry as AuditEntry
 from src.models.ethics import BiasAuditResult as BiasAuditResult
 from src.models.ethics import BiasIndicator as BiasIndicator
