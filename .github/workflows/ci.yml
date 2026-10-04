@@ -34,6 +34,16 @@ jobs:
       - run: black --check src/ tests/
       - run: ruff check src/
 
+  inventory:
+    # docs/INVENTORY.md is generated from the tree; fail if it was not regenerated.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python scripts/inventory.py --check
+
   frontend-lint:
     runs-on: ubuntu-latest
     defaults:
