@@ -359,7 +359,7 @@ produces no demonstrable output.
 - **PR #6's tests make live calls.** Of its 20 tests, 9 run an agent. Only 2 of those 9 mock `call_llm`. The other 7 make real Anthropic and CourtListener calls and pass because the agents catch the failure and return empty results. In CI they hit the network. The Phase 1 cassette layer is the fix.
 - **Wiring, per `docs/INVENTORY.md`:**
   - Of 24 agents, 10 are registered with the Orchestrator, and only **6 are reachable from `main.py`** (actually runnable through the app).
-  - 9 of 18 `CaseState` agent-output slots have no writer.
+  - 8 of 18 `CaseState` agent-output slots have no writer.
   - The newly merged research agents are registered but not reachable from any route.
 - **The default model is past end-of-life,** so no live run works yet. This is Phase 1.
 
