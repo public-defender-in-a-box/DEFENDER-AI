@@ -1,7 +1,9 @@
 """LangGraph orchestration graph — defines the full agent pipeline.
 
 Pipeline sequence:
-    Charge Processing → Pre-Interview Research → Intake Conductor → (Case Prep placeholder)
+    Charge Processing → Pre-Interview Research → Intake Conductor
+    → Intake Sub-Agents (Fact Gatherer, Collateral, Personal — parallel)
+    → Case Prep (placeholder)
 
 The Orchestrator manages the CaseState object and validates/merges every agent
 output before advancing to the next stage.
@@ -10,7 +12,7 @@ output before advancing to the next stage.
 from __future__ import annotations
 
 import logging
-from typing import Any, TypedDict
+from typing import Any, Optional, TypedDict
 
 from langgraph.graph import END, StateGraph
 
@@ -23,7 +25,7 @@ class GraphState(TypedDict):
     case_id: str
     case_state: dict[str, Any]
     current_stage: str
-    error: str | None
+    error: Optional[str]
 
 
 async def orchestrator_init_node(state: GraphState) -> GraphState:
@@ -184,6 +186,125 @@ async def intake_node(state: GraphState) -> GraphState:
     return state
 
 
+async def intake_sub_agents_node(state: GraphState) -> GraphState:
+    """Node: Tier 2 Intake Specialists — run after Intake Conductor.
+
+    Dispatches the three intake sub-agents in parallel:
+    1. Fact Gatherer — structures timeline, witnesses, evidence, element coverage
+    2. Collateral Consequences — immigration, employment, housing, Padilla check
+    3. Personal Circumstances — bail profile, mitigation, diversion eligibility
+
+    All three read from intake_summary and charge_processing in the CaseState
+    and write their outputs back to the state dict. Results are merged through
+    the Orchestrator's receive_agent_output for ethics checking and audit.
+    """
+    import asyncio
+
+    from src.agents.cross_cutting.ethics_monitor import EthicsMonitorAgent
+    from src.agents.tier2_intake.collateral_agent import CollateralConsequencesAgent
+    from src.agents.tier2_intake.fact_gatherer import FactGathererAgent
+    from src.agents.tier2_intake.personal_circumstances import (
+        PersonalCircumstancesAgent,
+    )
+
+    case_state = state["case_state"]
+    intake_summary = case_state.get("intake_summary", {})
+    charge_data = case_state.get("charge_processing", {})
+    charges = []
+    if isinstance(charge_data, dict):
+        inner = charge_data.get("data", charge_data)
+        charges = inner.get("charges", []) if isinstance(inner, dict) else []
+
+    # Build inputs for each sub-agent
+    fact_input = {
+        "targeted_questions": intake_summary.get("unanswered_questions", []),
+        "client_responses": intake_summary.get("transcript", []),
+        "charges": charges,
+        "research_context": case_state.get("pre_interview_research", {}),
+        "intake_facts": intake_summary.get("facts", []),
+    }
+
+    collateral_input = {
+        "charges": charges,
+        "personal_circumstances": intake_summary.get("personal_circumstances", {}),
+        "client_priorities": intake_summary.get("priorities_and_concerns", []),
+        "intake_summary": intake_summary,
+    }
+
+    personal_input = {
+        "client_background": intake_summary.get("personal_circumstances", {}),
+        "charges": charges,
+        "client_priorities": intake_summary.get("priorities_and_concerns", []),
+    }
+
+    # Run all three in parallel
+    fact_agent = FactGathererAgent()
+    collateral_agent = CollateralConsequencesAgent()
+    personal_agent = PersonalCircumstancesAgent()
+
+    try:
+        fact_result, collateral_result, personal_result = await asyncio.gather(
+            fact_agent.run(fact_input),
+            collateral_agent.run(collateral_input),
+            personal_agent.run(personal_input),
+            return_exceptions=True,
+        )
+
+        # Ethics monitor for Tier 2 outputs before merging into state
+        ethics = EthicsMonitorAgent()
+
+        # Agent ID → (state field, result) mapping
+        agent_results = [
+            ("fact_gatherer", "fact_gathering", fact_result),
+            ("collateral_consequences", "collateral_consequences", collateral_result),
+            ("personal_circumstances", "personal_circumstances", personal_result),
+        ]
+
+        for agent_id, state_field, result in agent_results:
+            if isinstance(result, Exception):
+                logger.error("%s failed: %s", agent_id, result)
+                state["case_state"][state_field] = {
+                    "error": str(result),
+                    "confidence": "LOW",
+                }
+                continue
+
+            # Run ethics check before writing to state
+            ethics_result = await ethics.run(
+                {
+                    "output": result,
+                    "agent_id": agent_id,
+                    "is_client_facing": False,
+                }
+            )
+
+            ethics_flags = ethics_result.get("flags", [])
+            p1_flags = [f for f in ethics_flags if f.get("priority") == "CRITICAL"]
+
+            if p1_flags or ethics_result.get("blocked", False):
+                logger.warning(
+                    "%s output blocked by ethics monitor: %s",
+                    agent_id,
+                    p1_flags,
+                )
+                state["case_state"][state_field] = {
+                    "error": "Blocked by ethics monitor",
+                    "confidence": "LOW",
+                    "ethics_flags": ethics_flags,
+                }
+            else:
+                state["case_state"][state_field] = result
+                if ethics_flags:
+                    state["case_state"].setdefault("ethical_flags", []).extend(ethics_flags)
+
+    except Exception as e:
+        logger.error("Intake sub-agents node failed: %s", e)
+        state["error"] = f"Intake sub-agents failed: {e}"
+
+    state["current_stage"] = "INTAKE_COMPLETE"
+    return state
+
+
 async def case_prep_node(state: GraphState) -> GraphState:
     """Node: Case Prep Conductor — placeholder for Tier 1 synthesis."""
     state["current_stage"] = "CASE_PREP_IN_PROGRESS"
@@ -205,14 +326,22 @@ def should_continue_after_pre_interview(state: GraphState) -> str:
     return "intake"
 
 
+def should_continue_after_intake(state: GraphState) -> str:
+    """Route after intake — run sub-agents or stop on error."""
+    if state.get("error"):
+        return END
+    return "intake_sub_agents"
+
+
 def build_pipeline() -> StateGraph:
-    """Build the full Tier 0 + Tier 1 agent pipeline graph."""
+    """Build the full Tier 0 + Tier 1 + Tier 2 Intake agent pipeline graph."""
     graph = StateGraph(GraphState)
 
     # Add nodes
     graph.add_node("charge_processing", charge_processing_node)
     graph.add_node("pre_interview", pre_interview_node)
     graph.add_node("intake", intake_node)
+    graph.add_node("intake_sub_agents", intake_sub_agents_node)
     graph.add_node("case_prep", case_prep_node)
 
     # Entry point
@@ -229,7 +358,12 @@ def build_pipeline() -> StateGraph:
         should_continue_after_pre_interview,
         {"intake": "intake", END: END},
     )
-    graph.add_edge("intake", "case_prep")
+    graph.add_conditional_edges(
+        "intake",
+        should_continue_after_intake,
+        {"intake_sub_agents": "intake_sub_agents", END: END},
+    )
+    graph.add_edge("intake_sub_agents", "case_prep")
     graph.add_edge("case_prep", END)
 
     return graph
