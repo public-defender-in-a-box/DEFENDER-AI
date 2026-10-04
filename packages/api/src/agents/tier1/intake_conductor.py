@@ -695,7 +695,8 @@ def _summarize_pre_interview_for_phase(
         pi = pi["data"]
 
     targeted = [
-        tq for tq in pi.get("targeted_questions", [])
+        tq
+        for tq in pi.get("targeted_questions", [])
         if (tq.get("phase") or "incident_narrative") == phase
     ]
     rights_flags = pi.get("preliminary_rights_flags", [])
@@ -759,8 +760,7 @@ def _summarize_known_client_facts(
     """
     if not previous_responses:
         return (
-            "None \u2014 this is the first phase and the client has not "
-            "answered anything yet."
+            "None \u2014 this is the first phase and the client has not " "answered anything yet."
         )
 
     lines: list[str] = []
@@ -791,9 +791,31 @@ def _normalize_question_text(text: str) -> str:
     t = re.sub(r"[^a-z0-9\s]", " ", t)
     t = re.sub(r"\s+", " ", t).strip()
     # Drop very common stopwords that don't affect meaning
-    stops = {"the", "a", "an", "do", "did", "you", "your", "can", "could",
-             "please", "tell", "me", "about", "what", "is", "was", "were",
-             "have", "had", "has", "any", "are", "to"}
+    stops = {
+        "the",
+        "a",
+        "an",
+        "do",
+        "did",
+        "you",
+        "your",
+        "can",
+        "could",
+        "please",
+        "tell",
+        "me",
+        "about",
+        "what",
+        "is",
+        "was",
+        "were",
+        "have",
+        "had",
+        "has",
+        "any",
+        "are",
+        "to",
+    }
     tokens = [w for w in t.split() if w not in stops]
     return " ".join(tokens)
 
@@ -814,9 +836,7 @@ def _dedupe_and_cap_questions(
     - Global cap ``max_total`` across LLM + must_ask
     """
     must_ask = injected_must_ask or []
-    must_ask_norms = {
-        _normalize_question_text(q.get("question_text", "")) for q in must_ask
-    }
+    must_ask_norms = {_normalize_question_text(q.get("question_text", "")) for q in must_ask}
 
     kept: list[dict[str, Any]] = []
     seen_norms: set[str] = set(must_ask_norms)
@@ -833,10 +853,16 @@ def _dedupe_and_cap_questions(
             # If the " and " is part of a noun phrase it can stay; but if the
             # text contains two sentences or two clauses ending in a question
             # mark, drop it.
-            if text.count("?") > 1 or " and what " in lowered or \
-               " and where " in lowered or " and when " in lowered or \
-               " and how " in lowered or " and why " in lowered or \
-               " and who " in lowered or " and did " in lowered:
+            if (
+                text.count("?") > 1
+                or " and what " in lowered
+                or " and where " in lowered
+                or " and when " in lowered
+                or " and how " in lowered
+                or " and why " in lowered
+                or " and who " in lowered
+                or " and did " in lowered
+            ):
                 continue
         norm = _normalize_question_text(text)
         if not norm or norm in seen_norms:
@@ -868,9 +894,7 @@ async def _generate_questions(
 
     known_client_facts = _summarize_known_client_facts(previous_responses)
 
-    pre_interview_context = _summarize_pre_interview_for_phase(
-        pre_interview_research, phase
-    )
+    pre_interview_context = _summarize_pre_interview_for_phase(pre_interview_research, phase)
 
     prompt = _QUESTION_GENERATION_PROMPT.format(
         charge_data=charge_summary,
@@ -913,9 +937,7 @@ async def _process_response(
     """Process a single client response and extract structured data."""
     phase_abbrev = _PHASE_ABBREVIATIONS.get(phase, "XX")
     charge_summary = _create_charge_summary_for_processing(charge_data)
-    pre_interview_context = _summarize_pre_interview_for_phase(
-        pre_interview_research, phase
-    )
+    pre_interview_context = _summarize_pre_interview_for_phase(pre_interview_research, phase)
 
     prompt = _RESPONSE_PROCESSING_PROMPT.format(
         charge_data_summary=charge_summary,
@@ -1315,18 +1337,26 @@ class IntakeConductorAgent(BaseAgent):
             "new_defense_angles": inconsistency_analysis.get("new_defense_angles", []),
             "pre_interview_context": {
                 "integrated": bool(pre_interview_research),
-                "targeted_questions_count": len(
-                    pre_interview_research.get("targeted_questions", [])
-                ) if pre_interview_research else 0,
-                "preliminary_rights_flags_count": len(
-                    pre_interview_research.get("preliminary_rights_flags", [])
-                ) if pre_interview_research else 0,
-                "collateral_alerts_count": len(
-                    pre_interview_research.get("collateral_consequence_alerts", [])
-                ) if pre_interview_research else 0,
-                "known_facts_count": len(
-                    pre_interview_research.get("known_facts_from_documents", [])
-                ) if pre_interview_research else 0,
+                "targeted_questions_count": (
+                    len(pre_interview_research.get("targeted_questions", []))
+                    if pre_interview_research
+                    else 0
+                ),
+                "preliminary_rights_flags_count": (
+                    len(pre_interview_research.get("preliminary_rights_flags", []))
+                    if pre_interview_research
+                    else 0
+                ),
+                "collateral_alerts_count": (
+                    len(pre_interview_research.get("collateral_consequence_alerts", []))
+                    if pre_interview_research
+                    else 0
+                ),
+                "known_facts_count": (
+                    len(pre_interview_research.get("known_facts_from_documents", []))
+                    if pre_interview_research
+                    else 0
+                ),
             },
             "processing_metadata": {
                 "agent_version": "1.0.0",
