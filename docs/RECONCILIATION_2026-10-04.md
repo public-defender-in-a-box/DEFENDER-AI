@@ -305,3 +305,65 @@ produces no demonstrable output.
    Phase 3c.
 5. **Voice mode and OpenAI TTS:** keep, record, or remove.
 6. **Where `SPEC.md` lives**, and whether `PHASE_3_EVIDENCE_ANALYSIS.md` exists yet.
+
+---
+
+## 5. Addendum: decisions and Phase 0 as executed (October 4, 2026)
+
+### 5.1 Decisions
+
+| Question | Decision |
+|---|---|
+| Merging teammates' work | Merge PRs #5, #6, #7. The plea/trial branch was merged too, under the same rationale ("we leave this to the agents") |
+| Step 0.8 | **Deferred.** That covers the Orchestrator blocking switch and, with it, the synthetic-only gate. Recorded in CLAUDE.md §8.1 as invariants not yet enforced |
+| Stub policy | **Registered stubs stay registered, with labeled output** |
+| PR | Watch PR #13. Fix CI immediately |
+| Not asked, defaults taken | Disclosure Tracking kept as is. `fact_gatherer` kept. Voice mode untouched. `SPEC.md` placed at the repository root next to `CLAUDE.md` |
+
+### 5.2 What was done (PR #13)
+
+| Step | Result |
+|---|---|
+| 0.1 | `CLAUDE.md` (the research edition) and `SPEC.md` committed. CLAUDE.md §8.1 now points to the generated inventory and lists the deferred invariants. The §9 stub rule now reads "registered stubs are labeled". A short command list was added. SPEC §2 is marked superseded |
+| 0.2 | CI fixed: black on 3 files; ruff pinned to `0.16.10` with an explicit rule set (`E4, E7, E9, F`); CI runs `pytest` honoring `testpaths`, so the 71 sentencing tests now run |
+| 0.3 (a) | `claude/sentencing-mitigation-agent-hMQAI` merged: IL→GA in 7 files, the shadowed sentencing stub deleted, `.env.example` added. One test that asserted `"IL"` was updated |
+| 0.3 (b) | PR #7 merged. `models/__init__.py` resolved as the union of both sides. PR's `motion_drafter.py` taken. An unused import fixed. The `-hgCCq` "10 spec-review fixes" were **not** cherry-picked (see §5.3) |
+| 0.3 (c), (d) | PRs #6 and #5 merged cleanly |
+| 0.3 (e) | Plea/trial branch merged. Its fixture moved to `tests/fixtures/plea_trial_case_state.py` because PR #7's same-named fixture has a different shape. Black and 6 unused imports fixed; the branch had never been linted. Its review zip dropped |
+| 0.4 | `sentencing-agent.zip` and `frontend-phase1-review.zip` removed. **Superseded stub files kept** (statute, case law, citation verifier): they are labeled `STUB`, and they serve as the naive single-prompt baseline (§3.5) |
+| 0.5 | `STATUS` in all 24 agent modules (17 REAL, 1 PARTIAL, 6 STUB). `BaseAgent.wrap_output` stamps `agent_status`. `tests/test_agent_registry.py` (36 test cases) asserts statuses, stub labeling, registered stubs, unwired agents, config keys, and state slots. Three of these rules (declared status, registered stubs, unwired agents) were checked by breaking them once |
+| 0.6 | `scripts/inventory.py` writes `docs/INVENTORY.md`. A new CI job, `inventory`, fails when the file is stale (checked by making a stale edit) |
+| 0.7 | `.gitattributes` added. `git add --renormalize .` changed nothing, as predicted |
+
+**Test numbers:**
+
+| | Before | After |
+|---|---|---|
+| CI | 114 tests ran (71 never ran); `python-lint` red since March 21 | **293 passed, 3 skipped** (the 3 need an API key); black, ruff, and the inventory check green locally |
+| Test functions | 185 | **268** in 18 files (parametrized tests counted once) |
+
+### 5.3 Not done, and why
+
+- **0.0** is for the team: check the OneDrive copy for unpushed work, then make a fresh clone.
+- **0.3 (f), (g)** were not in the approved set and need an owner's look:
+  - `claude/frontend-foundation-setup-sIaBo`: round-2 frontend fixes. They conflict with, and delete, intake components that `main`'s voice mode now uses.
+  - `claude/motion-drafter-agent-spec-hgCCq`: spec-review fixes to the Motion Drafter. The same commits delete the Brady, plea/trial, and sentencing files, so they need selective cherry-picking.
+  - `claude/debug-intake-interviewer-V4EXJ`: probably superseded by `main`'s April 11 intake fixes.
+  - `claude/defender-ai-overview-dlap4b`: superseded by the inventory.
+  - Branches already merged can be deleted. I left branch deletion to the team.
+- **Dead `orchestrator_init_node` / `_orchestrator_ref`**: left in place. `graph.py` stays untouched until Phase 2 or 3 (SPEC §9.1).
+- **0.8**: deferred, see §5.1.
+
+### 5.4 Found while merging
+
+- **PR #6's tests make live calls.** Of its 20 tests, 9 run an agent. Only 2 of those 9 mock `call_llm`. The other 7 make real Anthropic and CourtListener calls and pass because the agents catch the failure and return empty results. In CI they hit the network. The Phase 1 cassette layer is the fix.
+- **Wiring, per `docs/INVENTORY.md`:**
+  - Of 24 agents, 10 are registered with the Orchestrator, and only **6 are reachable from `main.py`** (actually runnable through the app).
+  - 9 of 18 `CaseState` agent-output slots have no writer.
+  - The newly merged research agents are registered but not reachable from any route.
+- **The default model is past end-of-life,** so no live run works yet. This is Phase 1.
+
+### 5.5 What this makes measurable
+
+- Every agent output now says whether it came from a stub, a partial agent, or a real one. A later measurement can split any metric by implementation tier. That is the naive-baseline comparison from §3.5.
+- Every commit now has a machine-generated count of agents that exist, are registered, and are reachable.
