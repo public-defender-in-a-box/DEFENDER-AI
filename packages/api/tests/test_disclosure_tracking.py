@@ -11,6 +11,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from src.services.model_gateway.testing import FakeCallModel
+
 from src.agents.tier2_attorney.disclosure_tracking import DisclosureTrackingAgent
 from src.models.case_state import ConfidenceLevel
 from src.models.disclosure import (
@@ -355,14 +357,14 @@ class TestDisclosureTrackingAgent:
             "draft_motion_to_compel": "IN THE STATE COURT OF FULTON COUNTY...",
         }
 
-        with patch("src.agents.tier2_attorney.disclosure_tracking.call_llm") as mock_llm:
-            mock_llm.side_effect = [
+        with patch("src.agents.tier2_attorney.disclosure_tracking.call_model") as mock_llm:
+            mock_llm.side_effect = FakeCallModel(
                 mock_classify,
-                mock_checklist,
+                {"items": mock_checklist},
                 mock_gaps,
                 mock_compliance,
                 mock_drafts,
-            ]
+            ).respond
 
             result = await agent.run(
                 {
@@ -415,10 +417,10 @@ class TestDisclosureTrackingAgent:
         """Agent should handle empty/minimal inputs gracefully."""
         agent = DisclosureTrackingAgent()
 
-        with patch("src.agents.tier2_attorney.disclosure_tracking.call_llm") as mock_llm:
-            mock_llm.side_effect = [
+        with patch("src.agents.tier2_attorney.disclosure_tracking.call_model") as mock_llm:
+            mock_llm.side_effect = FakeCallModel(
                 {"discovery_ledger": [], "exculpatory_highlights": []},
-                [],  # empty checklist
+                {"items": []},  # empty checklist
                 {"gaps": [], "officer_records": []},
                 {
                     "discovery_requests": [],
@@ -438,7 +440,7 @@ class TestDisclosureTrackingAgent:
                     "client_summary": "No discovery documents have been received yet.",
                 },
                 {"draft_demand_letter": "", "draft_motion_to_compel": ""},
-            ]
+            ).respond
 
             result = await agent.run({"case_id": "empty_case"})
 

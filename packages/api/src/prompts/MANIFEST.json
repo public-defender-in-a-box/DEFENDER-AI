@@ -1,4 +1,7 @@
 {
+  "brady_agent.analysis@v1": "b27d00f55a579f9a5b6d20704dd66d72e6ed312e60022d990bab36094c0326b4",
+  "case_law_agent.research@v1": "028fca35e4cf977a00e91a5370d11ff110983f24452e70bef2c2f3a97ca2afaa",
+  "case_prep_conductor.memo@v1": "4974d3fc5de302fe77d6257a0984e5fe89ffac04bdbfaf8b4b5447259b1a979c",
   "charge_processing.classify@v1": "737d4dfc53b59b226eee46d0c35afa4d7ec8ba533235e3a009c4018c950d0d5a",
   "charge_processing.classify_input@v1": "dd63191f007d5aae32bba725ae3f29da52e14c63ab1f18e817131c3ddc096dc2",
   "charge_processing.cross_document@v1": "82a5be254b307262f191bbbb091548eb4720b386029b24a9b915a805078ac28c",
@@ -7,11 +10,17 @@
   "citation_verification.holding_check@v1": "07d16b38092d57037a6eea51854cc7abb5c8c0f0b6ac2e4b01eed71752cbb8cf",
   "citation_verification.statute_verification@v1": "4632d35ca96a6b2bbb661b4c88efcc86ddf7693eff0627ab7b80bda455af069c",
   "citation_verification.system@v1": "035a586a4618083aecf846b683cc0b4fc2f2286001d2560a17e5c24cae017eb1",
+  "citation_verifier.verify@v1": "d0bced7634103fe388ea18a44939fba8577088768ffb2bfc6a28132e1e19c7dd",
   "collateral_agent.analysis@v1": "60cc659c6ab13ea5a1cc3389bb1f6fa115d4ebfe7887578a7dbce924490f1110",
   "collateral_agent.system@v1": "f47ca80757da2b439f0a363215b3a12fa8ec45651114a6981f3f321eec22f6ba",
   "constitutional_case_law.framework_analysis@v1": "69349d9421fb40ebcd7c43346fef8bc03c8f3757b605073d79013c1bcc66c013",
   "constitutional_case_law.issue_identification@v1": "948ae59deea1baaf8c0911d31720d3bfe99a2780e804c0cdffd62fe24a3e30e2",
   "constitutional_case_law.system@v1": "cca349bccdffd1ee80f7b643880ecc28200149a85c346382a1aa8982ec8384dd",
+  "disclosure_tracking.checklist@v1": "8c9f95c7b3ea04c4bd78037b6a370288073382f59737f3c30b800a0573a62031",
+  "disclosure_tracking.classify_documents@v1": "089b5685c669cad5c4307c12de21131ce031777f5294142433dfdca8772b200d",
+  "disclosure_tracking.compliance_report@v1": "e9a798c3736be10fc407f70499e0113c31e193ba4ad7d29def58d021afeb2c65",
+  "disclosure_tracking.drafts@v1": "72881a73510a7b78a26cf48429ac4810a91dd03140b20b9b3052289f1a60b86d",
+  "disclosure_tracking.gap_detection@v1": "cb881b0a54ee8b90caa13b1e29b1e3a816be651b6fc10bdcaba48ba5fb38825f",
   "fact_gatherer.extraction@v1": "83158759807c81ec4e6833f92f4791f946cee35dc596fe2cf8def0258d4acdc1",
   "fact_gatherer.system@v1": "35fe297c53c4a7e35585848c2059ab92aae5b5dd06aad7f1052079f66664bc55",
   "ga_criminal_case_law.analysis@v1": "32c6db70275e1d16564d5d7392e70fd15000f9f97be93b5f64a90922ba486a7f",
@@ -45,5 +54,7 @@
   "sentencing_agent.leniency_arguments@v1": "13e03e32ad382edf4c84e23f4fd89bb46f2e864a7a6771865ee1358d9d19685c",
   "sentencing_agent.leniency_input@v1": "4f09ed5d87bf53bfeff78dfd7a675b0c8a7ccf877d8c6210d491d01800c6fd80",
   "sentencing_agent.mitigation_input@v1": "8d7e09ebefd7b1c2afae2c7491b79a35c37fd2fe585a4e6b55ed4606d92ff10c",
-  "sentencing_agent.mitigation_narrative@v1": "21566d7f7316f9386e3e1d149a32f1612433618723124e518a8f13a5a5dc3bba"
+  "sentencing_agent.mitigation_narrative@v1": "21566d7f7316f9386e3e1d149a32f1612433618723124e518a8f13a5a5dc3bba",
+  "shared.json_assistant@v1": "d02fb528273341a931a6a6c22adb284602c3f05a11111479246adae0fd6dd956",
+  "statute_agent.analysis@v1": "c5da9824cb2ab394704de6c32b2f3a2e6fadf8322d688fa7c5d228b4e1022c48"
 }

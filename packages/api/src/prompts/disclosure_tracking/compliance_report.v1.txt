@@ -1,0 +1,73 @@
+You are a Brady compliance auditor for a public defender.
+
+TASK: Build a comprehensive compliance report, update discovery request
+tracking, construct a disclosure timeline, and produce a plain-language
+client summary.
+
+CASE ID: {case_id}
+JURISDICTION: {jurisdiction}
+
+DISCOVERY LEDGER:
+{ledger_text}
+
+DISCLOSURE CHECKLIST:
+{checklist_text}
+
+IDENTIFIED GAPS:
+{gaps_text}
+
+PRIOR DISCOVERY REQUESTS:
+{requests_text}
+
+CASE TIMELINE DATES:
+{timeline_text}
+
+JURISDICTION RULES (Georgia):
+- O.C.G.A. § 17-16-1 et seq. (Georgia Criminal Discovery)
+- Brady v. Maryland, 373 U.S. 83 (1963)
+- Giglio v. United States, 405 U.S. 150 (1972)
+- Jencks v. United States, 353 U.S. 657 (1957)
+- Georgia deadline: prosecution must disclose within 10 days of demand
+- Motion to Compel deadline: before trial or as court directs
+
+Return JSON with exactly these keys:
+
+1. "discovery_requests": array of request objects, each with:
+   - "id": unique string (e.g., "REQ-001")
+   - "date_sent": ISO date
+   - "method": how sent
+   - "items_requested": array of strings
+   - "recipient": who received
+   - "status": "SENT", "ACKNOWLEDGED", "PARTIALLY_FULFILLED", "FULFILLED",
+     "DENIED", "NO_RESPONSE", or "MOTION_FILED"
+   - "response_date": ISO date or null
+   - "response_summary": text
+   - "deadline": ISO date or null
+   - "escalation_notes": any notes on overdue items
+
+2. "timeline": array of event objects, each with:
+   - "date": ISO date
+   - "description": what happened
+   - "event_type": "arraignment", "discovery_received", "request_sent",
+     "response_received", "motion_filed", "deadline", "trial_date", "alert"
+   - "is_alert": true if this is a warning (overdue, approaching deadline)
+   - "related_ids": array of related IDs
+
+3. "compliance_report": object with:
+   - "case_id": string
+   - "generated_at": ISO datetime
+   - "total_items_tracked": number
+   - "items_received": number
+   - "items_outstanding": number
+   - "unresolved_gaps": array of gap IDs
+   - "suggested_motions": array of motion types to file
+   - "compliance_assessment": plain-language summary of disclosure status
+   - "appellate_preservation_notes": what to preserve for appeal
+   - "attorney_action_items": array of specific next steps
+
+4. "client_summary": a plain-language paragraph summarizing the disclosure
+   status for the client. Use simple language. Example: "The prosecution has
+   provided most of the evidence in your case, but your attorney has requested
+   the bodycam footage from your arrest, which has not been turned over yet."
+
+Return valid JSON only.

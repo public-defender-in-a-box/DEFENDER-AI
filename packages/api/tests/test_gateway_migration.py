@@ -19,8 +19,8 @@ SRC = API_ROOT / "src"
 _PENDING = "not yet migrated (Phase 1 §9 order)"
 BROAD_EXCEPT_ALLOWLIST: dict[str, tuple[int, str]] = {}
 
-# Lower this as call sites migrate; it must never go up.
-SHIM_CALLERS_MAX = 10
+# The deprecated call_llm shim had 36 callers when Phase 1 began; it was deleted when
+# the count reached zero.
 
 
 def _is_broad(handler: ast.ExceptHandler) -> bool:
@@ -80,8 +80,5 @@ def test_broad_except_count() -> None:
 
 
 def test_shim_callers_decreasing() -> None:
-    total = sum(_shim_calls().values())
-    assert total <= SHIM_CALLERS_MAX, f"call_llm callers grew to {total}: {_shim_calls()}"
-    assert (
-        total == SHIM_CALLERS_MAX
-    ), f"call_llm callers fell to {total}; lower SHIM_CALLERS_MAX to lock in the progress"
+    assert _shim_calls() == {}, f"call_llm is gone; use model_gateway.call_model: {_shim_calls()}"
+    assert not (SRC / "services" / "llm_service.py").exists(), "the shim was deleted in Phase 1"

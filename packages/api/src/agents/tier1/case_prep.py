@@ -7,9 +7,17 @@ attorney-side specialist agents and compiles the final case preparation package.
 from typing import Any
 
 from src.agents.base_agent import BaseAgent
-from src.services.llm_service import call_llm
+from src.models.responses.stubs import CasePrepMemo
+from src.prompts import compose_version, load_prompt
+from src.services.model_gateway import ModelCallRequest, call_model
 
 STATUS = "STUB"
+
+# The naive single-prompt baseline (PHASE_1_MODEL_GATEWAY.md §9.5).
+_PROMPT = load_prompt("case_prep_conductor.memo", "v1")
+# The system prompt this call used as call_llm's default.
+_SYSTEM = load_prompt("shared.json_assistant", "v1")
+_MAX_TOKENS = 16000
 
 
 class CasePrepAgent(BaseAgent):
@@ -26,25 +34,20 @@ class CasePrepAgent(BaseAgent):
 
         case_state = input_data.get("case_state", {})
 
-        prompt = f"""You are a case preparation conductor for a public defender's office.
-
-Synthesize all available information into a comprehensive case preparation memo.
-
-CASE STATE:
-{case_state}
-
-Generate a JSON object with:
-1. "case_theory": recommended defense theory based on all evidence
-2. "preparation_memo": full case preparation memo text
-3. "decision_points": array of points requiring attorney judgment, each with:
-   - id, description, options, recommendation, human_required (boolean)
-4. "attorney_task_list": array of tasks, each with:
-   - id, task, priority (URGENT/HIGH/MEDIUM/LOW), deadline, category
-
-Mark all recommendations as requiring human judgment.
-Return valid JSON only."""
-
-        result = await call_llm(prompt)
+        call = await call_model(
+            ModelCallRequest(
+                prompt=_PROMPT.text.format(
+                    case_state=case_state,
+                ),
+                system=_SYSTEM.text,
+                max_tokens=_MAX_TOKENS,
+                response_model=CasePrepMemo,
+                prompt_id=_PROMPT.id,
+                prompt_version=compose_version(_SYSTEM, _PROMPT),
+                agent_id=self.agent_id,
+            )
+        )
+        result = call.data.model_dump(mode="json")
 
         self.log_action("case_prep_completed")
         return self.wrap_output(result, confidence=0.7)

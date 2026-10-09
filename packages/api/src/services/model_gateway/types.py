@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import ClassVar, Generic, Literal, TypeVar
+from typing import Generic, Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -80,14 +80,3 @@ class AbstainableResponse(BaseModel):
 
     abstained: bool = False
     abstention_reason: str | None = None
-
-
-class GatewayResponse(BaseModel):
-    """Optional base for response models.
-
-    ``gateway_structured_output`` controls whether the gateway constrains the reply
-    with the API's structured outputs. Only the deprecated ``call_llm`` shim's
-    passthrough model turns it off.
-    """
-
-    gateway_structured_output: ClassVar[bool] = True

@@ -122,10 +122,6 @@ def _get_store() -> CassetteStore:
 # ---------------------------------------------------------------------------
 
 
-def _uses_structured_output(response_model: type[BaseModel]) -> bool:
-    return bool(getattr(response_model, "gateway_structured_output", True))
-
-
 def _check_strict_compatible(node: JsonValue, where: str) -> None:
     """Reject schemas that structured outputs would silently empty.
 
@@ -151,8 +147,7 @@ def _check_strict_compatible(node: JsonValue, where: str) -> None:
 
 def _response_schema(response_model: type[BaseModel]) -> dict[str, JsonValue]:
     schema = cast(dict[str, JsonValue], response_model.model_json_schema())
-    if _uses_structured_output(response_model):
-        _check_strict_compatible(schema, response_model.__name__)
+    _check_strict_compatible(schema, response_model.__name__)
     return schema
 
 
@@ -165,12 +160,13 @@ def build_request_body(
     ``fallbacks`` (§0.3), no ``thinking`` (each model's default applies; effort is the
     pinned control).
     """
-    output_config: dict[str, JsonValue] = {"effort": req.effort}
-    if _uses_structured_output(req.response_model):
-        output_config["format"] = {
+    output_config: dict[str, JsonValue] = {
+        "effort": req.effort,
+        "format": {
             "type": "json_schema",
             "schema": anthropic.transform_schema(cast(dict[str, object], schema)),
-        }
+        },
+    }
     return {
         "model": model,
         "max_tokens": req.max_tokens,
@@ -275,15 +271,6 @@ def _ledger(record: ModelCallRecord) -> None:
     )
 
 
-def _strip_fences(text: str) -> str:
-    # Only for the deprecated passthrough model, which predates structured outputs.
-    if "```json" in text:
-        return text.split("```json", 1)[1].split("```", 1)[0]
-    if "```" in text:
-        return text.split("```", 1)[1].split("```", 1)[0]
-    return text
-
-
 def _text_of(response: dict[str, JsonValue]) -> str:
     """Join text blocks. Never ``content[0]``: thinking blocks come first."""
     content = response.get("content")
@@ -324,8 +311,6 @@ def parse_response(
         raise MalformedResponseError(
             f"{req.agent_id}/{req.prompt_id}: response has no text block", record=record
         )
-    if not _uses_structured_output(req.response_model):
-        text = _strip_fences(text)
     try:
         payload = json.loads(text.strip())
     except json.JSONDecodeError as exc:

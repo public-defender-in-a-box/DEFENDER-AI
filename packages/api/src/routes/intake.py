@@ -41,11 +41,8 @@ _PHASE_LABELS: dict[str, str] = {
 _TOTAL_PHASES = len(INTERVIEW_PHASES)
 
 _TURN_MESSAGE = load_prompt("intake_route.turn_message", "v1")
-# The deprecated call_llm's default system prompt, which this call used before.
-_TURN_SYSTEM = (
-    "You are a legal analysis AI assistant for a public defender's office."
-    " Always return valid JSON."
-)
+# The system prompt this call used as call_llm's default.
+_TURN_SYSTEM = load_prompt("shared.json_assistant", "v1")
 _TURN_MAX_TOKENS = 4000
 
 
@@ -202,11 +199,11 @@ async def _generate_turn_message(
                 prompt=_TURN_MESSAGE.text.format(
                     client_response=client_response, next_question=next_question
                 ),
-                system=_TURN_SYSTEM,
+                system=_TURN_SYSTEM.text,
                 max_tokens=_TURN_MAX_TOKENS,
                 response_model=TurnMessage,
                 prompt_id="intake_route.turn_message",
-                prompt_version=compose_version(_TURN_MESSAGE),
+                prompt_version=compose_version(_TURN_SYSTEM, _TURN_MESSAGE),
                 agent_id="intake_route",
             )
         )

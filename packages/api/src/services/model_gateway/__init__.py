@@ -24,7 +24,6 @@ from src.services.model_gateway.gateway import call_model, current_mode, require
 from src.services.model_gateway.types import (
     AbstainableResponse,
     Effort,
-    GatewayResponse,
     ModelCallRecord,
     ModelCallRequest,
     ModelCallResult,
@@ -35,7 +34,6 @@ __all__ = [
     "AuthError",
     "CassetteMissError",
     "Effort",
-    "GatewayResponse",
     "InvalidRequestError",
     "MalformedResponseError",
     "ModelCallError",

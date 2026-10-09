@@ -21,11 +21,30 @@ import logging
 from typing import Any
 
 from src.agents.base_agent import BaseAgent
-from src.services.llm_service import call_llm
+from src.models.responses.disclosure import (
+    ComplianceBundle,
+    DisclosureChecklist,
+    DiscoveryDrafts,
+    DocumentClassificationResult,
+    GapAnalysis,
+)
+from src.prompts import compose_version, load_prompt
+from src.services.model_gateway import ModelCallRequest, call_model
 
 STATUS = "REAL"
 
 logger = logging.getLogger(__name__)
+
+# Prompts: src/prompts/disclosure_tracking/
+_CLASSIFY = load_prompt("disclosure_tracking.classify_documents", "v1")
+_CHECKLIST = load_prompt("disclosure_tracking.checklist", "v1")
+_GAPS = load_prompt("disclosure_tracking.gap_detection", "v1")
+_COMPLIANCE = load_prompt("disclosure_tracking.compliance_report", "v1")
+_DRAFTS = load_prompt("disclosure_tracking.drafts", "v1")
+# The system prompt these calls used as call_llm's default.
+_SYSTEM = load_prompt("shared.json_assistant", "v1")
+# Thinking tokens count toward max_tokens on current models (Phase 1 §2).
+_MAX_TOKENS = 24000
 
 
 class DisclosureTrackingAgent(BaseAgent):
@@ -196,48 +215,22 @@ class DisclosureTrackingAgent(BaseAgent):
     ) -> dict[str, Any]:
         """Ingest discovery documents, classify each, and flag exculpatory language."""
 
-        prompt = f"""You are a discovery analyst for a public defender's office.
-
-TASK: Classify each discovery document and identify any exculpatory,
-impeachment, or Jencks material. Flag any buried exculpatory language.
-
-DISCOVERY DOCUMENTS RECEIVED:
-{docs_text}
-
-CHARGES:
-{charges_text}
-
-CLIENT'S ACCOUNT (from intake):
-{facts_text}
-
-Return JSON with exactly these keys:
-
-1. "discovery_ledger": array of objects, each with:
-   - "id": unique string (e.g., "DL-001")
-   - "document_name": string
-   - "category": one of POLICE_REPORT, WITNESS_STATEMENT, LAB_REPORT,
-     BODYCAM_FOOTAGE, SURVEILLANCE_FOOTAGE, DISPATCH_RECORDING, PHOTO_ARRAY,
-     LINEUP_RECORD, FORENSIC_EVIDENCE, INFORMANT_AGREEMENT, OFFICER_DISCIPLINARY,
-     PRIOR_STATEMENT, CRIMINAL_HISTORY, COOPERATION_AGREEMENT, SEARCH_WARRANT,
-     COURT_ORDER, MEDICAL_RECORD, FINANCIAL_RECORD, PHONE_RECORD,
-     DIGITAL_EVIDENCE, CHAIN_OF_CUSTODY, EXPERT_REPORT, OTHER
-   - "source": who provided it
-   - "received_date": ISO date or "unknown"
-   - "disclosure_types": array of "BRADY", "GIGLIO", and/or "JENCKS" as applicable
-   - "page_count": number or null
-   - "summary": brief description of contents
-   - "flags": array of strings for any notable items (exculpatory language found,
-     missing pages, inconsistencies, etc.)
-   - "confidence": 0.0 to 1.0
-
-2. "exculpatory_highlights": array of strings — any exculpatory or impeachment
-   language found in the documents. Quote the exact language and cite the
-   document and approximate location (e.g., "Police report p.8: 'witness
-   stated she was not certain of identification'").
-
-Return valid JSON only."""
-
-        return await call_llm(prompt)
+        result = await call_model(
+            ModelCallRequest(
+                prompt=_CLASSIFY.text.format(
+                    charges_text=charges_text,
+                    docs_text=docs_text,
+                    facts_text=facts_text,
+                ),
+                system=_SYSTEM.text,
+                max_tokens=_MAX_TOKENS,
+                response_model=DocumentClassificationResult,
+                prompt_id=_CLASSIFY.id,
+                prompt_version=compose_version(_SYSTEM, _CLASSIFY),
+                agent_id=self.agent_id,
+            )
+        )
+        return result.data.model_dump(mode="json")
 
     # ======================================================================
     # Pass 2: Dynamic Checklist Generation
@@ -253,47 +246,24 @@ Return valid JSON only."""
     ) -> list[dict[str, Any]]:
         """Generate a case-specific Brady/Giglio/Jencks checklist."""
 
-        prompt = f"""You are a Brady compliance specialist for a public defender.
-
-TASK: Generate a comprehensive, case-specific disclosure checklist. The
-checklist should adapt based on the charges and case facts.
-
-CASE TYPE: {case_type}
-JURISDICTION: {jurisdiction}
-
-CHARGES:
-{charges_text}
-
-CASE FACTS:
-{facts_text}
-
-OFFICERS INVOLVED:
-{officers_text}
-
-For each charge type and fact pattern, generate the appropriate checklist
-items. Examples:
-- If eyewitness ID is involved → photo array procedures, lineup records
-- If informant mentioned → cooperation agreements, compensation records
-- If forensic evidence → lab analyst credentials, chain of custody, error history
-- If bodycam/surveillance mentioned → footage production
-- Always include: officer disciplinary records, 911 recordings, dispatch logs,
-  prior inconsistent statements of witnesses
-
-Return JSON: an array of objects, each with:
-- "id": unique string (e.g., "CK-001")
-- "description": what evidence is expected
-- "material_type": "BRADY", "GIGLIO", or "JENCKS"
-- "status": "PENDING" (initial default for all)
-- "triggered_by": what case fact triggered this item
-- "related_ledger_entries": empty array (to be populated later)
-- "notes": any additional context
-
-Generate at least 10 items. Be thorough — missing a Brady item can mean
-a wrongful conviction.
-
-Return valid JSON array only."""
-
-        return await call_llm(prompt)
+        result = await call_model(
+            ModelCallRequest(
+                prompt=_CHECKLIST.text.format(
+                    case_type=case_type,
+                    charges_text=charges_text,
+                    facts_text=facts_text,
+                    jurisdiction=jurisdiction,
+                    officers_text=officers_text,
+                ),
+                system=_SYSTEM.text,
+                max_tokens=_MAX_TOKENS,
+                response_model=DisclosureChecklist,
+                prompt_id=_CHECKLIST.id,
+                prompt_version=compose_version(_SYSTEM, _CHECKLIST),
+                agent_id=self.agent_id,
+            )
+        )
+        return [item.model_dump(mode="json") for item in result.data.items]
 
     # ======================================================================
     # Pass 3: Gap Detection & Red Flag Analysis
@@ -310,67 +280,25 @@ Return valid JSON array only."""
     ) -> dict[str, Any]:
         """Cross-reference ledger against checklist to find disclosure gaps."""
 
-        prompt = f"""You are a Brady/Giglio gap detection analyst for a public defender.
-
-TASK: Cross-reference what has been disclosed against what should exist.
-Identify every gap, red flag, and potential violation.
-
-DISCOVERY LEDGER (what we've received):
-{ledger_text}
-
-CHECKLIST (what should exist):
-{checklist_text}
-
-CHARGES:
-{charges_text}
-
-CASE FACTS:
-{facts_text}
-
-OFFICERS INVOLVED:
-{officers_text}
-
-RAW DOCUMENTS:
-{docs_text}
-
-GAP DETECTION RULES:
-- If a police report mentions footage but no footage produced → FLAG
-- If a witness has prior convictions and no Giglio notice filed → FLAG
-- If an informant is listed but no cooperation agreement disclosed → FLAG
-- If officer names appear with no disciplinary record check → FLAG
-- If lab results referenced but no chain of custody → FLAG
-- If report mentions additional witnesses not on witness list → FLAG
-- If 911 call referenced but recording not produced → FLAG
-- Cross-reference officer names for patterns of misconduct
-- Look for implicit disclosure triggers (CI nicknames, references to
-  "the source", informant indicators)
-
-Return JSON with exactly these keys:
-
-1. "gaps": array of objects, each with:
-   - "id": unique string (e.g., "GAP-001")
-   - "material_type": "BRADY", "GIGLIO", or "JENCKS"
-   - "severity": "CRITICAL", "HIGH", "MEDIUM", or "LOW"
-   - "description": what is missing
-   - "expected_evidence": what specifically should exist
-   - "basis": legal/factual basis for expecting this evidence
-   - "source_reference": what document or fact triggered this detection
-   - "suggested_action": recommended next step (e.g., "File Motion to Compel",
-     "Send targeted Brady demand letter")
-   - "related_checklist_items": array of checklist item IDs
-
-2. "officer_records": array of objects, each with:
-   - "name": officer name
-   - "badge_number": if available
-   - "agency": department
-   - "disciplinary_record_requested": false (default)
-   - "disciplinary_record_status": "not_requested"
-   - "prior_case_flags": array of any flags
-   - "giglio_relevant": true/false
-
-Return valid JSON only."""
-
-        return await call_llm(prompt)
+        result = await call_model(
+            ModelCallRequest(
+                prompt=_GAPS.text.format(
+                    charges_text=charges_text,
+                    checklist_text=checklist_text,
+                    docs_text=docs_text,
+                    facts_text=facts_text,
+                    ledger_text=ledger_text,
+                    officers_text=officers_text,
+                ),
+                system=_SYSTEM.text,
+                max_tokens=_MAX_TOKENS,
+                response_model=GapAnalysis,
+                prompt_id=_GAPS.id,
+                prompt_version=compose_version(_SYSTEM, _GAPS),
+                agent_id=self.agent_id,
+            )
+        )
+        return result.data.model_dump(mode="json")
 
     # ======================================================================
     # Pass 4: Compliance Report, Request Tracking & Timeline
@@ -388,81 +316,26 @@ Return valid JSON only."""
     ) -> dict[str, Any]:
         """Build the compliance report, request tracker, and timeline."""
 
-        prompt = f"""You are a Brady compliance auditor for a public defender.
-
-TASK: Build a comprehensive compliance report, update discovery request
-tracking, construct a disclosure timeline, and produce a plain-language
-client summary.
-
-CASE ID: {case_id}
-JURISDICTION: {jurisdiction}
-
-DISCOVERY LEDGER:
-{ledger_text}
-
-DISCLOSURE CHECKLIST:
-{checklist_text}
-
-IDENTIFIED GAPS:
-{gaps_text}
-
-PRIOR DISCOVERY REQUESTS:
-{requests_text}
-
-CASE TIMELINE DATES:
-{timeline_text}
-
-JURISDICTION RULES (Georgia):
-- O.C.G.A. § 17-16-1 et seq. (Georgia Criminal Discovery)
-- Brady v. Maryland, 373 U.S. 83 (1963)
-- Giglio v. United States, 405 U.S. 150 (1972)
-- Jencks v. United States, 353 U.S. 657 (1957)
-- Georgia deadline: prosecution must disclose within 10 days of demand
-- Motion to Compel deadline: before trial or as court directs
-
-Return JSON with exactly these keys:
-
-1. "discovery_requests": array of request objects, each with:
-   - "id": unique string (e.g., "REQ-001")
-   - "date_sent": ISO date
-   - "method": how sent
-   - "items_requested": array of strings
-   - "recipient": who received
-   - "status": "SENT", "ACKNOWLEDGED", "PARTIALLY_FULFILLED", "FULFILLED",
-     "DENIED", "NO_RESPONSE", or "MOTION_FILED"
-   - "response_date": ISO date or null
-   - "response_summary": text
-   - "deadline": ISO date or null
-   - "escalation_notes": any notes on overdue items
-
-2. "timeline": array of event objects, each with:
-   - "date": ISO date
-   - "description": what happened
-   - "event_type": "arraignment", "discovery_received", "request_sent",
-     "response_received", "motion_filed", "deadline", "trial_date", "alert"
-   - "is_alert": true if this is a warning (overdue, approaching deadline)
-   - "related_ids": array of related IDs
-
-3. "compliance_report": object with:
-   - "case_id": string
-   - "generated_at": ISO datetime
-   - "total_items_tracked": number
-   - "items_received": number
-   - "items_outstanding": number
-   - "unresolved_gaps": array of gap IDs
-   - "suggested_motions": array of motion types to file
-   - "compliance_assessment": plain-language summary of disclosure status
-   - "appellate_preservation_notes": what to preserve for appeal
-   - "attorney_action_items": array of specific next steps
-
-4. "client_summary": a plain-language paragraph summarizing the disclosure
-   status for the client. Use simple language. Example: "The prosecution has
-   provided most of the evidence in your case, but your attorney has requested
-   the bodycam footage from your arrest, which has not been turned over yet."
-
-Return valid JSON only."""
-
-        return await call_llm(prompt)
+        result = await call_model(
+            ModelCallRequest(
+                prompt=_COMPLIANCE.text.format(
+                    case_id=case_id,
+                    checklist_text=checklist_text,
+                    gaps_text=gaps_text,
+                    jurisdiction=jurisdiction,
+                    ledger_text=ledger_text,
+                    requests_text=requests_text,
+                    timeline_text=timeline_text,
+                ),
+                system=_SYSTEM.text,
+                max_tokens=_MAX_TOKENS,
+                response_model=ComplianceBundle,
+                prompt_id=_COMPLIANCE.id,
+                prompt_version=compose_version(_SYSTEM, _COMPLIANCE),
+                agent_id=self.agent_id,
+            )
+        )
+        return result.data.model_dump(mode="json")
 
     # ======================================================================
     # Pass 5: Draft Legal Documents
@@ -477,55 +350,23 @@ Return valid JSON only."""
     ) -> dict[str, Any]:
         """Draft a Brady demand letter and Motion to Compel if warranted."""
 
-        prompt = f"""You are a public defender drafting discovery enforcement documents.
-
-TASK: Based on the identified disclosure gaps, draft:
-1. A targeted Brady/Giglio demand letter to the prosecution
-2. A Motion to Compel (if there are overdue or denied requests)
-
-JURISDICTION: {jurisdiction}
-
-IDENTIFIED GAPS:
-{gaps_text}
-
-CHARGES:
-{charges_text}
-
-PRIOR REQUESTS SENT:
-{requests_text}
-
-LEGAL CITATIONS TO INCLUDE:
-- Brady v. Maryland, 373 U.S. 83 (1963)
-- Giglio v. United States, 405 U.S. 150 (1972)
-- Jencks v. United States, 353 U.S. 657 (1957)
-- Kyles v. Whitley, 514 U.S. 419 (1995) (cumulative materiality)
-- Strickler v. Greene, 527 U.S. 263 (1999) (suppression element)
-- O.C.G.A. § 17-16-1 et seq. (Georgia criminal discovery)
-- O.C.G.A. § 17-16-6 (prosecution disclosure obligations)
-- O.C.G.A. § 17-16-8 (sanctions for noncompliance)
-
-For the demand letter:
-- Address to the assigned prosecutor
-- Cite specific gaps with legal authority
-- Set a reasonable deadline (10 days per Georgia rules)
-- Note preservation obligations
-
-For the Motion to Compel:
-- Standard Georgia motion format
-- Specific items sought
-- Good cause showing
-- Proposed order
-
-Return JSON with:
-1. "draft_demand_letter": full text of the letter
-2. "draft_motion_to_compel": full text of the motion
-
-Both MUST begin with the text exactly as provided — the caller will prepend
-the "DRAFT — ATTORNEY REVIEW REQUIRED" header.
-
-Return valid JSON only."""
-
-        return await call_llm(prompt)
+        result = await call_model(
+            ModelCallRequest(
+                prompt=_DRAFTS.text.format(
+                    charges_text=charges_text,
+                    gaps_text=gaps_text,
+                    jurisdiction=jurisdiction,
+                    requests_text=requests_text,
+                ),
+                system=_SYSTEM.text,
+                max_tokens=_MAX_TOKENS,
+                response_model=DiscoveryDrafts,
+                prompt_id=_DRAFTS.id,
+                prompt_version=compose_version(_SYSTEM, _DRAFTS),
+                agent_id=self.agent_id,
+            )
+        )
+        return result.data.model_dump(mode="json")
 
     # ======================================================================
     # Confidence computation
