@@ -20,8 +20,10 @@ from src.agents.tier1.intake_conductor import (
     _process_response,
 )
 from src.models.case_state import PipelineStage
+from src.models.responses.intake import TurnMessage
+from src.prompts import compose_version, load_prompt
 from src.routes._store import case_store
-from src.services.llm_service import call_llm
+from src.services.model_gateway import ModelCallError, ModelCallRequest, call_model
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +39,14 @@ _PHASE_LABELS: dict[str, str] = {
 }
 
 _TOTAL_PHASES = len(INTERVIEW_PHASES)
+
+_TURN_MESSAGE = load_prompt("intake_route.turn_message", "v1")
+# The deprecated call_llm's default system prompt, which this call used before.
+_TURN_SYSTEM = (
+    "You are a legal analysis AI assistant for a public defender's office."
+    " Always return valid JSON."
+)
+_TURN_MAX_TOKENS = 4000
 
 
 # ---------------------------------------------------------------------------
@@ -186,34 +196,33 @@ async def _generate_turn_message(
     if next_question is None:
         return "Thank you for sharing all of that. We're finished with the interview."
 
-    prompt = f"""You are an intake assistant for a public defender's office.
-The client just answered a question. Write ONE very short acknowledgment
-(3-8 words, no advice, no repetition of their words), then ask ONE next
-question — the one given below — EXACTLY as written.
-
-HARD RULES:
-- Output ONLY: <short ack>. <next question verbatim>
-- Do NOT add any follow-up, clarification, or second question.
-- Do NOT rephrase or shorten the next question.
-- Do NOT combine questions with "and".
-- Your whole response must contain exactly ONE question mark.
-
-CLIENT SAID: "{client_response}"
-NEXT QUESTION TO ASK (use verbatim): "{next_question}"
-
-Return JSON: {{"combined_message": "short ack. {next_question}"}}"""
-
     try:
-        result = await call_llm(prompt, max_tokens=256)
-        combined = result.get("combined_message") or ""
-        # Safety net: if the LLM added extra questions, fall back to a
-        # minimal acknowledgment + the verbatim next question.
-        if combined.count("?") > 1 or next_question not in combined:
-            return f"Thank you. {next_question}"
-        return combined
-    except Exception:
-        logger.exception("Turn message LLM failed, using raw question")
+        call = await call_model(
+            ModelCallRequest(
+                prompt=_TURN_MESSAGE.text.format(
+                    client_response=client_response, next_question=next_question
+                ),
+                system=_TURN_SYSTEM,
+                max_tokens=_TURN_MAX_TOKENS,
+                response_model=TurnMessage,
+                prompt_id="intake_route.turn_message",
+                prompt_version=compose_version(_TURN_MESSAGE),
+                agent_id="intake_route",
+            )
+        )
+    except ModelCallError:
+        # The one retained fallback in Phase 1 (see docs/MODELS.md): this is chat glue,
+        # not analysis. Its content is fixed by rule — an acknowledgment plus the next
+        # question verbatim — the gateway has already recorded the failed call as a
+        # measurement, and nothing from it enters CaseState.
+        logger.exception("Turn message model call failed, using the fixed acknowledgment")
         return f"Thank you. {next_question}"
+    combined = call.data.combined_message
+    # Safety net: if the model added extra questions, use the minimal acknowledgment
+    # plus the verbatim next question.
+    if combined.count("?") > 1 or next_question not in combined:
+        return f"Thank you. {next_question}"
+    return combined
 
 
 # ---------------------------------------------------------------------------
@@ -284,8 +293,10 @@ async def finalize_stuck_interview(case_id: str) -> dict[str, Any]:
         case_prep_result = await CasePrepAgent().run({"case_state": orch.get_case_state_snapshot()})
         case_prep_merge = await orch.receive_agent_output("case_prep_conductor", case_prep_result)
         case_prep_decision = case_prep_merge.get("decision")
-    except Exception:
+    except Exception as exc:
+        # Route boundary: finalization succeeds without Case Prep; the failure is recorded.
         logger.exception("CasePrepAgent failed during manual finalize for %s", case_id)
+        await orch.handle_agent_failure("case_prep_conductor", exc)
 
     return {
         "status": "finalized",
@@ -569,7 +580,10 @@ async def _background_process_response(
             pre_interview_research=session.pre_interview_data or None,
         )
         session.all_facts.extend(result.get("extracted_facts", []))
-    except Exception:
+    except ModelCallError:
+        # Background task boundary. The gateway recorded the failed call; the response
+        # itself is kept in session.responses and reprocessed at finalization, where a
+        # failure fails the Intake Conductor.
         logger.exception("Background response processing failed for %s", question_id)
 
 
@@ -616,8 +630,10 @@ async def _finalize_interview(
             session.case_id,
             list(result.keys()) if isinstance(result, dict) else type(result),
         )
-    except Exception:
+    except Exception as exc:
+        # Route boundary: record the failure with its type on the case, then surface it.
         logger.exception("IntakeConductorAgent.run() FAILED for %s", session.case_id)
+        await orch.handle_agent_failure("intake_conductor", exc)
         raise
 
     await _ping(
@@ -657,8 +673,10 @@ async def _finalize_interview(
                 "steps. Thank you for your time.",
             )
         )
-    except Exception:
+    except Exception as exc:
+        # Route boundary: the interview is saved either way; the failure is recorded.
         logger.exception("CasePrepAgent failed for %s", session.case_id)
+        await orch.handle_agent_failure("case_prep_conductor", exc)
         await websocket.send_json(
             _msg(
                 "system",

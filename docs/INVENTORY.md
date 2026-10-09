@@ -8,11 +8,11 @@
 
 | What | Files | Lines |
 |---|---|---|
-| Python, `packages/api/src` (non-test) | 103 | 18082 |
-| Python tests, `packages/api` (incl. in-package tests) | 31 | 8881 |
+| Python, `packages/api/src` (non-test) | 104 | 18022 |
+| Python tests, `packages/api` (incl. in-package tests) | 32 | 9017 |
 | TypeScript, `packages/web/src` | 66 | 4195 |
 
-Test functions: **315** in 22 files (parametrized tests count once).
+Test functions: **322** in 23 files (parametrized tests count once).
 
 ## Agents
 
@@ -29,7 +29,7 @@ Test functions: **315** in 22 files (parametrized tests count once).
 | `orchestrator` | `agents/tier0/orchestrator.py` | REAL | 525 | — | yes | `agents/graph.py`, `routes/_store.py`, `routes/upload.py` | 69 |
 | `case_prep_conductor` | `agents/tier1/case_prep.py` | STUB | 50 | yes | yes | `routes/intake.py` | — |
 | `charge_processing` | `agents/tier1/charge_processing.py` | REAL | 482 | yes | yes | `agents/graph.py`, `routes/upload.py` | 32 |
-| `intake_conductor` | `agents/tier1/intake_conductor.py` | REAL | 1396 | yes | yes | `routes/intake.py` | 26 |
+| `intake_conductor` | `agents/tier1/intake_conductor.py` | REAL | 1161 | yes | yes | `routes/intake.py` | 26 |
 | `pre_interview_research` | `agents/tier1/pre_interview.py` | PARTIAL | 236 | yes | yes | `agents/graph.py`, `routes/upload.py` | 26 |
 | `brady_agent` | `agents/tier2_attorney/brady_agent.py` | STUB | 63 | — | — | — | — |
 | `disclosure_tracking` | `agents/tier2_attorney/disclosure_tracking.py` | REAL | 575 | yes | — | — | 23 |
@@ -116,6 +116,7 @@ once.
 | `packages/api/tests/agents/tier2_attorney/test_plea_trial_analyst.py` | 20 |
 | `packages/api/tests/test_agent_registry.py` | 8 |
 | `packages/api/tests/test_charge_processing.py` | 6 |
+| `packages/api/tests/test_courtlistener.py` | 7 |
 | `packages/api/tests/test_disclosure_tracking.py` | 23 |
 | `packages/api/tests/test_ethics_monitor.py` | 39 |
 | `packages/api/tests/test_gateway_migration.py` | 2 |

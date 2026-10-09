@@ -21,7 +21,9 @@ from datetime import datetime, timezone
 from typing import Any
 
 from src.agents.base_agent import BaseAgent
-from src.services.llm_service import call_llm
+from src.models.responses.intake import InconsistencyAnalysis, PhaseQuestions, ProcessedResponse
+from src.prompts import compose_version, load_prompt
+from src.services.model_gateway import ModelCallRequest, call_model
 
 STATUS = "REAL"
 
@@ -42,56 +44,16 @@ INTERVIEW_PHASES = [
 # Prompts — preserved from standalone intake-conductor-agent
 # ---------------------------------------------------------------------------
 
-_SYSTEM_PROMPT = (
-    "You are an AI intake assistant for a public defender's office in Georgia. "
-    "You conduct structured client interviews to gather comprehensive information "
-    "about criminal cases. You are empathetic, thorough, and non-judgmental.\n\n"
-    "CRITICAL CONSTRAINTS:\n"
-    "1. You are NOT a lawyer. You do not provide legal advice, predictions about "
-    "case outcomes, or strategic recommendations.\n"
-    "2. Everything the client tells you is attorney-client privileged. You must "
-    "never disclose this information outside the defense team.\n"
-    "3. You must treat the client with dignity and respect regardless of the charges.\n"
-    "4. You must gather facts completely and accurately, even uncomfortable ones.\n"
-    "5. You must flag any concerns about the client's wellbeing, competency, or "
-    "need for special accommodations.\n\n"
-    "JURISDICTION KNOWLEDGE:\n"
-    "- Georgia State: O.C.G.A. Title 16 (Crimes), Title 17 (Criminal Procedure)\n"
-    "- Georgia uses accusations for misdemeanors, indictments for felonies\n"
-    "- Georgia First Offender Act: O.C.G.A. \u00a7 42-8-60\n"
-    "- Federal: Title 18 U.S.C., Federal Rules of Criminal Procedure\n"
-    "- Federal Sentencing Guidelines (USSG)\n"
-    "- Brady v. Maryland / Giglio v. United States\n\n"
-    "INTERVIEW PROTOCOL:\n"
-    "You conduct the interview in five phases:\n\n"
-    "Phase 1 \u2014 PERSONAL INFORMATION:\n"
-    "Gather demographics, employment status, housing situation, family circumstances, "
-    "immigration status (critical for collateral consequences), mental health history, "
-    "substance use history, education level, and any special needs.\n\n"
-    "Phase 2 \u2014 INCIDENT NARRATIVE:\n"
-    "Get the client's account of what happened in their own words. Start with "
-    "open-ended questions, then follow up with targeted questions informed by the "
-    "charging documents. Do NOT lead the client or suggest answers.\n\n"
-    "Phase 3 \u2014 ARREST AND CUSTODY:\n"
-    "How was the client contacted/arrested? Miranda rights? Statements to police? "
-    "Consent to search? Injuries? Treatment in custody? This is critical for "
-    "identifying rights violations.\n\n"
-    "Phase 4 \u2014 PRIOR HISTORY:\n"
-    "Criminal history, pending cases, probation/parole status, prior LE interactions, "
-    "relationship with complainant, compliance history.\n\n"
-    "Phase 5 \u2014 PRIORITIES AND CONCERNS:\n"
-    "What matters most to the client? Immigration, employment, housing, family, "
-    "incarceration avoidance? This shapes the defense strategy.\n\n"
-    "CONFIDENCE SCORING:\n"
-    "Assign confidence scores (0.0-1.0) to extracted information:\n"
-    "- 0.9-1.0: Client stated clearly and unambiguously\n"
-    "- 0.7-0.89: Client stated but with some hedging or uncertainty\n"
-    "- 0.5-0.69: Inferred from context or indirect statements\n"
-    "- 0.3-0.49: Unclear, client was vague or contradictory\n"
-    "- 0.0-0.29: Best guess, client could not or would not provide clear information\n\n"
-    "OUTPUT FORMAT: Always respond with valid JSON matching the requested schema. "
-    "Do not include any text outside the JSON object."
-)
+# Prompts: src/prompts/intake_conductor/
+_SYSTEM = load_prompt("intake_conductor.system", "v1")
+_QUESTION_GENERATION = load_prompt("intake_conductor.question_generation", "v1")
+_RESPONSE_PROCESSING = load_prompt("intake_conductor.response_processing", "v1")
+_INCONSISTENCY_ANALYSIS = load_prompt("intake_conductor.inconsistency_analysis", "v1")
+
+# Thinking tokens count toward max_tokens on current models (Phase 1 §2).
+_QUESTIONS_MAX_TOKENS = 12000
+_RESPONSE_MAX_TOKENS = 16000
+_INCONSISTENCY_MAX_TOKENS = 16000
 
 _PHASE_DESCRIPTIONS = {
     "personal_information": (
@@ -127,214 +89,9 @@ _PHASE_ABBREVIATIONS = {
     "priorities_and_concerns": "PC",
 }
 
-_QUESTION_GENERATION_PROMPT = """Based on the charge processing data and current interview phase, generate appropriate interview questions.
-
-CHARGE DATA:
-{charge_data}
-
-CURRENT PHASE: {phase}
-PHASE DESCRIPTION: {phase_description}
-
-FACTS THE CLIENT HAS ALREADY TOLD US (do NOT re-ask these):
-{known_client_facts}
-
-PREVIOUS RESPONSES (full context, earlier phases only):
-{previous_responses}
-
-PRE-INTERVIEW RESEARCH CONTEXT:
-{pre_interview_context}
-
-HARD RULES — NON-NEGOTIABLE:
-1. Generate EXACTLY 4 to 6 questions. Never more than 6. Quality over quantity.
-2. ONE question per entry. Never combine two questions with "and", never ask multiple
-   things in one question_text. Bad: "Where were you and what time was it?".
-   Good: two separate entries.
-3. Do NOT re-ask anything the client has already told us in the "FACTS THE CLIENT HAS
-   ALREADY TOLD US" list above. If the client said they are a teacher, do NOT ask
-   "what is your job". If they said they are a US citizen, do NOT ask about
-   immigration status.
-4. Do NOT duplicate the pre-interview MUST_ASK questions listed in PRE-INTERVIEW
-   RESEARCH CONTEXT for this phase. Those will be injected automatically — you are
-   adding complementary questions, not overlapping ones.
-5. Skip any question a reasonable adult client would have already addressed by
-   answering earlier questions in this same interview.
-
-Return a JSON object with the following structure:
-
-{{
-  "phase": "{phase}",
-  "questions": [
-    {{
-      "question_id": "Q-{phase_abbrev}-001",
-      "question_text": "The question to ask the client",
-      "question_type": "open_ended | yes_no | multiple_choice | scaled",
-      "priority": "required | recommended | optional",
-      "rationale": "Why this question is important given the charges",
-      "follow_up_triggers": ["condition that triggers a follow-up question"],
-      "related_charges": [1, 2],
-      "feeds_subagent": "fact_gatherer | rights_violation_scanner | collateral_consequences | none",
-      "options": ["for multiple_choice type only"]
-    }}
-  ],
-  "phase_instructions": "Instructions for how to conduct this phase of the interview",
-  "ethical_notes": "Any ethical considerations for this phase"
-}}
-
-GUIDELINES:
-- Start each phase with open-ended questions before targeted ones
-- For the incident narrative, do NOT ask leading questions
-- Tailor questions to the specific charges
-- If charges involve violence, be sensitive to potential trauma
-- If immigration status is unknown, ask respectfully in Phase 1
-- For arrest/custody phase, ask detailed questions about Miranda and search/seizure
-- Flag any question that might elicit privileged information that needs special handling
-- Mark which sub-agent each question feeds into
-- BUILD ON the pre-interview research above — do not duplicate targeted questions
-  already generated by pre-interview (they will be injected separately). Use the
-  preliminary rights flags and collateral alerts as priors so your questions probe
-  deeper rather than re-asking the obvious."""
-
-_RESPONSE_PROCESSING_PROMPT = """Process the client's response to the interview question and extract structured information.
-
-CHARGE DATA CONTEXT:
-{charge_data_summary}
-
-PRE-INTERVIEW CONTEXT:
-{pre_interview_context}
-
-CURRENT PHASE: {phase}
-QUESTION ASKED: {question_text}
-QUESTION ID: {question_id}
-
-CLIENT RESPONSE:
-{client_response}
-
-Extract structured information from the client's response. Return a JSON object:
-
-{{
-  "question_id": "{question_id}",
-  "phase": "{phase}",
-  "extracted_facts": [
-    {{
-      "fact_id": "IF-{phase_abbrev}-001",
-      "category": "personal | incident | arrest | custody | prior_history | priority | concern",
-      "summary": "Concise factual summary",
-      "detail": "Full detail preserving the client's language where important",
-      "confidence": 0.0-1.0,
-      "source": "client_statement",
-      "client_certainty": "certain | mostly_certain | uncertain | vague | refused",
-      "related_charges": [1, 2],
-      "feeds_subagent": "fact_gatherer | rights_violation_scanner | collateral_consequences | none"
-    }}
-  ],
-  "inconsistencies_with_charges": [
-    {{
-      "inconsistency_id": "IC-001",
-      "description": "What the discrepancy is",
-      "client_claim": "What the client said",
-      "charge_data_claim": "What the charging documents say",
-      "severity": "high | medium | low",
-      "defense_relevance": "How this might matter for the defense",
-      "confidence": 0.0-1.0
-    }}
-  ],
-  "ethical_flags": [
-    {{
-      "flag_type": "interpreter_needed | competency_concern | mental_health_crisis | minor_client | conflict_of_interest | privilege_risk | safety_concern | capacity_concern",
-      "description": "What triggered this flag",
-      "urgency": "immediate | soon | routine",
-      "recommended_action": "What the attorney should do"
-    }}
-  ],
-  "follow_up_questions": [
-    {{
-      "question_text": "A follow-up question prompted by the response",
-      "rationale": "Why this follow-up is needed",
-      "priority": "required | recommended | optional"
-    }}
-  ],
-  "subagent_triggers": [
-    {{
-      "target_agent": "fact_gatherer | rights_violation_scanner | collateral_consequences",
-      "trigger_reason": "Why this agent should be activated",
-      "context_to_pass": "Relevant information to send to the sub-agent",
-      "priority": "high | medium | low"
-    }}
-  ]
-}}
-
-IMPORTANT:
-- Preserve the client's own language in the detail field
-- Compare the response against the charge data and flag any discrepancies
-- If the client mentions arrest, rights, or statements, flag for Rights Violation Scanner
-- If the client mentions immigration, employment, housing, or family, flag for Collateral Consequences
-- Flag any ethical concerns (confusion, interpreter needs, self-harm, minor status, etc.)
-- Assign confidence based on how clear and certain the client's response was
-- Generate follow-up questions if the response raises new issues or is incomplete
-- Use the pre-interview preliminary rights flags as priors: if the client's response
-  confirms or contradicts one of those flags, say so in the extracted facts and raise
-  a subagent_trigger for rights_violation_scanner with the matching flag_id"""
-
-_INCONSISTENCY_ANALYSIS_PROMPT = """Analyze the client's interview responses against the charging documents for inconsistencies, corroborations, and notable gaps.
-
-CHARGE PROCESSING DATA:
-{charge_data}
-
-CLIENT INTERVIEW FACTS:
-{interview_facts}
-
-Perform a comprehensive comparison and return a JSON object:
-
-{{
-  "inconsistencies": [
-    {{
-      "inconsistency_id": "INC-001",
-      "description": "Clear description of the discrepancy",
-      "client_version": "What the client said",
-      "charge_document_version": "What the charging documents say",
-      "severity": "high | medium | low",
-      "defense_relevance": "How this might help or hurt the defense",
-      "possible_explanations": ["Possible innocent explanations for the discrepancy"],
-      "attorney_action_needed": "What the attorney should investigate or clarify",
-      "confidence": 0.0-1.0
-    }}
-  ],
-  "corroborations": [
-    {{
-      "description": "Where the client's account aligns with charging documents",
-      "client_claim": "What the client said",
-      "charge_data_support": "What the charging documents say",
-      "significance": "Why this alignment matters"
-    }}
-  ],
-  "gaps": [
-    {{
-      "description": "Important information from charging documents not addressed by the client",
-      "source": "Which charging document/allegation",
-      "suggested_follow_up": "What to ask the client",
-      "priority": "high | medium | low"
-    }}
-  ],
-  "new_defense_angles": [
-    {{
-      "description": "Potential defense angles surfaced by the client's account",
-      "basis": "What the client said that suggests this angle",
-      "type": "alibi | mistaken_identity | self_defense | consent | constitutional_violation | other",
-      "confidence": 0.0-1.0
-    }}
-  ]
-}}
-
-IMPORTANT:
-- Do NOT assume the charging documents are more accurate than the client's account
-- Apply equal analytical rigor to both sources
-- Note where the client's account might explain apparent discrepancies
-- Identify potential defense angles the attorney should explore
-- Flag gaps where the attorney needs to gather more information"""
-
-
 # ---------------------------------------------------------------------------
-# Default fallback questions (used when LLM generation fails)
+# Default question bank. The intake route asks these when generation returns no
+# questions for a phase. A *failed* generation raises (PHASE_1_MODEL_GATEWAY.md §3).
 # ---------------------------------------------------------------------------
 
 _DEFAULT_QUESTIONS: dict[str, list[dict[str, Any]]] = {
@@ -883,7 +640,7 @@ async def _generate_questions(
     previous_responses: list[dict[str, Any]] | None = None,
     pre_interview_research: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Generate interview questions for a given phase via LLM."""
+    """Generate interview questions for a given phase. Raises on a failed call."""
     phase_description = _PHASE_DESCRIPTIONS.get(phase, "")
     phase_abbrev = _PHASE_ABBREVIATIONS.get(phase, "XX")
     charge_summary = _summarize_charge_data(charge_data)
@@ -898,7 +655,7 @@ async def _generate_questions(
 
     pre_interview_context = _summarize_pre_interview_for_phase(pre_interview_research, phase)
 
-    prompt = _QUESTION_GENERATION_PROMPT.format(
+    prompt = _QUESTION_GENERATION.text.format(
         charge_data=charge_summary,
         phase=phase,
         phase_description=phase_description,
@@ -908,16 +665,18 @@ async def _generate_questions(
         known_client_facts=known_client_facts,
     )
 
-    try:
-        result = await call_llm(prompt, system=_SYSTEM_PROMPT, max_tokens=4096)
-    except Exception:
-        logger.exception("Question generation failed for phase %s", phase)
-        return {
-            "phase": phase,
-            "questions": _DEFAULT_QUESTIONS.get(phase, []),
-            "phase_instructions": phase_description,
-            "ethical_notes": "If the client appears distressed, offer a break.",
-        }
+    call = await call_model(
+        ModelCallRequest(
+            prompt=prompt,
+            system=_SYSTEM.text,
+            max_tokens=_QUESTIONS_MAX_TOKENS,
+            response_model=PhaseQuestions,
+            prompt_id="intake_conductor.question_generation",
+            prompt_version=compose_version(_SYSTEM, _QUESTION_GENERATION),
+            agent_id="intake_conductor",
+        )
+    )
+    result = call.data.model_dump()
 
     # Enforce the 4-6 question cap and ban multi-part questions even if the
     # LLM didn't comply with the prompt hard rules.
@@ -936,12 +695,12 @@ async def _process_response(
     client_response: str,
     pre_interview_research: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Process a single client response and extract structured data."""
+    """Process a single client response and extract structured data. Raises on failure."""
     phase_abbrev = _PHASE_ABBREVIATIONS.get(phase, "XX")
     charge_summary = _create_charge_summary_for_processing(charge_data)
     pre_interview_context = _summarize_pre_interview_for_phase(pre_interview_research, phase)
 
-    prompt = _RESPONSE_PROCESSING_PROMPT.format(
+    prompt = _RESPONSE_PROCESSING.text.format(
         charge_data_summary=charge_summary,
         pre_interview_context=pre_interview_context,
         phase=phase,
@@ -951,26 +710,25 @@ async def _process_response(
         phase_abbrev=phase_abbrev,
     )
 
-    try:
-        return await call_llm(prompt, system=_SYSTEM_PROMPT, max_tokens=8192)
-    except Exception:
-        logger.exception("Response processing failed for %s", question_id)
-        return {
-            "question_id": question_id,
-            "phase": phase,
-            "extracted_facts": [],
-            "inconsistencies_with_charges": [],
-            "ethical_flags": [],
-            "follow_up_questions": [],
-            "subagent_triggers": [],
-        }
+    call = await call_model(
+        ModelCallRequest(
+            prompt=prompt,
+            system=_SYSTEM.text,
+            max_tokens=_RESPONSE_MAX_TOKENS,
+            response_model=ProcessedResponse,
+            prompt_id="intake_conductor.response_processing",
+            prompt_version=compose_version(_SYSTEM, _RESPONSE_PROCESSING),
+            agent_id="intake_conductor",
+        )
+    )
+    return call.data.model_dump()
 
 
 async def _analyze_inconsistencies(
     charge_data: dict[str, Any],
     interview_facts: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    """Cross-reference client statements with charge data."""
+    """Cross-reference client statements with charge data. Raises on failure."""
     charge_str = json.dumps(charge_data, indent=2, default=str)
     facts_str = json.dumps(interview_facts, indent=2, default=str)
 
@@ -979,16 +737,23 @@ async def _analyze_inconsistencies(
     if len(facts_str) > 50_000:
         facts_str = facts_str[:50_000] + "\n... [TRUNCATED]"
 
-    prompt = _INCONSISTENCY_ANALYSIS_PROMPT.format(
+    prompt = _INCONSISTENCY_ANALYSIS.text.format(
         charge_data=charge_str,
         interview_facts=facts_str,
     )
 
-    try:
-        return await call_llm(prompt, system=_SYSTEM_PROMPT, max_tokens=8192)
-    except Exception:
-        logger.exception("Inconsistency analysis failed")
-        return {"inconsistencies": [], "corroborations": [], "gaps": [], "new_defense_angles": []}
+    call = await call_model(
+        ModelCallRequest(
+            prompt=prompt,
+            system=_SYSTEM.text,
+            max_tokens=_INCONSISTENCY_MAX_TOKENS,
+            response_model=InconsistencyAnalysis,
+            prompt_id="intake_conductor.inconsistency_analysis",
+            prompt_version=compose_version(_SYSTEM, _INCONSISTENCY_ANALYSIS),
+            agent_id="intake_conductor",
+        )
+    )
+    return call.data.model_dump()
 
 
 def _deduplicate_triggers(triggers: list[dict[str, Any]]) -> list[dict[str, Any]]:

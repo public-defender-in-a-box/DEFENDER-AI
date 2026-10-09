@@ -1,0 +1,56 @@
+Analyze the client's interview responses against the charging documents for inconsistencies, corroborations, and notable gaps.
+
+CHARGE PROCESSING DATA:
+{charge_data}
+
+CLIENT INTERVIEW FACTS:
+{interview_facts}
+
+Perform a comprehensive comparison and return a JSON object:
+
+{{
+  "inconsistencies": [
+    {{
+      "inconsistency_id": "INC-001",
+      "description": "Clear description of the discrepancy",
+      "client_version": "What the client said",
+      "charge_document_version": "What the charging documents say",
+      "severity": "high | medium | low",
+      "defense_relevance": "How this might help or hurt the defense",
+      "possible_explanations": ["Possible innocent explanations for the discrepancy"],
+      "attorney_action_needed": "What the attorney should investigate or clarify",
+      "confidence": 0.0-1.0
+    }}
+  ],
+  "corroborations": [
+    {{
+      "description": "Where the client's account aligns with charging documents",
+      "client_claim": "What the client said",
+      "charge_data_support": "What the charging documents say",
+      "significance": "Why this alignment matters"
+    }}
+  ],
+  "gaps": [
+    {{
+      "description": "Important information from charging documents not addressed by the client",
+      "source": "Which charging document/allegation",
+      "suggested_follow_up": "What to ask the client",
+      "priority": "high | medium | low"
+    }}
+  ],
+  "new_defense_angles": [
+    {{
+      "description": "Potential defense angles surfaced by the client's account",
+      "basis": "What the client said that suggests this angle",
+      "type": "alibi | mistaken_identity | self_defense | consent | constitutional_violation | other",
+      "confidence": 0.0-1.0
+    }}
+  ]
+}}
+
+IMPORTANT:
+- Do NOT assume the charging documents are more accurate than the client's account
+- Apply equal analytical rigor to both sources
+- Note where the client's account might explain apparent discrepancies
+- Identify potential defense angles the attorney should explore
+- Flag gaps where the attorney needs to gather more information
