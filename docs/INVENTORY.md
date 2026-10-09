@@ -9,10 +9,10 @@
 | What | Files | Lines |
 |---|---|---|
 | Python, `packages/api/src` (non-test) | 99 | 18322 |
-| Python tests, `packages/api` (incl. in-package tests) | 28 | 8160 |
+| Python tests, `packages/api` (incl. in-package tests) | 29 | 8283 |
 | TypeScript, `packages/web/src` | 66 | 4195 |
 
-Test functions: **292** in 19 files (parametrized tests count once).
+Test functions: **299** in 20 files (parametrized tests count once).
 
 ## Agents
 
@@ -26,7 +26,7 @@ Test functions: **292** in 19 files (parametrized tests count once).
 | Agent ID | Module | STATUS | Lines | Registered | In app | Used by | Tests |
 |---|---|---|---|---|---|---|---|
 | `ethics_monitor` | `agents/cross_cutting/ethics_monitor.py` | REAL | 1127 | — | yes | `agents/graph.py`, `agents/tier0/orchestrator.py` | 65 |
-| `orchestrator` | `agents/tier0/orchestrator.py` | REAL | 525 | — | yes | `agents/graph.py`, `routes/_store.py`, `routes/upload.py` | 57 |
+| `orchestrator` | `agents/tier0/orchestrator.py` | REAL | 525 | — | yes | `agents/graph.py`, `routes/_store.py`, `routes/upload.py` | 63 |
 | `case_prep_conductor` | `agents/tier1/case_prep.py` | STUB | 50 | yes | yes | `routes/intake.py` | — |
 | `charge_processing` | `agents/tier1/charge_processing.py` | REAL | 785 | yes | yes | `agents/graph.py`, `routes/upload.py` | 26 |
 | `intake_conductor` | `agents/tier1/intake_conductor.py` | REAL | 1396 | yes | yes | `routes/intake.py` | 26 |
@@ -41,13 +41,13 @@ Test functions: **292** in 19 files (parametrized tests count once).
 | `personal_circumstances` | `agents/tier2_intake/personal_circumstances.py` | REAL | 361 | — | — | `agents/graph.py` | 24 |
 | `rights_scanner` | `agents/tier2_intake/rights_scanner.py` | REAL | 526 | — | — | — | 20 |
 | `case_law_agent` | `agents/tier2_research/case_law_agent.py` | STUB | 59 | — | — | — | — |
-| `citation_verification` | `agents/tier2_research/citation_verification.py` | REAL | 528 | yes | — | `agents/tier2_research/research_orchestrator.py` | 20 |
+| `citation_verification` | `agents/tier2_research/citation_verification.py` | REAL | 528 | yes | — | `agents/tier2_research/research_orchestrator.py` | 21 |
 | `citation_verifier` | `agents/tier2_research/citation_verifier.py` | STUB | 53 | — | — | — | — |
-| `constitutional_case_law` | `agents/tier2_research/constitutional_case_law.py` | REAL | 317 | yes | — | `agents/tier2_research/research_orchestrator.py` | 20 |
-| `ga_criminal_case_law` | `agents/tier2_research/ga_criminal_case_law.py` | REAL | 352 | yes | — | `agents/tier2_research/research_orchestrator.py` | 20 |
-| `ga_statutes_agent` | `agents/tier2_research/ga_statutes_agent.py` | REAL | 319 | yes | — | `agents/tier2_research/research_orchestrator.py` | 20 |
+| `constitutional_case_law` | `agents/tier2_research/constitutional_case_law.py` | REAL | 317 | yes | — | `agents/tier2_research/research_orchestrator.py` | 21 |
+| `ga_criminal_case_law` | `agents/tier2_research/ga_criminal_case_law.py` | REAL | 352 | yes | — | `agents/tier2_research/research_orchestrator.py` | 21 |
+| `ga_statutes_agent` | `agents/tier2_research/ga_statutes_agent.py` | REAL | 319 | yes | — | `agents/tier2_research/research_orchestrator.py` | 21 |
 | `recency_monitor` | `agents/tier2_research/recency_monitor.py` | STUB | 37 | — | — | — | — |
-| `research_orchestrator` | `agents/tier2_research/research_orchestrator.py` | REAL | 256 | yes | — | — | 20 |
+| `research_orchestrator` | `agents/tier2_research/research_orchestrator.py` | REAL | 256 | yes | — | — | 21 |
 | `statute_agent` | `agents/tier2_research/statute_agent.py` | STUB | 53 | — | — | — | — |
 
 Tests = test functions in files that import the class (or, for an agent that owns its
@@ -122,8 +122,9 @@ once.
 | `packages/api/tests/test_model_gateway.py` | 24 |
 | `packages/api/tests/test_orchestrator.py` | 2 |
 | `packages/api/tests/test_pipeline_integration.py` | 26 |
-| `packages/api/tests/test_research_agents.py` | 20 |
+| `packages/api/tests/test_research_agents.py` | 21 |
 | `packages/api/tests/test_rights_scanner.py` | 20 |
+| `packages/api/tests/test_sensor_switch.py` | 6 |
 | `packages/api/tests/test_tier2_intake.py` | 24 |
 
 ## Legal corpus

@@ -690,3 +690,19 @@ class TestResearchOrchestrator:
         print(f"  - Unverified: {verification.get('summary', {}).get('unverified', 0)}")
         print(f"Total cost: ${cost.get('total_cost', 0):.4f}")
         print(f"CourtListener calls: {cost.get('courtlistener_calls', 0)}")
+
+
+class TestHoldingCheckFailure:
+    """A failed holding check must not count as a verified holding (Phase 1 §3.2)."""
+
+    @pytest.mark.asyncio
+    async def test_failed_holding_check_raises(self):
+        from src.services.model_gateway import TransportError
+
+        agent = CitationVerificationAgent()
+        with patch(
+            "src.agents.tier2_research.citation_verification.call_llm",
+            new=AsyncMock(side_effect=TransportError("connection reset")),
+        ):
+            with pytest.raises(TransportError):
+                await agent._check_holding("Synthetic v. State, 1 Ga. 1", "holding", "snippet")

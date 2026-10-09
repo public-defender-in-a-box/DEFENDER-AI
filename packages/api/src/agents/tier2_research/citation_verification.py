@@ -455,21 +455,21 @@ class CitationVerificationAgent(BaseAgent):
         described_holding: str,
         case_snippet: str,
     ) -> bool:
-        """Check if the described holding matches the actual case."""
-        try:
-            result = await call_llm(
-                _HOLDING_CHECK_PROMPT.format(
-                    citation=citation,
-                    described_holding=described_holding,
-                    case_snippet=case_snippet,
-                ),
-                system=_SYSTEM_PROMPT,
-                max_tokens=512,
-            )
-            return result.get("matches", False)
-        except Exception:
-            # If check fails, don't flag as mismatch — just can't confirm
-            return True
+        """Check if the described holding matches the actual case.
+
+        A failed check raises. It used to return True, so every failed check counted
+        as a verified holding (PHASE_1_MODEL_GATEWAY.md §3.2).
+        """
+        result = await call_llm(
+            _HOLDING_CHECK_PROMPT.format(
+                citation=citation,
+                described_holding=described_holding,
+                case_snippet=case_snippet,
+            ),
+            system=_SYSTEM_PROMPT,
+            max_tokens=512,
+        )
+        return result.get("matches", False)
 
     async def _check_negative_treatment(
         self,
