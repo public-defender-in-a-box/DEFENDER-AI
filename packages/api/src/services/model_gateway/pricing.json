@@ -1,0 +1,26 @@
+{
+  "source_url": "https://platform.claude.com/docs/en/about-claude/pricing",
+  "effective_as_of": "2026-10-09",
+  "checked_by": "Phase 1 build, against the live pricing page",
+  "currency": "USD",
+  "unit": "per million tokens",
+  "notes": "Standard (non-batch, non-fast-mode, global inference) prices. cache_write is the 5-minute write rate; the gateway does not request prompt caching. A Haiku 5.5 request's prompt length counts input, cache-read and cache-write tokens, and the whole request is priced at the tier its prompt length falls in.",
+  "models": {
+    "claude-opus-5-5": {
+      "tiers": [
+        {"max_prompt_tokens": null, "input": 4.00, "output": 20.00, "cache_write": 5.00, "cache_read": 0.20}
+      ]
+    },
+    "claude-sonnet-5-5": {
+      "tiers": [
+        {"max_prompt_tokens": null, "input": 2.00, "output": 10.00, "cache_write": 2.50, "cache_read": 0.10}
+      ]
+    },
+    "claude-haiku-5-5": {
+      "tiers": [
+        {"max_prompt_tokens": 100000, "input": 0.10, "output": 0.50, "cache_write": 0.125, "cache_read": 0.01},
+        {"max_prompt_tokens": null, "input": 0.50, "output": 2.50, "cache_write": 0.625, "cache_read": 0.05}
+      ]
+    }
+  }
+}

@@ -8,8 +8,8 @@
 
 | What | Files | Lines |
 |---|---|---|
-| Python, `packages/api/src` (non-test) | 90 | 17042 |
-| Python tests, `packages/api` (incl. in-package tests) | 27 | 7678 |
+| Python, `packages/api/src` (non-test) | 90 | 17100 |
+| Python tests, `packages/api` (incl. in-package tests) | 27 | 7786 |
 | TypeScript, `packages/web/src` | 66 | 4195 |
 
 Test functions: **268** in 18 files (parametrized tests count once).

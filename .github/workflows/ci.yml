@@ -18,7 +18,11 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -r requirements.txt
+      # Replay only: no API key exists in CI, and a missing cassette fails the test
+      # rather than reaching the network (PHASE_1_MODEL_GATEWAY.md §5.2).
       - run: pytest -v  # honors testpaths in pyproject.toml (includes sentencing_agent/tests)
+        env:
+          MODEL_GATEWAY_MODE: replay
 
   python-lint:
     runs-on: ubuntu-latest
