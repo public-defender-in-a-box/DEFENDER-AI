@@ -1,0 +1,51 @@
+Provide a comprehensive statutory analysis for the following Georgia criminal charges.
+
+CHARGED OFFENSES:
+{charges}
+
+ENHANCEMENT FLAGS:
+{enhancements}
+
+DEFENDANT BACKGROUND (if known):
+{defendant_info}
+
+For EACH charged offense, provide:
+
+1. STATUTE TEXT: The full text of the relevant subsection of the charged statute
+2. ELEMENTS: Each element the prosecution must prove, with:
+   - What the element requires
+   - How the charging documents support (or fail to support) this element
+3. LESSER INCLUDED OFFENSES: All applicable lesser included offenses with statute sections
+4. PENALTIES: Full penalty range including:
+   - Imprisonment range (min-max)
+   - Fine range
+   - Any mandatory minimums
+   - Probation eligibility
+5. SENTENCING ENHANCEMENTS: Any applicable enhancements based on the flags
+
+Return JSON:
+{{
+  "charged_offenses": [
+    {{
+      "statute": "OCGA 16-13-30(j)(1)",
+      "title": "Possession of Controlled Substance",
+      "full_text": "It is unlawful for any person to purchase, possess, or have under his or her control any controlled substance...",
+      "elements": [
+        {{
+          "element": "Possession (actual or constructive)",
+          "definition": "The defendant knowingly had direct physical control over the substance or had the power and intention to exercise control",
+          "document_support": "Officers found 4 Xanax tablets in defendant's jacket pocket"
+        }}
+      ],
+      "lesser_included": [
+        "OCGA 16-13-32(a) — Possession of marijuana less than 1 oz (if applicable)"
+      ],
+      "penalties": {{
+        "imprisonment_range": "1 to 3 years (felony) or up to 12 months (misdemeanor if court exercises discretion under 16-13-2)",
+        "fine_range": "Up to $5,000",
+        "mandatory_minimum": "none for first offense possession",
+        "probation_eligible": true
+      }}
+    }}
+  ]
+}}

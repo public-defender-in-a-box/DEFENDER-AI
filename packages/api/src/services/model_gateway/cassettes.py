@@ -137,3 +137,55 @@ class CassetteStore:
 def default_store() -> CassetteStore:
     configured = settings.MODEL_GATEWAY_CASSETTE_DIR
     return CassetteStore(Path(configured) if configured else DEFAULT_CASSETTE_ROOT)
+
+
+# ---------------------------------------------------------------------------
+# External HTTP services (CourtListener; §5.4). Same modes and fixture rule as model
+# calls; keyed on method, URL and parameters. Never stores headers, so a service
+# token cannot reach a cassette either.
+# ---------------------------------------------------------------------------
+
+
+def external_key(service: str, method: str, url: str, params: list[tuple[str, str]]) -> str:
+    material = json.dumps([service, method, url, params], separators=(",", ":"))
+    return hashlib.sha256(material.encode("utf-8")).hexdigest()
+
+
+class ExternalCassette(BaseModel):
+    format_version: int = CASSETTE_FORMAT_VERSION
+    key: str
+    service: str
+    recorded_at: datetime
+    method: str
+    url: str
+    params: list[tuple[str, str]]
+    fixture_ids: list[str] = Field(min_length=1)
+    status: int
+    response: JsonValue
+
+
+class ExternalCassetteStore:
+    def __init__(self, root: Path) -> None:
+        self.root = root
+
+    def path_for(self, service: str, key: str) -> Path:
+        return self.root / _SAFE.sub("_", service) / f"{key}.json"
+
+    def load(self, service: str, key: str) -> ExternalCassette | None:
+        path = self.path_for(service, key)
+        if not path.is_file():
+            return None
+        return ExternalCassette.model_validate_json(path.read_text(encoding="utf-8"))
+
+    def save(self, cassette: ExternalCassette) -> Path:
+        path = self.path_for(cassette.service, cassette.key)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            json.dumps(cassette.model_dump(mode="json"), indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        return path
+
+
+def default_external_store() -> ExternalCassetteStore:
+    return ExternalCassetteStore(default_store().root)

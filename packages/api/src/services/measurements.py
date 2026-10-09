@@ -30,6 +30,7 @@ class MeasurementKind(str, Enum):
     ITEM_DROPPED = "ITEM_DROPPED"
     AGENT_FAILURE = "AGENT_FAILURE"
     MERGE_DECISION = "MERGE_DECISION"
+    EXTERNAL_CALL = "EXTERNAL_CALL"
 
 
 class Measurement(BaseModel):

@@ -1,0 +1,37 @@
+Identify the constitutional criminal procedure issues in this case.
+
+RIGHTS VIOLATION FLAGS:
+{rights_flags}
+
+FACTUAL ALLEGATIONS ABOUT STOP/SEARCH/ARREST/INTERROGATION:
+{factual_allegations}
+
+CASE SUMMARY:
+{case_summary}
+
+For each constitutional issue, identify:
+1. Which amendment is implicated (fourth_amendment, fifth_amendment, sixth_amendment, fourteenth_amendment)
+2. The specific issue (e.g., "reasonable suspicion for investigative detention")
+3. The legal standard that applies
+4. The foundational Supreme Court cases the attorney MUST cite
+5. What 11th Circuit and Georgia search queries would find relevant applications
+
+Return JSON:
+{{
+  "constitutional_issues": [
+    {{
+      "amendment": "fourth_amendment",
+      "issue": "Reasonable suspicion for investigative detention",
+      "legal_standard": "Under Terry v. Ohio, an officer may briefly detain...",
+      "foundational_cases": [
+        {{
+          "case_name": "Terry v. Ohio",
+          "citation": "392 U.S. 1 (1968)",
+          "holding": "An officer may conduct a brief investigative stop..."
+        }}
+      ],
+      "circuit_queries": ["11th Circuit reasonable suspicion Terry stop"],
+      "state_queries": ["Georgia reasonable suspicion investigative detention"]
+    }}
+  ]
+}}

@@ -1,0 +1,24 @@
+Generate targeted search queries for Georgia appellate case law research.
+
+CASE DATA:
+{case_data}
+
+LEGAL ISSUES TO RESEARCH:
+{legal_issues}
+
+For EACH legal issue, generate 3-5 distinct search queries optimized for finding relevant Georgia appellate decisions. Think about:
+- The specific statute being interpreted
+- The legal doctrine at issue (e.g., constructive possession, reasonable suspicion)
+- The factual pattern (e.g., parking lot stop, nervous behavior, pat-down)
+- Procedural issues (e.g., motion to suppress, sufficiency of evidence)
+
+Return JSON:
+{{
+  "issue_queries": [
+    {{
+      "legal_issue": "description of the issue",
+      "issue_source": "charge|rights_violation_flag|defense_theory",
+      "queries": ["query 1", "query 2", "query 3"]
+    }}
+  ]
+}}

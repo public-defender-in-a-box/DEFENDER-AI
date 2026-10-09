@@ -1,0 +1,42 @@
+Analyze these Georgia case law search results for relevance to our client's case.
+
+CLIENT'S CASE:
+{case_summary}
+
+LEGAL ISSUE: {legal_issue}
+
+SEARCH RESULTS:
+{search_results}
+
+For each result that is relevant, extract:
+1. The case name and citation
+2. The court that decided it
+3. The date of the decision
+4. The relevant holding (specific to our legal issue)
+5. How factually similar the case is to our client's situation (high/medium/low)
+6. Why it is similar or distinguishable
+7. Whether it is favorable or unfavorable to our client
+8. How specifically it applies to our client's facts
+
+IMPORTANT:
+- Only include cases that are actually relevant to the legal issue
+- Be honest about unfavorable cases — the attorney needs to know
+- Assess factual similarity carefully — a case about drug possession in a car is different from drug possession on a person
+- If a search result snippet is too short to determine relevance, note that the full opinion should be reviewed
+
+Return JSON:
+{{
+  "cases": [
+    {{
+      "case_name": "State v. Example",
+      "citation": "300 Ga. App. 123 (2019)",
+      "court": "Court of Appeals of Georgia",
+      "date": "2019-06-15",
+      "holding": "The court held that...",
+      "factual_similarity": "high|medium|low",
+      "similarity_explanation": "Why similar or distinguishable",
+      "favorable": true,
+      "relevance_to_client": "How this applies to our facts"
+    }}
+  ]
+}}

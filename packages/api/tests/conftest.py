@@ -16,6 +16,7 @@ import ipaddress
 import os
 import socket
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 
@@ -81,11 +82,14 @@ def recorded_marker(request: pytest.FixtureRequest, gateway_test_mode: str) -> N
     if marker is None or gateway_test_mode != "replay":
         return
     model = settings.CLAUDE_MODEL_PRIMARY
-    unrecorded = [
-        agent
-        for agent in marker.args
-        if not any((DEFAULT_CASSETTE_ROOT / model / agent).glob("*.json"))
-    ]
+
+    def cassette_dir(name: str) -> Path:
+        # External services' cassettes are shared across models.
+        if name == "courtlistener":
+            return DEFAULT_CASSETTE_ROOT / "courtlistener"
+        return DEFAULT_CASSETTE_ROOT / model / name
+
+    unrecorded = [name for name in marker.args if not any(cassette_dir(name).glob("*.json"))]
     if unrecorded:
         pytest.skip(
             f"awaiting the recording pass: no {model} cassettes for {', '.join(unrecorded)} "

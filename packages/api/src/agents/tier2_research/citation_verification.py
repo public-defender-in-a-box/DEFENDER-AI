@@ -12,63 +12,22 @@ import re
 from typing import Any
 
 from src.agents.base_agent import BaseAgent
+from src.models.responses.research import HoldingCheck, StatuteVerification
+from src.prompts import compose_version, load_prompt
 from src.services.courtlistener import CourtListenerClient
-from src.services.llm_service import call_llm
+from src.services.model_gateway import ModelCallRequest, call_model
 
 STATUS = "REAL"
 
 logger = logging.getLogger(__name__)
 
-_SYSTEM_PROMPT = """\
-You are a legal citation verification specialist. Your job is to verify \
-whether legal citations are real, correctly formatted, and still good law.
+# Prompts: src/prompts/citation_verification/
+_SYSTEM = load_prompt("citation_verification.system", "v1")
+_HOLDING_CHECK = load_prompt("citation_verification.holding_check", "v1")
+_STATUTE_VERIFICATION = load_prompt("citation_verification.statute_verification", "v1")
 
-You are CONSERVATIVE — if you cannot confirm a citation, mark it UNVERIFIED \
-rather than VERIFIED. False confidence in a citation is worse than admitting \
-uncertainty.
-
-OUTPUT FORMAT: Always respond with valid JSON."""
-
-_HOLDING_CHECK_PROMPT = """\
-Compare the described holding with the actual case text to determine if they match.
-
-CITATION: {citation}
-DESCRIBED HOLDING: {described_holding}
-
-ACTUAL CASE SNIPPET FROM COURTLISTENER:
-{case_snippet}
-
-Does the described holding accurately reflect what this case actually says?
-
-Return JSON:
-{{
-  "matches": true|false,
-  "explanation": "Why the holding matches or doesn't match",
-  "actual_holding_summary": "Brief summary of what the case actually holds"
-}}"""
-
-_STATUTE_VERIFICATION_PROMPT = """\
-Verify the following Georgia statute citation.
-
-STATUTE: {statute}
-DESCRIBED TEXT/ELEMENTS: {described_content}
-
-Based on your knowledge of the Official Code of Georgia Annotated:
-1. Does this statute section exist?
-2. Is the described content accurate?
-3. Has this statute been recently amended?
-4. Has this statute been held unconstitutional by any court?
-
-Return JSON:
-{{
-  "exists": true|false,
-  "content_accurate": true|false,
-  "recently_amended": false,
-  "amendment_notes": "",
-  "unconstitutional": false,
-  "unconstitutional_notes": "",
-  "verification_notes": "Any additional notes"
-}}"""
+# Thinking tokens count toward max_tokens on current models (Phase 1 §2).
+_MAX_TOKENS = 8000
 
 # Regex patterns for citation formats
 _GA_CASE_PATTERN = re.compile(r"\d+\s+Ga\.?\s*(?:App\.?)?\s*\d+")  # e.g., "300 Ga. App. 123"
@@ -88,7 +47,7 @@ class CitationVerificationAgent(BaseAgent):
 
     def __init__(self) -> None:
         super().__init__()
-        self._cl_client = CourtListenerClient()
+        self._cl_client = CourtListenerClient(agent_id=self.agent_id)
 
     async def run(self, input_data: dict[str, Any]) -> dict[str, Any]:
         """Verify all citations from the three research agents.
@@ -393,60 +352,54 @@ class CitationVerificationAgent(BaseAgent):
             base_result["notes"] = "Not recognized as a Georgia statute citation"
             return base_result
 
-        # Use LLM to verify statute content (no free API for GA code text)
-        try:
-            result = await call_llm(
-                _STATUTE_VERIFICATION_PROMPT.format(
+        # Model-knowledge check (no free API for GA code text). A failed call raises.
+        call = await call_model(
+            ModelCallRequest(
+                prompt=_STATUTE_VERIFICATION.text.format(
                     statute=citation,
                     described_content=described_content,
                 ),
-                system=_SYSTEM_PROMPT,
-                max_tokens=1024,
+                system=_SYSTEM.text,
+                max_tokens=_MAX_TOKENS,
+                response_model=StatuteVerification,
+                prompt_id="citation_verification.statute_verification",
+                prompt_version=compose_version(_SYSTEM, _STATUTE_VERIFICATION),
+                agent_id=self.agent_id,
             )
+        )
+        result = call.data
 
-            exists = result.get("exists", False)
-            accurate = result.get("content_accurate", False)
-            amended = result.get("recently_amended", False)
-            unconstitutional = result.get("unconstitutional", False)
+        if result.unconstitutional:
+            base_result["verification_status"] = "SUPERSEDED"
+            base_result["good_law_status"] = "UNCONSTITUTIONAL"
+            base_result["confidence"] = 0.5
+            base_result["notes"] = result.unconstitutional_notes
+        elif result.recently_amended:
+            base_result["verification_status"] = "VERIFIED"
+            base_result["good_law_status"] = "AMENDED"
+            base_result["confidence"] = 0.6
+            base_result["notes"] = (
+                f"Statute exists but may have been recently amended. {result.amendment_notes}"
+            )
+        elif result.exists and result.content_accurate:
+            base_result["verification_status"] = "VERIFIED"
+            base_result["good_law_status"] = "CURRENT"
+            base_result["confidence"] = 0.75
+            base_result["notes"] = "Statute verified via LLM knowledge"
+        elif result.exists:
+            base_result["verification_status"] = "VERIFIED"
+            base_result["good_law_status"] = "CURRENT"
+            base_result["confidence"] = 0.6
+            base_result["notes"] = (
+                "Statute exists but described content may not be fully accurate. "
+                f"{result.verification_notes}"
+            )
+        else:
+            base_result["verification_status"] = "UNVERIFIED"
+            base_result["confidence"] = 0.3
+            base_result["notes"] = result.verification_notes or "Could not verify"
 
-            if unconstitutional:
-                base_result["verification_status"] = "SUPERSEDED"
-                base_result["good_law_status"] = "UNCONSTITUTIONAL"
-                base_result["confidence"] = 0.5
-                base_result["notes"] = result.get("unconstitutional_notes", "")
-            elif amended:
-                base_result["verification_status"] = "VERIFIED"
-                base_result["good_law_status"] = "AMENDED"
-                base_result["confidence"] = 0.6
-                base_result["notes"] = (
-                    f"Statute exists but may have been recently amended. "
-                    f"{result.get('amendment_notes', '')}"
-                )
-            elif exists and accurate:
-                base_result["verification_status"] = "VERIFIED"
-                base_result["good_law_status"] = "CURRENT"
-                base_result["confidence"] = 0.75
-                base_result["notes"] = "Statute verified via LLM knowledge"
-            elif exists:
-                base_result["verification_status"] = "VERIFIED"
-                base_result["good_law_status"] = "CURRENT"
-                base_result["confidence"] = 0.6
-                base_result["notes"] = (
-                    "Statute exists but described content may not be fully accurate. "
-                    f"{result.get('verification_notes', '')}"
-                )
-            else:
-                base_result["verification_status"] = "UNVERIFIED"
-                base_result["confidence"] = 0.3
-                base_result["notes"] = result.get("verification_notes", "Could not verify")
-
-            base_result["verification_method"] = "LLM knowledge verification"
-
-        except Exception as exc:
-            logger.warning("Statute verification failed for %s: %s", citation, exc)
-            base_result["verification_method"] = "Verification failed"
-            base_result["notes"] = f"Verification error: {exc}"
-
+        base_result["verification_method"] = "LLM knowledge verification"
         return base_result
 
     async def _check_holding(
@@ -460,16 +413,22 @@ class CitationVerificationAgent(BaseAgent):
         A failed check raises. It used to return True, so every failed check counted
         as a verified holding (PHASE_1_MODEL_GATEWAY.md §3.2).
         """
-        result = await call_llm(
-            _HOLDING_CHECK_PROMPT.format(
-                citation=citation,
-                described_holding=described_holding,
-                case_snippet=case_snippet,
-            ),
-            system=_SYSTEM_PROMPT,
-            max_tokens=512,
+        result = await call_model(
+            ModelCallRequest(
+                prompt=_HOLDING_CHECK.text.format(
+                    citation=citation,
+                    described_holding=described_holding,
+                    case_snippet=case_snippet,
+                ),
+                system=_SYSTEM.text,
+                max_tokens=_MAX_TOKENS,
+                response_model=HoldingCheck,
+                prompt_id="citation_verification.holding_check",
+                prompt_version=compose_version(_SYSTEM, _HOLDING_CHECK),
+                agent_id=self.agent_id,
+            )
         )
-        return result.get("matches", False)
+        return result.data.matches
 
     async def _check_negative_treatment(
         self,

@@ -1,0 +1,21 @@
+Verify the following Georgia statute citation.
+
+STATUTE: {statute}
+DESCRIBED TEXT/ELEMENTS: {described_content}
+
+Based on your knowledge of the Official Code of Georgia Annotated:
+1. Does this statute section exist?
+2. Is the described content accurate?
+3. Has this statute been recently amended?
+4. Has this statute been held unconstitutional by any court?
+
+Return JSON:
+{{
+  "exists": true|false,
+  "content_accurate": true|false,
+  "recently_amended": false,
+  "amendment_notes": "",
+  "unconstitutional": false,
+  "unconstitutional_notes": "",
+  "verification_notes": "Any additional notes"
+}}

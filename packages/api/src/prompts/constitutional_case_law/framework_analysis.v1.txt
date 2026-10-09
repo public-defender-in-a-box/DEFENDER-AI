@@ -1,0 +1,54 @@
+Build the complete doctrinal framework for this constitutional issue.
+
+CONSTITUTIONAL ISSUE:
+Amendment: {amendment}
+Issue: {issue}
+Legal Standard: {legal_standard}
+
+FOUNDATIONAL AUTHORITY (already identified):
+{foundational_cases}
+
+11TH CIRCUIT SEARCH RESULTS:
+{circuit_results}
+
+GEORGIA STATE SEARCH RESULTS:
+{state_results}
+
+CLIENT'S FACTS:
+{case_summary}
+
+Analyze the search results and build a complete framework:
+
+1. For circuit authority: identify the most relevant 11th Circuit cases applying the foundational standard. Extract holdings, assess factual similarity to our case.
+2. For state authority: identify the most relevant Georgia cases. Extract holdings, assess factual similarity.
+3. Apply the framework to our client's specific facts — how strong is the constitutional argument?
+4. Identify both helpful AND harmful precedent.
+
+Return JSON:
+{{
+  "circuit_authority": [
+    {{
+      "case_name": "...",
+      "citation": "...",
+      "court": "United States Court of Appeals for the Eleventh Circuit",
+      "date": "...",
+      "holding": "...",
+      "source": "COURTLISTENER",
+      "verification_status": "PENDING"
+    }}
+  ],
+  "state_authority": [
+    {{
+      "case_name": "...",
+      "citation": "...",
+      "court": "Supreme Court of Georgia|Court of Appeals of Georgia",
+      "date": "...",
+      "holding": "...",
+      "source": "COURTLISTENER",
+      "verification_status": "PENDING"
+    }}
+  ],
+  "application_to_client": "Detailed analysis of how this standard applies...",
+  "strength_assessment": "strong|moderate|weak",
+  "strength_explanation": "Why the argument is strong or weak on these facts"
+}}

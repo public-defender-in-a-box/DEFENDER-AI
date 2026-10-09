@@ -12,104 +12,23 @@ import logging
 from typing import Any
 
 from src.agents.base_agent import BaseAgent
+from src.models.responses.research import CaseAnalysis, QueryPlan
+from src.prompts import compose_version, load_prompt
 from src.services.courtlistener import CourtListenerClient, GEORGIA_COURTS
-from src.services.llm_service import call_llm
+from src.services.model_gateway import ModelCallRequest, call_model
 
 STATUS = "REAL"
 
 logger = logging.getLogger(__name__)
 
-_SYSTEM_PROMPT = """\
-You are a Georgia criminal case law research specialist working for a public \
-defender's office. Your job is to identify the most relevant Georgia appellate \
-court decisions for the legal issues in a criminal case.
+# Prompts: src/prompts/ga_criminal_case_law/
+_SYSTEM = load_prompt("ga_criminal_case_law.system", "v1")
+_QUERY_GENERATION = load_prompt("ga_criminal_case_law.query_generation", "v1")
+_ANALYSIS = load_prompt("ga_criminal_case_law.analysis", "v1")
 
-JURISDICTION: Georgia (Supreme Court of Georgia, Court of Appeals of Georgia)
-
-PRINCIPLES:
-1. Surface BOTH favorable AND unfavorable precedent — the attorney must know \
-what they are up against, not just what helps.
-2. Assess factual similarity honestly — how close are the precedent facts to \
-our client's facts.
-3. Only cite cases you are confident are real. If you are unsure whether a \
-case exists, say "further research needed" rather than fabricate a citation.
-4. For each legal issue, think about MULTIPLE angles — the statute at issue, \
-the specific legal doctrine, the factual pattern, and procedural posture.
-
-OUTPUT FORMAT: Always respond with valid JSON."""
-
-_QUERY_GENERATION_PROMPT = """\
-Generate targeted search queries for Georgia appellate case law research.
-
-CASE DATA:
-{case_data}
-
-LEGAL ISSUES TO RESEARCH:
-{legal_issues}
-
-For EACH legal issue, generate 3-5 distinct search queries optimized for \
-finding relevant Georgia appellate decisions. Think about:
-- The specific statute being interpreted
-- The legal doctrine at issue (e.g., constructive possession, reasonable suspicion)
-- The factual pattern (e.g., parking lot stop, nervous behavior, pat-down)
-- Procedural issues (e.g., motion to suppress, sufficiency of evidence)
-
-Return JSON:
-{{
-  "issue_queries": [
-    {{
-      "legal_issue": "description of the issue",
-      "issue_source": "charge|rights_violation_flag|defense_theory",
-      "queries": ["query 1", "query 2", "query 3"]
-    }}
-  ]
-}}"""
-
-_ANALYSIS_PROMPT = """\
-Analyze these Georgia case law search results for relevance to our client's case.
-
-CLIENT'S CASE:
-{case_summary}
-
-LEGAL ISSUE: {legal_issue}
-
-SEARCH RESULTS:
-{search_results}
-
-For each result that is relevant, extract:
-1. The case name and citation
-2. The court that decided it
-3. The date of the decision
-4. The relevant holding (specific to our legal issue)
-5. How factually similar the case is to our client's situation (high/medium/low)
-6. Why it is similar or distinguishable
-7. Whether it is favorable or unfavorable to our client
-8. How specifically it applies to our client's facts
-
-IMPORTANT:
-- Only include cases that are actually relevant to the legal issue
-- Be honest about unfavorable cases — the attorney needs to know
-- Assess factual similarity carefully — a case about drug possession in a car \
-is different from drug possession on a person
-- If a search result snippet is too short to determine relevance, note that \
-the full opinion should be reviewed
-
-Return JSON:
-{{
-  "cases": [
-    {{
-      "case_name": "State v. Example",
-      "citation": "300 Ga. App. 123 (2019)",
-      "court": "Court of Appeals of Georgia",
-      "date": "2019-06-15",
-      "holding": "The court held that...",
-      "factual_similarity": "high|medium|low",
-      "similarity_explanation": "Why similar or distinguishable",
-      "favorable": true,
-      "relevance_to_client": "How this applies to our facts"
-    }}
-  ]
-}}"""
+# Thinking tokens count toward max_tokens on current models (Phase 1 §2).
+_QUERY_MAX_TOKENS = 8000
+_ANALYSIS_MAX_TOKENS = 12000
 
 
 class GACriminalCaseLawAgent(BaseAgent):
@@ -120,7 +39,7 @@ class GACriminalCaseLawAgent(BaseAgent):
 
     def __init__(self) -> None:
         super().__init__()
-        self._cl_client = CourtListenerClient()
+        self._cl_client = CourtListenerClient(agent_id=self.agent_id)
 
     async def run(self, input_data: dict[str, Any]) -> dict[str, Any]:
         """Research Georgia case law for all legal issues in the case.
@@ -228,30 +147,24 @@ class GACriminalCaseLawAgent(BaseAgent):
         case_data: str,
         legal_issues: list[dict[str, str]],
     ) -> list[dict[str, Any]]:
-        """Use LLM to generate targeted search queries for each legal issue."""
+        """Generate targeted search queries for each legal issue. Raises on failure."""
         issues_text = "\n".join(f"- [{i['source']}] {i['issue']}" for i in legal_issues)
 
-        try:
-            result = await call_llm(
-                _QUERY_GENERATION_PROMPT.format(
+        result = await call_model(
+            ModelCallRequest(
+                prompt=_QUERY_GENERATION.text.format(
                     case_data=case_data,
                     legal_issues=issues_text,
                 ),
-                system=_SYSTEM_PROMPT,
-                max_tokens=2048,
+                system=_SYSTEM.text,
+                max_tokens=_QUERY_MAX_TOKENS,
+                response_model=QueryPlan,
+                prompt_id="ga_criminal_case_law.query_generation",
+                prompt_version=compose_version(_SYSTEM, _QUERY_GENERATION),
+                agent_id=self.agent_id,
             )
-            return result.get("issue_queries", [])
-        except Exception as exc:
-            logger.warning("Query generation failed, using fallback queries: %s", exc)
-            # Fallback: use the issue descriptions directly as queries
-            return [
-                {
-                    "legal_issue": i["issue"],
-                    "issue_source": i["source"],
-                    "queries": [f"Georgia {i['issue']}"],
-                }
-                for i in legal_issues
-            ]
+        )
+        return [plan.model_dump() for plan in result.data.issue_queries]
 
     async def _research_issue(
         self,
@@ -308,7 +221,8 @@ class GACriminalCaseLawAgent(BaseAgent):
         search_results: list[dict[str, Any]],
         case_summary: str,
     ) -> list[dict[str, Any]]:
-        """Use LLM to analyze search results for relevance."""
+        """Analyze search results for relevance. Raises on failure: there is no
+        unanalyzed fallback (it used to mark every raw result favorable)."""
         # Format results for the LLM
         formatted = []
         for r in search_results:
@@ -322,31 +236,19 @@ class GACriminalCaseLawAgent(BaseAgent):
                 }
             )
 
-        try:
-            result = await call_llm(
-                _ANALYSIS_PROMPT.format(
+        result = await call_model(
+            ModelCallRequest(
+                prompt=_ANALYSIS.text.format(
                     case_summary=case_summary,
                     legal_issue=legal_issue,
                     search_results=json.dumps(formatted, indent=2),
                 ),
-                system=_SYSTEM_PROMPT,
-                max_tokens=4096,
+                system=_SYSTEM.text,
+                max_tokens=_ANALYSIS_MAX_TOKENS,
+                response_model=CaseAnalysis,
+                prompt_id="ga_criminal_case_law.analysis",
+                prompt_version=compose_version(_SYSTEM, _ANALYSIS),
+                agent_id=self.agent_id,
             )
-            return result.get("cases", [])
-        except Exception as exc:
-            logger.warning("Case analysis failed: %s", exc)
-            # Return raw results without analysis
-            return [
-                {
-                    "case_name": r.get("case_name", ""),
-                    "citation": r.get("citation", ""),
-                    "court": r.get("court", ""),
-                    "date": r.get("date_filed", ""),
-                    "holding": r.get("snippet", ""),
-                    "factual_similarity": "unknown",
-                    "similarity_explanation": "Analysis unavailable",
-                    "favorable": True,
-                    "relevance_to_client": "Manual review needed",
-                }
-                for r in search_results
-            ]
+        )
+        return [case.model_dump() for case in result.data.cases]

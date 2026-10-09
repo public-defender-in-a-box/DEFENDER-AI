@@ -1,0 +1,52 @@
+Analyze diversion and alternative sentencing eligibility for this defendant.
+
+CHARGES:
+{charges}
+
+DEFENDANT BACKGROUND:
+{defendant_info}
+
+JURISDICTION: Georgia
+
+Analyze eligibility for EACH of the following programs:
+
+1. Georgia First Offender Act (OCGA 42-8-60 et seq.)
+   - Eligibility requirements
+   - Benefits (no conviction on record if completed)
+   - Risks (full sentence if revoked)
+
+2. Conditional Discharge for First Drug Offense (OCGA 16-13-2)
+   - Only for first-time drug offenders
+   - Discharge and dismissal upon completion
+
+3. Pretrial Diversion Programs
+   - County-specific availability
+   - General eligibility criteria
+
+4. Drug Court (OCGA 15-1-15)
+   - Eligibility for drug-related charges
+   - Program requirements
+
+5. Probation under OCGA 42-8-34
+   - Standard probation terms
+   - Special conditions for drug offenses
+
+For each program, assess:
+- Whether the defendant is likely eligible based on what we know
+- What additional information we need to determine eligibility
+- The specific benefits and risks
+
+Return JSON:
+{{
+  "diversion_options": [
+    {{
+      "program": "First Offender Act",
+      "statute": "OCGA 42-8-60",
+      "eligibility_requirements": "Never been convicted of a felony; never previously sentenced under First Offender",
+      "client_eligible": "likely|unlikely|unknown",
+      "eligibility_notes": "Based on available info...",
+      "benefits": "No conviction on record if probation completed successfully",
+      "risks": "If revoked, judge can impose maximum sentence for original charge"
+    }}
+  ]
+}}

@@ -36,15 +36,10 @@ BROAD_EXCEPT_ALLOWLIST: dict[str, tuple[int, str]] = {
     "src/agents/tier2_intake/collateral_agent.py": (2, _PENDING),
     "src/agents/tier2_intake/fact_gatherer.py": (6, _PENDING),
     "src/agents/tier2_intake/personal_circumstances.py": (5, _PENDING),
-    "src/agents/tier2_research/citation_verification.py": (1, _PENDING),
-    "src/agents/tier2_research/constitutional_case_law.py": (2, _PENDING),
-    "src/agents/tier2_research/ga_criminal_case_law.py": (2, _PENDING),
-    "src/agents/tier2_research/ga_statutes_agent.py": (3, _PENDING),
-    "src/agents/tier2_research/research_orchestrator.py": (1, _PENDING),
 }
 
 # Lower this as call sites migrate; it must never go up.
-SHIM_CALLERS_MAX = 33
+SHIM_CALLERS_MAX = 24
 
 
 def _is_broad(handler: ast.ExceptHandler) -> bool:

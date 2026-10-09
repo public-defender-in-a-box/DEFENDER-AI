@@ -1,0 +1,16 @@
+Compare the described holding with the actual case text to determine if they match.
+
+CITATION: {citation}
+DESCRIBED HOLDING: {described_holding}
+
+ACTUAL CASE SNIPPET FROM COURTLISTENER:
+{case_snippet}
+
+Does the described holding accurately reflect what this case actually says?
+
+Return JSON:
+{{
+  "matches": true|false,
+  "explanation": "Why the holding matches or doesn't match",
+  "actual_holding_summary": "Brief summary of what the case actually holds"
+}}

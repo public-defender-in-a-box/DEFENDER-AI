@@ -1,0 +1,44 @@
+Identify all procedural requirements and deadlines for this Georgia criminal case.
+
+CHARGES:
+{charges}
+
+CASE STATUS: Pre-trial
+
+Identify:
+
+1. Speedy Trial:
+   - OCGA 17-7-170 (demand for trial in superior court)
+   - OCGA 17-7-171 (demand for trial in state court)
+   - Applicable deadlines and consequences
+
+2. Discovery:
+   - OCGA 17-16-1 et seq.
+   - Prosecution's disclosure obligations
+   - Defense reciprocal obligations
+   - Timeline requirements
+
+3. Preliminary Hearing:
+   - Right to preliminary hearing
+   - Waiver implications
+
+4. Motions Deadlines:
+   - Typical pretrial motions deadline
+   - Motion to suppress timing
+   - Jackson-Denno hearing requirements
+
+5. Statute of Limitations:
+   - Applicable limitations period for each charge
+
+Return JSON:
+{{
+  "procedural_requirements": [
+    {{
+      "requirement": "Speedy trial demand",
+      "statute": "OCGA 17-7-170",
+      "deadline": "Must be filed at arraignment or first appearance; trial within next term of court",
+      "notes": "If not tried within the term after demand, case must be dismissed"
+    }}
+  ],
+  "recent_amendments": ["Any recent changes to relevant statutes"]
+}}

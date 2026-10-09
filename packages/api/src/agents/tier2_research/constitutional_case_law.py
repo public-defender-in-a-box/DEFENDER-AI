@@ -13,133 +13,23 @@ import logging
 from typing import Any
 
 from src.agents.base_agent import BaseAgent
+from src.models.responses.research import ConstitutionalIssues, DoctrinalFramework
+from src.prompts import compose_version, load_prompt
 from src.services.courtlistener import CourtListenerClient, GEORGIA_COURTS
-from src.services.llm_service import call_llm
+from src.services.model_gateway import ModelCallRequest, call_model
 
 STATUS = "REAL"
 
 logger = logging.getLogger(__name__)
 
-_SYSTEM_PROMPT = """\
-You are a constitutional criminal procedure specialist working for a public \
-defender's office. Your expertise is 4th, 5th, 6th, and 14th Amendment law \
-as applied to criminal cases in Georgia (11th Circuit).
+# Prompts: src/prompts/constitutional_case_law/
+_SYSTEM = load_prompt("constitutional_case_law.system", "v1")
+_ISSUE_IDENTIFICATION = load_prompt("constitutional_case_law.issue_identification", "v1")
+_FRAMEWORK_ANALYSIS = load_prompt("constitutional_case_law.framework_analysis", "v1")
 
-Your job is to provide the FULL DOCTRINAL FRAMEWORK for each constitutional \
-issue — the attorney needs to understand the legal standard, the hierarchy \
-of authority, and how it applies to the client's specific facts.
-
-PRINCIPLES:
-1. Start with foundational US Supreme Court authority (e.g., Terry v. Ohio \
-for reasonable suspicion).
-2. Then find 11th Circuit cases applying those standards.
-3. Then find Georgia appellate cases applying those standards.
-4. Provide the legal STANDARD, not just case names — the attorney needs to \
-understand the test.
-5. Assess the strength of the constitutional argument honestly.
-6. Only cite cases you are confident are real.
-
-OUTPUT FORMAT: Always respond with valid JSON."""
-
-_ISSUE_IDENTIFICATION_PROMPT = """\
-Identify the constitutional criminal procedure issues in this case.
-
-RIGHTS VIOLATION FLAGS:
-{rights_flags}
-
-FACTUAL ALLEGATIONS ABOUT STOP/SEARCH/ARREST/INTERROGATION:
-{factual_allegations}
-
-CASE SUMMARY:
-{case_summary}
-
-For each constitutional issue, identify:
-1. Which amendment is implicated (fourth_amendment, fifth_amendment, \
-sixth_amendment, fourteenth_amendment)
-2. The specific issue (e.g., "reasonable suspicion for investigative detention")
-3. The legal standard that applies
-4. The foundational Supreme Court cases the attorney MUST cite
-5. What 11th Circuit and Georgia search queries would find relevant applications
-
-Return JSON:
-{{
-  "constitutional_issues": [
-    {{
-      "amendment": "fourth_amendment",
-      "issue": "Reasonable suspicion for investigative detention",
-      "legal_standard": "Under Terry v. Ohio, an officer may briefly detain...",
-      "foundational_cases": [
-        {{
-          "case_name": "Terry v. Ohio",
-          "citation": "392 U.S. 1 (1968)",
-          "holding": "An officer may conduct a brief investigative stop..."
-        }}
-      ],
-      "circuit_queries": ["11th Circuit reasonable suspicion Terry stop"],
-      "state_queries": ["Georgia reasonable suspicion investigative detention"]
-    }}
-  ]
-}}"""
-
-_FRAMEWORK_ANALYSIS_PROMPT = """\
-Build the complete doctrinal framework for this constitutional issue.
-
-CONSTITUTIONAL ISSUE:
-Amendment: {amendment}
-Issue: {issue}
-Legal Standard: {legal_standard}
-
-FOUNDATIONAL AUTHORITY (already identified):
-{foundational_cases}
-
-11TH CIRCUIT SEARCH RESULTS:
-{circuit_results}
-
-GEORGIA STATE SEARCH RESULTS:
-{state_results}
-
-CLIENT'S FACTS:
-{case_summary}
-
-Analyze the search results and build a complete framework:
-
-1. For circuit authority: identify the most relevant 11th Circuit cases \
-applying the foundational standard. Extract holdings, assess factual \
-similarity to our case.
-2. For state authority: identify the most relevant Georgia cases. Extract \
-holdings, assess factual similarity.
-3. Apply the framework to our client's specific facts — how strong is the \
-constitutional argument?
-4. Identify both helpful AND harmful precedent.
-
-Return JSON:
-{{
-  "circuit_authority": [
-    {{
-      "case_name": "...",
-      "citation": "...",
-      "court": "United States Court of Appeals for the Eleventh Circuit",
-      "date": "...",
-      "holding": "...",
-      "source": "COURTLISTENER",
-      "verification_status": "PENDING"
-    }}
-  ],
-  "state_authority": [
-    {{
-      "case_name": "...",
-      "citation": "...",
-      "court": "Supreme Court of Georgia|Court of Appeals of Georgia",
-      "date": "...",
-      "holding": "...",
-      "source": "COURTLISTENER",
-      "verification_status": "PENDING"
-    }}
-  ],
-  "application_to_client": "Detailed analysis of how this standard applies...",
-  "strength_assessment": "strong|moderate|weak",
-  "strength_explanation": "Why the argument is strong or weak on these facts"
-}}"""
+# Thinking tokens count toward max_tokens on current models (Phase 1 §2).
+_ISSUES_MAX_TOKENS = 12000
+_FRAMEWORK_MAX_TOKENS = 12000
 
 
 class ConstitutionalCaseLawAgent(BaseAgent):
@@ -150,7 +40,7 @@ class ConstitutionalCaseLawAgent(BaseAgent):
 
     def __init__(self) -> None:
         super().__init__()
-        self._cl_client = CourtListenerClient()
+        self._cl_client = CourtListenerClient(agent_id=self.agent_id)
 
     async def run(self, input_data: dict[str, Any]) -> dict[str, Any]:
         """Research constitutional law for all identified rights issues.
@@ -216,21 +106,23 @@ class ConstitutionalCaseLawAgent(BaseAgent):
         factual_allegations: list[dict[str, Any]],
         case_summary: str,
     ) -> list[dict[str, Any]]:
-        """Use LLM to identify constitutional issues and foundational cases."""
-        try:
-            result = await call_llm(
-                _ISSUE_IDENTIFICATION_PROMPT.format(
+        """Identify constitutional issues and foundational cases. Raises on failure."""
+        result = await call_model(
+            ModelCallRequest(
+                prompt=_ISSUE_IDENTIFICATION.text.format(
                     rights_flags=json.dumps(rights_flags, default=str),
                     factual_allegations=json.dumps(factual_allegations, default=str),
                     case_summary=case_summary,
                 ),
-                system=_SYSTEM_PROMPT,
-                max_tokens=4096,
+                system=_SYSTEM.text,
+                max_tokens=_ISSUES_MAX_TOKENS,
+                response_model=ConstitutionalIssues,
+                prompt_id="constitutional_case_law.issue_identification",
+                prompt_version=compose_version(_SYSTEM, _ISSUE_IDENTIFICATION),
+                agent_id=self.agent_id,
             )
-            return result.get("constitutional_issues", [])
-        except Exception as exc:
-            logger.warning("Constitutional issue identification failed: %s", exc)
-            return []
+        )
+        return [issue.model_dump() for issue in result.data.constitutional_issues]
 
     async def _research_issue(
         self,
@@ -257,10 +149,10 @@ class ConstitutionalCaseLawAgent(BaseAgent):
             court_ids=list(GEORGIA_COURTS.keys()),
         )
 
-        # Use LLM to build the doctrinal framework
-        try:
-            framework = await call_llm(
-                _FRAMEWORK_ANALYSIS_PROMPT.format(
+        # Build the doctrinal framework. A failure raises; there is no empty framework.
+        result = await call_model(
+            ModelCallRequest(
+                prompt=_FRAMEWORK_ANALYSIS.text.format(
                     amendment=amendment,
                     issue=issue_desc,
                     legal_standard=legal_standard,
@@ -269,12 +161,15 @@ class ConstitutionalCaseLawAgent(BaseAgent):
                     state_results=json.dumps(state_results, default=str),
                     case_summary=case_summary,
                 ),
-                system=_SYSTEM_PROMPT,
-                max_tokens=4096,
+                system=_SYSTEM.text,
+                max_tokens=_FRAMEWORK_MAX_TOKENS,
+                response_model=DoctrinalFramework,
+                prompt_id="constitutional_case_law.framework_analysis",
+                prompt_version=compose_version(_SYSTEM, _FRAMEWORK_ANALYSIS),
+                agent_id=self.agent_id,
             )
-        except Exception as exc:
-            logger.warning("Framework analysis failed for %s: %s", issue_desc, exc)
-            framework = {}
+        )
+        framework = result.data.model_dump()
 
         # Tag foundational cases as KNOWN_AUTHORITY
         for case in foundational_cases:

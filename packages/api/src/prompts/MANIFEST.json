@@ -3,5 +3,18 @@
   "charge_processing.classify_input@v1": "dd63191f007d5aae32bba725ae3f29da52e14c63ab1f18e817131c3ddc096dc2",
   "charge_processing.cross_document@v1": "82a5be254b307262f191bbbb091548eb4720b386029b24a9b915a805078ac28c",
   "charge_processing.extract@v1": "4efe8ea25d49b1e3c33f431d4c29ef9b83f0acff26343868b1b791e58901720c",
-  "charge_processing.system@v1": "c3cc4a19e92dee650e486f538a77298573de070c7d27c77f894f354c7edd37da"
+  "charge_processing.system@v1": "c3cc4a19e92dee650e486f538a77298573de070c7d27c77f894f354c7edd37da",
+  "citation_verification.holding_check@v1": "07d16b38092d57037a6eea51854cc7abb5c8c0f0b6ac2e4b01eed71752cbb8cf",
+  "citation_verification.statute_verification@v1": "4632d35ca96a6b2bbb661b4c88efcc86ddf7693eff0627ab7b80bda455af069c",
+  "citation_verification.system@v1": "035a586a4618083aecf846b683cc0b4fc2f2286001d2560a17e5c24cae017eb1",
+  "constitutional_case_law.framework_analysis@v1": "69349d9421fb40ebcd7c43346fef8bc03c8f3757b605073d79013c1bcc66c013",
+  "constitutional_case_law.issue_identification@v1": "948ae59deea1baaf8c0911d31720d3bfe99a2780e804c0cdffd62fe24a3e30e2",
+  "constitutional_case_law.system@v1": "cca349bccdffd1ee80f7b643880ecc28200149a85c346382a1aa8982ec8384dd",
+  "ga_criminal_case_law.analysis@v1": "32c6db70275e1d16564d5d7392e70fd15000f9f97be93b5f64a90922ba486a7f",
+  "ga_criminal_case_law.query_generation@v1": "57ea2ac8907294bf22e9c487d77e71845c1563ce96231da1e7954c83ae8dbb6b",
+  "ga_criminal_case_law.system@v1": "b02827ac96507846684162e4d2871f8a90210d65ff7ee6cc504669b31deef705",
+  "ga_statutes_agent.diversion_analysis@v1": "d9c899c048fe7caf26f4ea09268f3338c4a807203b9d4a166cb72865f3bb1575",
+  "ga_statutes_agent.procedural@v1": "adee2b8ef162f5321b040a2135e33009cda6d31e4e26687aab83685825f1515d",
+  "ga_statutes_agent.statutory_analysis@v1": "1dc028674329756397c98720ce01dfb978e32649f4d377de8f3cfa6340e641b3",
+  "ga_statutes_agent.system@v1": "6b3dd21c82ea3a6fb0c350f18dc764fb61c118d9c8baf4770ea9d99f22b16118"
 }

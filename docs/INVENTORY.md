@@ -8,11 +8,11 @@
 
 | What | Files | Lines |
 |---|---|---|
-| Python, `packages/api/src` (non-test) | 99 | 18019 |
-| Python tests, `packages/api` (incl. in-package tests) | 30 | 8612 |
+| Python, `packages/api/src` (non-test) | 103 | 18082 |
+| Python tests, `packages/api` (incl. in-package tests) | 31 | 8881 |
 | TypeScript, `packages/web/src` | 66 | 4195 |
 
-Test functions: **306** in 21 files (parametrized tests count once).
+Test functions: **315** in 22 files (parametrized tests count once).
 
 ## Agents
 
@@ -41,13 +41,13 @@ Test functions: **306** in 21 files (parametrized tests count once).
 | `personal_circumstances` | `agents/tier2_intake/personal_circumstances.py` | REAL | 361 | — | — | `agents/graph.py` | 24 |
 | `rights_scanner` | `agents/tier2_intake/rights_scanner.py` | REAL | 526 | — | — | — | 20 |
 | `case_law_agent` | `agents/tier2_research/case_law_agent.py` | STUB | 59 | — | — | — | — |
-| `citation_verification` | `agents/tier2_research/citation_verification.py` | REAL | 528 | yes | — | `agents/tier2_research/research_orchestrator.py` | 21 |
+| `citation_verification` | `agents/tier2_research/citation_verification.py` | REAL | 487 | yes | — | `agents/tier2_research/research_orchestrator.py` | 28 |
 | `citation_verifier` | `agents/tier2_research/citation_verifier.py` | STUB | 53 | — | — | — | — |
-| `constitutional_case_law` | `agents/tier2_research/constitutional_case_law.py` | REAL | 317 | yes | — | `agents/tier2_research/research_orchestrator.py` | 21 |
-| `ga_criminal_case_law` | `agents/tier2_research/ga_criminal_case_law.py` | REAL | 352 | yes | — | `agents/tier2_research/research_orchestrator.py` | 21 |
-| `ga_statutes_agent` | `agents/tier2_research/ga_statutes_agent.py` | REAL | 319 | yes | — | `agents/tier2_research/research_orchestrator.py` | 21 |
+| `constitutional_case_law` | `agents/tier2_research/constitutional_case_law.py` | REAL | 212 | yes | — | `agents/tier2_research/research_orchestrator.py` | 28 |
+| `ga_criminal_case_law` | `agents/tier2_research/ga_criminal_case_law.py` | REAL | 254 | yes | — | `agents/tier2_research/research_orchestrator.py` | 28 |
+| `ga_statutes_agent` | `agents/tier2_research/ga_statutes_agent.py` | REAL | 141 | yes | — | `agents/tier2_research/research_orchestrator.py` | 28 |
 | `recency_monitor` | `agents/tier2_research/recency_monitor.py` | STUB | 37 | — | — | — | — |
-| `research_orchestrator` | `agents/tier2_research/research_orchestrator.py` | REAL | 256 | yes | — | — | 21 |
+| `research_orchestrator` | `agents/tier2_research/research_orchestrator.py` | REAL | 299 | yes | — | — | 28 |
 | `statute_agent` | `agents/tier2_research/statute_agent.py` | STUB | 53 | — | — | — | — |
 
 Tests = test functions in files that import the class (or, for an agent that owns its
@@ -123,7 +123,8 @@ once.
 | `packages/api/tests/test_model_gateway.py` | 25 |
 | `packages/api/tests/test_orchestrator.py` | 2 |
 | `packages/api/tests/test_pipeline_integration.py` | 26 |
-| `packages/api/tests/test_research_agents.py` | 21 |
+| `packages/api/tests/test_prompts.py` | 2 |
+| `packages/api/tests/test_research_agents.py` | 28 |
 | `packages/api/tests/test_rights_scanner.py` | 20 |
 | `packages/api/tests/test_sensor_switch.py` | 6 |
 | `packages/api/tests/test_tier2_intake.py` | 24 |

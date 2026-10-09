@@ -17,7 +17,10 @@ from src.agents.tier2_research.ga_criminal_case_law import GACriminalCaseLawAgen
 from src.agents.tier2_research.constitutional_case_law import ConstitutionalCaseLawAgent
 from src.agents.tier2_research.ga_statutes_agent import GAStatutesAgent
 from src.agents.tier2_research.citation_verification import CitationVerificationAgent
+from src.services import measurements
 from src.services.cost_tracker import CostTracker
+from src.services.courtlistener import CourtListenerError
+from src.services.model_gateway import ModelCallError, ModelCallRecord
 
 STATUS = "REAL"
 
@@ -92,12 +95,15 @@ class ResearchOrchestrator(BaseAgent):
         cost_tracker.start_agent("constitutional_case_law")
         cost_tracker.start_agent("ga_statutes_agent")
 
-        # Run all three in parallel
-        ga_result, const_result, statutes_result = await asyncio.gather(
-            self._run_agent_safe(self._ga_case_law, ga_case_law_input),
-            self._run_agent_safe(self._constitutional, constitutional_input),
-            self._run_agent_safe(self._statutes, statutes_input),
-        )
+        # Run all three in parallel. Every gateway call and CourtListener request made
+        # inside is captured, so the cost report is computed, not estimated.
+        failures: list[dict[str, Any]] = []
+        with measurements.capture() as captured:
+            ga_result, const_result, statutes_result = await asyncio.gather(
+                self._run_agent_safe(self._ga_case_law, ga_case_law_input, failures, case_id),
+                self._run_agent_safe(self._constitutional, constitutional_input, failures, case_id),
+                self._run_agent_safe(self._statutes, statutes_input, failures, case_id),
+            )
 
         cost_tracker.finish_agent("ga_criminal_case_law")
         cost_tracker.finish_agent("constitutional_case_law")
@@ -121,7 +127,17 @@ class ResearchOrchestrator(BaseAgent):
             "statutes_output": statutes_result.get("data", {}),
         }
 
-        verification_result = await self._run_agent_safe(self._verifier, verification_input)
+        with measurements.capture() as captured_verification:
+            verification_result = await self._run_agent_safe(
+                self._verifier, verification_input, failures, case_id
+            )
+        captured.extend(captured_verification)
+
+        for event in captured:
+            if event.kind == measurements.MeasurementKind.MODEL_CALL:
+                cost_tracker.record_model_call(ModelCallRecord.model_validate(event.payload))
+            elif event.kind == measurements.MeasurementKind.EXTERNAL_CALL:
+                cost_tracker.record_courtlistener_call(event.agent_id)
 
         cost_tracker.finish_agent("citation_verification")
 
@@ -140,6 +156,9 @@ class ResearchOrchestrator(BaseAgent):
         cost_report = cost_tracker.get_report()
 
         combined_output = {
+            # A failed sub-agent is listed here with its error type; its section below
+            # is empty because it failed, not because nothing was found.
+            "failed_agents": failures,
             "ga_criminal_case_law": verified_ga,
             "constitutional_case_law": verified_const,
             "ga_statutes": statutes_result.get("data", {}),
@@ -159,6 +178,7 @@ class ResearchOrchestrator(BaseAgent):
                 .get("total_cost_usd", 0),
                 "courtlistener_calls": cost_report.get("total_courtlistener_calls", 0),
                 "total_cost": cost_report.get("total_cost_usd", 0),
+                "billed_cost": cost_report.get("billed_cost_usd", 0),
             },
         }
 
@@ -192,26 +212,49 @@ class ResearchOrchestrator(BaseAgent):
         self,
         agent: BaseAgent,
         input_data: dict[str, Any],
+        failures: list[dict[str, Any]],
+        case_id: str,
     ) -> dict[str, Any]:
-        """Run an agent with error handling — partial failures don't crash the pipeline."""
+        """Run one research agent; record a model or CourtListener failure and continue.
+
+        Pipeline boundary (PHASE_1_MODEL_GATEWAY.md §3.2): narrowed to the two failure
+        types a research agent is expected to have. Anything else is a bug and raises.
+        """
         try:
             return await agent.run(input_data)
-        except Exception as exc:
-            logger.error(
-                "Research agent %s failed: %s",
-                agent.agent_id,
-                exc,
-                exc_info=True,
-            )
+        except (ModelCallError, CourtListenerError) as exc:
+            error_type = type(exc).__name__
+            logger.error("Research agent %s failed (%s): %s", agent.agent_id, error_type, exc)
             self.log_action(
                 "agent_failed",
-                {"agent_id": agent.agent_id, "error": str(exc)},
+                {"agent_id": agent.agent_id, "error_type": error_type, "error": str(exc)},
+            )
+            call_record = (
+                exc.record.model_dump(mode="json")
+                if isinstance(exc, ModelCallError) and exc.record is not None
+                else None
+            )
+            measurements.record(
+                measurements.Measurement(
+                    kind=measurements.MeasurementKind.AGENT_FAILURE,
+                    agent_id=agent.agent_id,
+                    case_id=case_id,
+                    payload={
+                        "error_type": error_type,
+                        "error": str(exc),
+                        "model_call": call_record,
+                    },
+                )
+            )
+            failures.append(
+                {"agent_id": agent.agent_id, "error_type": error_type, "error": str(exc)}
             )
             return {
                 "data": {},
                 "confidence": "LOW",
                 "source": agent.agent_id,
                 "error": str(exc),
+                "error_type": error_type,
             }
 
     def _apply_verification_tags(

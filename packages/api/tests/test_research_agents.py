@@ -14,6 +14,18 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from src.services import measurements
+from src.services.courtlistener import CourtListenerError
+from src.services.model_gateway import (
+    AuthError,
+    RefusalError,
+    SchemaMismatchError,
+    TransportError,
+    TruncatedResponseError,
+    using_fixtures,
+)
+from src.services.model_gateway.testing import FakeCallModel
+
 from src.agents.tier2_research.ga_criminal_case_law import GACriminalCaseLawAgent
 from src.agents.tier2_research.constitutional_case_law import ConstitutionalCaseLawAgent
 from src.agents.tier2_research.ga_statutes_agent import GAStatutesAgent
@@ -397,6 +409,46 @@ class TestResearchModels:
 # ---------- Agent unit tests ----------
 
 
+# ---------- Agent tests (canned model and CourtListener responses) ----------
+#
+# These used to call the live Anthropic and CourtListener APIs and pass only because
+# the agents swallowed every error (PHASE_1_MODEL_GATEWAY.md §3.3). They now run
+# against canned responses validated by the agents' response models; the live path
+# is covered by the recorded replay test at the end.
+
+_GA = "src.agents.tier2_research.ga_criminal_case_law.call_model"
+_CONST = "src.agents.tier2_research.constitutional_case_law.call_model"
+_STAT = "src.agents.tier2_research.ga_statutes_agent.call_model"
+_VERIFY = "src.agents.tier2_research.citation_verification.call_model"
+
+SYN_CASE = {
+    "case_name": "Synthetic v. State",
+    "citation": "900 Ga. App. 100 (2020)",
+    "court": "Court of Appeals of Georgia",
+    "date_filed": "2020-05-01",
+    "snippet": "nervousness alone does not supply reasonable suspicion",
+    "cluster_id": 9000001,
+}
+
+
+def _analyzed(name: str = "Synthetic v. State", citation: str = "900 Ga. App. 100 (2020)"):
+    return {
+        "case_name": name,
+        "citation": citation,
+        "court": "Court of Appeals of Georgia",
+        "date": "2020-05-01",
+        "holding": "Nervousness alone does not supply reasonable suspicion.",
+        "factual_similarity": "high",
+        "similarity_explanation": "Parking-lot stop on nervousness.",
+        "favorable": True,
+        "relevance_to_client": "Supports suppression.",
+    }
+
+
+def _search(results=None):
+    return AsyncMock(return_value=[SYN_CASE] if results is None else results)
+
+
 class TestGACriminalCaseLawAgent:
     """Test the GA Criminal Case Law Agent."""
 
@@ -407,30 +459,103 @@ class TestGACriminalCaseLawAgent:
 
     @pytest.mark.asyncio
     async def test_run_returns_wrapped_output(self, williams_full_input):
+        plan = {
+            "issue_queries": [
+                {
+                    "legal_issue": "Reasonable suspicion for the initial stop",
+                    "issue_source": "rights_violation_flag",
+                    "queries": ["reasonable suspicion nervousness parking lot"],
+                },
+                {
+                    "legal_issue": "Obstruction requires lawful discharge of duties",
+                    "issue_source": "charge",
+                    "queries": ["obstruction lawful discharge"],
+                },
+            ]
+        }
+        fake = FakeCallModel(plan, {"cases": [_analyzed()]}, {"cases": []})
         agent = GACriminalCaseLawAgent()
-        result = await agent.run(williams_full_input)
+        agent._cl_client.search_opinions = _search()
+        with patch(_GA, new=fake):
+            result = await agent.run(williams_full_input)
 
-        assert "data" in result
-        assert "confidence" in result
         assert result["source"] == "ga_criminal_case_law"
-        assert "timestamp" in result
-        assert "research_results" in result["data"]
+        research = result["data"]["research_results"]
+        assert [r["legal_issue"] for r in research] == [
+            "Reasonable suspicion for the initial stop",
+            "Obstruction requires lawful discharge of duties",
+        ]
+        (case,) = research[0]["cases_found"]
+        assert case["source"] == "COURTLISTENER"
+        assert case["verification_status"] == "PENDING"
+        assert research[1]["cases_found"] == []
+        assert fake.prompt_ids == [
+            "ga_criminal_case_law.query_generation",
+            "ga_criminal_case_law.analysis",
+            "ga_criminal_case_law.analysis",
+        ]
+        # Queries get the Georgia qualifier and the Georgia courts.
+        call = agent._cl_client.search_opinions.await_args_list[0]
+        assert call.kwargs["query"].startswith("Georgia ")
+        assert set(call.kwargs["court_ids"]) == {"ga", "gactapp"}
 
     @pytest.mark.asyncio
-    async def test_run_covers_all_legal_issues(self, williams_full_input):
+    async def test_query_generation_failure_raises(self, williams_full_input):
+        """No fallback queries: a failed model call fails the agent."""
         agent = GACriminalCaseLawAgent()
-        result = await agent.run(williams_full_input)
+        agent._cl_client.search_opinions = _search()
+        with patch(_GA, new=FakeCallModel(TransportError("overloaded"))):
+            with pytest.raises(TransportError):
+                await agent.run(williams_full_input)
+        agent._cl_client.search_opinions.assert_not_awaited()
 
-        research = result["data"]["research_results"]
-        # Should have results for charges + rights flags + defense theories
-        assert len(research) > 0
+    @pytest.mark.asyncio
+    async def test_analysis_failure_raises(self, williams_full_input):
+        """No unanalyzed fallback (it used to mark every raw result favorable)."""
+        plan = {
+            "issue_queries": [
+                {"legal_issue": "x", "issue_source": "charge", "queries": ["q"]},
+            ]
+        }
+        agent = GACriminalCaseLawAgent()
+        agent._cl_client.search_opinions = _search()
+        with patch(_GA, new=FakeCallModel(plan, RefusalError("refused"))):
+            with pytest.raises(RefusalError):
+                await agent.run(williams_full_input)
 
-        # Each result should have the required structure
-        for issue in research:
-            assert "legal_issue" in issue
-            assert "issue_source" in issue
-            assert "queries_run" in issue
-            assert "cases_found" in issue
+    @pytest.mark.asyncio
+    async def test_search_failure_raises(self, williams_full_input):
+        plan = {
+            "issue_queries": [
+                {"legal_issue": "x", "issue_source": "charge", "queries": ["q"]},
+            ]
+        }
+        agent = GACriminalCaseLawAgent()
+        agent._cl_client.search_opinions = AsyncMock(
+            side_effect=CourtListenerError("CourtListener GET /search/ returned 503", status=503)
+        )
+        with patch(_GA, new=FakeCallModel(plan)):
+            with pytest.raises(CourtListenerError):
+                await agent.run(williams_full_input)
+
+
+FRAMEWORK = {
+    "circuit_authority": [],
+    "state_authority": [
+        {
+            "case_name": "Synthetic v. State",
+            "citation": "900 Ga. App. 100 (2020)",
+            "court": "Court of Appeals of Georgia",
+            "date": "2020-05-01",
+            "holding": "Nervousness alone is insufficient.",
+            "source": "COURTLISTENER",
+            "verification_status": "PENDING",
+        }
+    ],
+    "application_to_client": "The stop rested on nervousness and location.",
+    "strength_assessment": "moderate",
+    "strength_explanation": "Location plus nervousness is a close call.",
+}
 
 
 class TestConstitutionalCaseLawAgent:
@@ -442,54 +567,129 @@ class TestConstitutionalCaseLawAgent:
         assert agent.agent_name == "Constitutional Law Case Law Agent"
 
     @pytest.mark.asyncio
-    async def test_run_returns_wrapped_output(self, williams_full_input):
-        agent = ConstitutionalCaseLawAgent()
-        result = await agent.run(williams_full_input)
-
-        assert "data" in result
-        assert "confidence" in result
-        assert result["source"] == "constitutional_case_law"
-        assert "constitutional_research" in result["data"]
-
-    @pytest.mark.asyncio
     async def test_run_covers_constitutional_issues(self, williams_full_input):
-        mock_identify_response = {
+        identify = {
             "constitutional_issues": [
                 {
-                    "amendment": "4th Amendment",
+                    "amendment": "fourth_amendment",
                     "issue": "Unreasonable search and seizure",
                     "legal_standard": "Terry stop requires reasonable suspicion",
                     "foundational_cases": [
-                        {"case_name": "Terry v. Ohio", "citation": "392 U.S. 1 (1968)"}
+                        {
+                            "case_name": "Terry v. Ohio",
+                            "citation": "392 U.S. 1 (1968)",
+                            "holding": "Brief stops require reasonable suspicion.",
+                        }
                     ],
                     "circuit_queries": ["Terry stop reasonable suspicion"],
                     "state_queries": ["Georgia Terry stop"],
                 }
             ]
         }
-        mock_framework_response = {
-            "doctrinal_framework": "Terry stop analysis",
-            "application": "Officers lacked articulable suspicion",
-        }
-
-        with patch(
-            "src.agents.tier2_research.constitutional_case_law.call_llm",
-            new_callable=AsyncMock,
-            side_effect=[mock_identify_response, mock_framework_response],
-        ):
-            agent = ConstitutionalCaseLawAgent()
+        fake = FakeCallModel(identify, FRAMEWORK)
+        agent = ConstitutionalCaseLawAgent()
+        agent._cl_client.search_opinions = _search()
+        with patch(_CONST, new=fake):
             result = await agent.run(williams_full_input)
 
-        research = result["data"]["constitutional_research"]
-        assert len(research) > 0
+        assert result["source"] == "constitutional_case_law"
+        (issue,) = result["data"]["constitutional_research"]
+        assert issue["amendment"] == "fourth_amendment"
+        assert issue["foundational_authority"][0]["source"] == "KNOWN_AUTHORITY"
+        assert issue["state_authority"][0]["citation"] == "900 Ga. App. 100 (2020)"
+        assert issue["strength_assessment"] == "moderate"
+        courts = [c.kwargs["court_ids"] for c in agent._cl_client.search_opinions.await_args_list]
+        assert courts == [["ca11"], ["ga", "gactapp"]]
 
-        for issue in research:
-            assert "amendment" in issue
-            assert "issue" in issue
-            assert "legal_standard" in issue
-            assert "foundational_authority" in issue
-            assert "circuit_authority" in issue
-            assert "state_authority" in issue
+    @pytest.mark.asyncio
+    async def test_framework_failure_raises(self, williams_full_input):
+        """No empty-framework fallback."""
+        identify = {
+            "constitutional_issues": [
+                {
+                    "amendment": "fifth_amendment",
+                    "issue": "Miranda invocation",
+                    "legal_standard": "Questioning must cease",
+                    "foundational_cases": [],
+                    "circuit_queries": [],
+                    "state_queries": [],
+                }
+            ]
+        }
+        agent = ConstitutionalCaseLawAgent()
+        agent._cl_client.search_opinions = _search()
+        with patch(_CONST, new=FakeCallModel(identify, TruncatedResponseError("max_tokens"))):
+            with pytest.raises(TruncatedResponseError):
+                await agent.run(williams_full_input)
+
+    @pytest.mark.asyncio
+    async def test_malformed_issue_rejected(self, williams_full_input):
+        """The old canned response ("4th Amendment") no longer passes as valid."""
+        identify = {
+            "constitutional_issues": [
+                {
+                    "amendment": "4th Amendment",
+                    "issue": "x",
+                    "legal_standard": "y",
+                    "foundational_cases": [],
+                    "circuit_queries": [],
+                    "state_queries": [],
+                }
+            ]
+        }
+        with patch(_CONST, new=FakeCallModel(identify)):
+            with pytest.raises(SchemaMismatchError):
+                await ConstitutionalCaseLawAgent().run(williams_full_input)
+
+
+def _offense(statute: str, title: str) -> dict:
+    return {
+        "statute": statute,
+        "title": title,
+        "full_text": "(synthetic statutory text)",
+        "elements": [
+            {"element": "Knowing conduct", "definition": "d", "document_support": "s"},
+        ],
+        "lesser_included": [],
+        "penalties": {
+            "imprisonment_range": "up to 12 months",
+            "fine_range": "up to $1,000",
+            "mandatory_minimum": "none",
+            "probation_eligible": True,
+        },
+    }
+
+
+STATUTES = {
+    "charged_offenses": [
+        _offense("O.C.G.A. § 16-13-30(j)(1)", "Possession of Controlled Substance"),
+        _offense("O.C.G.A. § 16-10-24(a)", "Obstruction of Law Enforcement"),
+    ]
+}
+DIVERSION = {
+    "diversion_options": [
+        {
+            "program": "First Offender Act",
+            "statute": "OCGA 42-8-60",
+            "eligibility_requirements": "No prior felony",
+            "client_eligible": "unknown",
+            "eligibility_notes": "Record unknown",
+            "benefits": "No conviction on completion",
+            "risks": "Full sentence on revocation",
+        }
+    ]
+}
+PROCEDURAL = {
+    "procedural_requirements": [
+        {
+            "requirement": "Speedy trial demand",
+            "statute": "OCGA 17-7-170",
+            "deadline": "Term of court",
+            "notes": "",
+        }
+    ],
+    "recent_amendments": [],
+}
 
 
 class TestGAStatutesAgent:
@@ -501,60 +701,86 @@ class TestGAStatutesAgent:
         assert agent.agent_name == "GA Criminal Statutes Agent"
 
     @pytest.mark.asyncio
-    async def test_run_returns_wrapped_output(self, williams_full_input):
-        agent = GAStatutesAgent()
-        result = await agent.run(williams_full_input)
+    async def test_run_analyzes_both_charges(self, williams_full_input):
+        fake = FakeCallModel(STATUTES, DIVERSION, PROCEDURAL)
+        with patch(_STAT, new=fake):
+            result = await GAStatutesAgent().run(williams_full_input)
 
-        assert "data" in result
-        assert "confidence" in result
         assert result["source"] == "ga_statutes_agent"
-
         data = result["data"]
-        assert "charged_offenses" in data
-        assert "diversion_options" in data
-        assert "procedural_requirements" in data
+        assert [o["statute"] for o in data["charged_offenses"]] == [
+            "O.C.G.A. § 16-13-30(j)(1)",
+            "O.C.G.A. § 16-10-24(a)",
+        ]
+        assert data["diversion_options"][0]["client_eligible"] == "unknown"
+        assert data["procedural_requirements"][0]["statute"] == "OCGA 17-7-170"
+        assert fake.prompt_ids == [
+            "ga_statutes_agent.statutory_analysis",
+            "ga_statutes_agent.diversion_analysis",
+            "ga_statutes_agent.procedural",
+        ]
 
     @pytest.mark.asyncio
-    async def test_run_analyzes_both_charges(self, williams_full_input):
-        mock_statutes_response = {
-            "charged_offenses": [
-                {
-                    "statute": "O.C.G.A. § 16-13-30(j)(1)",
-                    "offense": "Possession of Controlled Substance",
-                    "elements": ["knowing possession", "Schedule IV substance"],
-                    "penalty_range": "1-3 years",
-                },
-                {
-                    "statute": "O.C.G.A. § 16-10-24(a)",
-                    "offense": "Obstruction of Law Enforcement",
-                    "elements": ["knowingly and willfully", "obstructs officer"],
-                    "penalty_range": "1-5 years",
-                },
-            ]
-        }
-        mock_diversion_response = {
-            "diversion_options": [{"program": "Drug Court", "eligibility": "First-time offender"}]
-        }
-        mock_procedural_response = {
-            "procedural_requirements": [{"requirement": "Arraignment within 72 hours"}],
-            "recent_amendments": [],
-        }
+    async def test_failure_is_not_an_empty_analysis(self, williams_full_input):
+        with patch(_STAT, new=FakeCallModel(STATUTES, AuthError("401"))):
+            with pytest.raises(AuthError):
+                await GAStatutesAgent().run(williams_full_input)
 
-        with patch(
-            "src.agents.tier2_research.ga_statutes_agent.call_llm",
-            new_callable=AsyncMock,
-            side_effect=[
-                mock_statutes_response,
-                mock_diversion_response,
-                mock_procedural_response,
-            ],
-        ):
-            agent = GAStatutesAgent()
-            result = await agent.run(williams_full_input)
 
-        offenses = result["data"]["charged_offenses"]
-        # Should have analysis for both possession and obstruction
-        assert len(offenses) >= 2
+VERIFY_INPUT = {
+    "ga_case_law_output": {
+        "research_results": [
+            {
+                "legal_issue": "test",
+                "cases_found": [
+                    {
+                        "case_name": "Terry v. Ohio",
+                        "citation": "392 U.S. 1 (1968)",
+                        "court": "Supreme Court of the United States",
+                        "holding": "Stop and frisk permissible...",
+                    }
+                ],
+            }
+        ]
+    },
+    "constitutional_output": {"constitutional_research": []},
+    "statutes_output": {
+        "charged_offenses": [
+            {
+                "statute": "OCGA 16-13-30(j)(1)",
+                "full_text": "Possession of controlled substance...",
+            }
+        ],
+        "diversion_options": [],
+        "procedural_requirements": [],
+    },
+}
+STATUTE_OK = {
+    "exists": True,
+    "content_accurate": True,
+    "recently_amended": False,
+    "amendment_notes": "",
+    "unconstitutional": False,
+    "unconstitutional_notes": "",
+    "verification_notes": "",
+}
+
+
+def _verifier(found: bool = True) -> CitationVerificationAgent:
+    agent = CitationVerificationAgent()
+    agent._cl_client.verify_case_exists = AsyncMock(
+        return_value={
+            "found": found,
+            "case_data": {**SYN_CASE, "case_name": "Terry v. Ohio"} if found else None,
+            "method": "test",
+        }
+    )
+    agent._cl_client.get_citing_cases = AsyncMock(return_value=[])
+    return agent
+
+
+def _holding(matches: bool) -> dict:
+    return {"matches": matches, "explanation": "e", "actual_holding_summary": "s"}
 
 
 class TestCitationVerificationAgent:
@@ -567,44 +793,41 @@ class TestCitationVerificationAgent:
 
     @pytest.mark.asyncio
     async def test_run_with_sample_citations(self):
-        agent = CitationVerificationAgent()
-        input_data = {
-            "ga_case_law_output": {
-                "research_results": [
-                    {
-                        "legal_issue": "test",
-                        "cases_found": [
-                            {
-                                "case_name": "Terry v. Ohio",
-                                "citation": "392 U.S. 1 (1968)",
-                                "court": "Supreme Court of the United States",
-                                "holding": "Stop and frisk permissible...",
-                            }
-                        ],
-                    }
-                ]
-            },
-            "constitutional_output": {"constitutional_research": []},
-            "statutes_output": {
-                "charged_offenses": [
-                    {
-                        "statute": "OCGA 16-13-30(j)(1)",
-                        "full_text": "Possession of controlled substance...",
-                    }
-                ],
-                "diversion_options": [],
-                "procedural_requirements": [],
-            },
-        }
+        fake = FakeCallModel(
+            by_prompt={
+                "citation_verification.holding_check": _holding(True),
+                "citation_verification.statute_verification": STATUTE_OK,
+            }
+        )
+        with patch(_VERIFY, new=fake):
+            result = await _verifier().run(VERIFY_INPUT)
 
-        result = await agent.run(input_data)
-
-        assert "data" in result
-        assert "verification_results" in result["data"]
-        assert "summary" in result["data"]
-
+        results = {r["citation_type"]: r for r in result["data"]["verification_results"]}
+        assert results["case"]["verification_status"] == "VERIFIED"
+        assert results["statute"]["verification_status"] == "VERIFIED"
         summary = result["data"]["summary"]
-        assert summary["total_citations"] > 0
+        assert summary["total_citations"] == 2
+        assert summary["verified"] == 2
+
+    @pytest.mark.asyncio
+    async def test_holding_mismatch_is_reported(self):
+        fake = FakeCallModel(
+            by_prompt={
+                "citation_verification.holding_check": _holding(False),
+                "citation_verification.statute_verification": STATUTE_OK,
+            }
+        )
+        with patch(_VERIFY, new=fake):
+            result = await _verifier().run(VERIFY_INPUT)
+        assert result["data"]["summary"]["holding_mismatch"] == 1
+
+    @pytest.mark.asyncio
+    async def test_case_not_found_is_unverified(self):
+        fake = FakeCallModel(by_prompt={"citation_verification.statute_verification": STATUTE_OK})
+        with patch(_VERIFY, new=fake):
+            result = await _verifier(found=False).run(VERIFY_INPUT)
+        assert result["data"]["summary"]["unverified"] == 1
+        assert "citation_verification.holding_check" not in fake.prompt_ids
 
     @pytest.mark.asyncio
     async def test_run_empty_input(self):
@@ -620,7 +843,17 @@ class TestCitationVerificationAgent:
         assert result["data"]["summary"]["total_citations"] == 0
 
 
-# ---------- Integration test: full research pipeline ----------
+class TestHoldingCheckFailure:
+    """A failed holding check must not count as a verified holding (Phase 1 §3.2)."""
+
+    @pytest.mark.asyncio
+    async def test_failed_holding_check_raises(self):
+        with patch(_VERIFY, new=FakeCallModel(TransportError("connection reset"))):
+            with pytest.raises(TransportError):
+                await _verifier().run(VERIFY_INPUT)
+
+
+# ---------- Research Orchestrator ----------
 
 
 class TestResearchOrchestrator:
@@ -631,78 +864,73 @@ class TestResearchOrchestrator:
         assert orch.agent_id == "research_orchestrator"
 
     @pytest.mark.asyncio
-    async def test_full_pipeline(self, williams_full_input):
-        """Run the full research pipeline against the Williams case.
+    async def test_partial_failure_is_recorded_not_hidden(self, williams_full_input):
+        """A failed sub-agent is listed with its error type; the others still run."""
+        orch = ResearchOrchestrator()
+        for agent in (orch._ga_case_law, orch._constitutional):
+            agent._cl_client.search_opinions = _search([])
+        orch._verifier._cl_client.verify_case_exists = AsyncMock(
+            return_value={"found": False, "case_data": None, "method": "test"}
+        )
+        empty_plan = {"issue_queries": []}
+        empty_issues = {"constitutional_issues": []}
+        with (
+            patch(_GA, new=FakeCallModel(empty_plan)),
+            patch(_CONST, new=FakeCallModel(empty_issues)),
+            patch(_STAT, new=FakeCallModel(TransportError("overloaded"))),
+            patch(_VERIFY, new=FakeCallModel()),
+        ):
+            result = await orch.run(williams_full_input)
 
-        This is the main integration test. It calls real APIs (CourtListener,
-        Anthropic) so it may take a while and costs money.
+        data = result["data"]
+        assert data["failed_agents"] == [
+            {"agent_id": "ga_statutes_agent", "error_type": "TransportError", "error": "overloaded"}
+        ]
+        assert data["ga_statutes"] == {}
+        assert data["ga_criminal_case_law"] == {"research_results": []}
+        (failure,) = measurements.events(measurements.MeasurementKind.AGENT_FAILURE)
+        assert failure.agent_id == "ga_statutes_agent"
+        assert failure.payload["error_type"] == "TransportError"
+
+    @pytest.mark.asyncio
+    async def test_unexpected_exception_is_not_swallowed(self, williams_full_input):
+        """The boundary is narrowed: a bug raises instead of becoming a LOW result."""
+        orch = ResearchOrchestrator()
+        orch._statutes.run = AsyncMock(side_effect=KeyError("charges"))
+        orch._ga_case_law.run = AsyncMock(return_value={"data": {}, "confidence": "HIGH"})
+        orch._constitutional.run = AsyncMock(return_value={"data": {}, "confidence": "HIGH"})
+        with pytest.raises(KeyError):
+            await orch.run(williams_full_input)
+
+    @pytest.mark.asyncio
+    @pytest.mark.recorded(
+        "ga_criminal_case_law",
+        "constitutional_case_law",
+        "ga_statutes_agent",
+        "citation_verification",
+        "courtlistener",
+    )
+    async def test_full_pipeline(self, williams_full_input):
+        """Run the full research pipeline against the Williams case, from recordings.
+
+        Recorded once by a team member (MODEL_GATEWAY_MODE=record, their own keys);
+        replayed with no key and no network.
         """
         orchestrator = ResearchOrchestrator()
-        result = await orchestrator.run(williams_full_input)
+        with using_fixtures("tests/test_research_agents.py::williams_full_input"):
+            result = await orchestrator.run(williams_full_input)
 
         assert "data" in result
         assert "confidence" in result
         assert result["source"] == "research_orchestrator"
 
         data = result["data"]
-
-        # All four agent outputs should be present
-        assert "ga_criminal_case_law" in data
-        assert "constitutional_case_law" in data
-        assert "ga_statutes" in data
-        assert "citation_verification" in data
-        assert "cost_report" in data
-
-        # GA Case Law should have research results
-        ga_research = data["ga_criminal_case_law"]
-        assert "research_results" in ga_research
-
-        # Constitutional should have constitutional research
-        const_research = data["constitutional_case_law"]
-        assert "constitutional_research" in const_research
-
-        # Statutes should have charged offenses
-        statutes = data["ga_statutes"]
-        assert "charged_offenses" in statutes
-        assert "diversion_options" in statutes
-
-        # Verification should have results and summary
-        verification = data["citation_verification"]
-        assert "verification_results" in verification
-        assert "summary" in verification
-
-        # Cost report should be present
+        assert data["failed_agents"] == []
+        assert data["ga_criminal_case_law"]["research_results"]
+        assert "constitutional_research" in data["constitutional_case_law"]
+        assert data["ga_statutes"]["charged_offenses"]
+        assert "summary" in data["citation_verification"]
         cost = data["cost_report"]
-        assert "total_cost" in cost
-        assert "courtlistener_calls" in cost
-
-        # Print summary for manual review
-        print(f"\n--- Williams Case Research Results ---")
-        print(f"GA Case Law issues researched: {len(ga_research.get('research_results', []))}")
-        print(
-            f"Constitutional issues researched: "
-            f"{len(const_research.get('constitutional_research', []))}"
-        )
-        print(f"Charged offenses analyzed: {len(statutes.get('charged_offenses', []))}")
-        print(f"Diversion options found: {len(statutes.get('diversion_options', []))}")
-        print(f"Citations verified: {verification.get('summary', {}).get('total_citations', 0)}")
-        print(f"  - Verified: {verification.get('summary', {}).get('verified', 0)}")
-        print(f"  - Unverified: {verification.get('summary', {}).get('unverified', 0)}")
-        print(f"Total cost: ${cost.get('total_cost', 0):.4f}")
-        print(f"CourtListener calls: {cost.get('courtlistener_calls', 0)}")
-
-
-class TestHoldingCheckFailure:
-    """A failed holding check must not count as a verified holding (Phase 1 §3.2)."""
-
-    @pytest.mark.asyncio
-    async def test_failed_holding_check_raises(self):
-        from src.services.model_gateway import TransportError
-
-        agent = CitationVerificationAgent()
-        with patch(
-            "src.agents.tier2_research.citation_verification.call_llm",
-            new=AsyncMock(side_effect=TransportError("connection reset")),
-        ):
-            with pytest.raises(TransportError):
-                await agent._check_holding("Synthetic v. State, 1 Ga. 1", "holding", "snippet")
+        assert cost["total_cost"] > 0, "would-be cost of the replayed calls"
+        assert cost["billed_cost"] == 0, "a replay spends nothing"
+        assert cost["courtlistener_calls"] > 0
