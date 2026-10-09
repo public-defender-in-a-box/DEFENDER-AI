@@ -151,18 +151,19 @@ async def _run_pipeline(
             }
         )
     except Exception as e:
-        await orchestrator.handle_agent_failure("charge_processing", str(e))
+        # Background-task boundary: any failure, model or not, is recorded on the case
+        # with its type rather than lost in a server log.
+        await orchestrator.handle_agent_failure("charge_processing", e)
         logger.exception("Charge processing failed for %s", case_id)
         return
 
     merge = await orchestrator.receive_agent_output("charge_processing", charge_result)
-    if merge["decision"] == "BLOCKED_ETHICS_P1":
+    if merge.get("would_have_blocked"):
         logger.warning(
-            "Charge processing blocked (ethics) for %s: %s",
+            "Charge processing carries a CRITICAL ethics flag for %s (merged): %s",
             case_id,
             merge.get("reason"),
         )
-        return
     if merge.get("human_review_required"):
         logger.warning(
             "Charge processing low confidence for %s — merged with flag",
@@ -187,7 +188,8 @@ async def _run_pipeline(
             }
         )
     except Exception as e:
-        await orchestrator.handle_agent_failure("pre_interview_research", str(e))
+        # Background-task boundary, as above.
+        await orchestrator.handle_agent_failure("pre_interview_research", e)
         logger.exception("Pre-interview research failed for %s", case_id)
         return
 

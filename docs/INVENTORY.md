@@ -8,11 +8,11 @@
 
 | What | Files | Lines |
 |---|---|---|
-| Python, `packages/api/src` (non-test) | 90 | 17100 |
-| Python tests, `packages/api` (incl. in-package tests) | 27 | 7786 |
+| Python, `packages/api/src` (non-test) | 99 | 18322 |
+| Python tests, `packages/api` (incl. in-package tests) | 28 | 8160 |
 | TypeScript, `packages/web/src` | 66 | 4195 |
 
-Test functions: **268** in 18 files (parametrized tests count once).
+Test functions: **292** in 19 files (parametrized tests count once).
 
 ## Agents
 
@@ -26,7 +26,7 @@ Test functions: **268** in 18 files (parametrized tests count once).
 | Agent ID | Module | STATUS | Lines | Registered | In app | Used by | Tests |
 |---|---|---|---|---|---|---|---|
 | `ethics_monitor` | `agents/cross_cutting/ethics_monitor.py` | REAL | 1127 | — | yes | `agents/graph.py`, `agents/tier0/orchestrator.py` | 65 |
-| `orchestrator` | `agents/tier0/orchestrator.py` | REAL | 530 | — | yes | `agents/graph.py`, `routes/_store.py`, `routes/upload.py` | 57 |
+| `orchestrator` | `agents/tier0/orchestrator.py` | REAL | 525 | — | yes | `agents/graph.py`, `routes/_store.py`, `routes/upload.py` | 57 |
 | `case_prep_conductor` | `agents/tier1/case_prep.py` | STUB | 50 | yes | yes | `routes/intake.py` | — |
 | `charge_processing` | `agents/tier1/charge_processing.py` | REAL | 785 | yes | yes | `agents/graph.py`, `routes/upload.py` | 26 |
 | `intake_conductor` | `agents/tier1/intake_conductor.py` | REAL | 1396 | yes | yes | `routes/intake.py` | 26 |
@@ -119,6 +119,7 @@ once.
 | `packages/api/tests/test_disclosure_tracking.py` | 23 |
 | `packages/api/tests/test_ethics_monitor.py` | 39 |
 | `packages/api/tests/test_intake.py` | 2 |
+| `packages/api/tests/test_model_gateway.py` | 24 |
 | `packages/api/tests/test_orchestrator.py` | 2 |
 | `packages/api/tests/test_pipeline_integration.py` | 26 |
 | `packages/api/tests/test_research_agents.py` | 20 |

@@ -119,8 +119,8 @@ async def charge_processing_node(state: GraphState) -> GraphState:
     state["case_state"] = orchestrator.get_case_state_snapshot()
     state["current_stage"] = state["case_state"].get("stage", "CHARGES_PROCESSED")
 
-    if merge_result["decision"] in ("BLOCKED_ETHICS_P1", "FAILED"):
-        state["error"] = merge_result.get("reason", "Merge blocked")
+    if merge_result["decision"] == "FAILED":
+        state["error"] = merge_result.get("reason", "Merge failed")
 
     return state
 
@@ -170,8 +170,8 @@ async def pre_interview_node(state: GraphState) -> GraphState:
     state["case_state"] = orchestrator.get_case_state_snapshot()
     state["current_stage"] = state["case_state"].get("stage", "PRE_INTERVIEW_COMPLETE")
 
-    if merge_result["decision"] in ("BLOCKED_ETHICS_P1", "FAILED"):
-        state["error"] = merge_result.get("reason", "Merge blocked")
+    if merge_result["decision"] == "FAILED":
+        state["error"] = merge_result.get("reason", "Merge failed")
 
     return state
 
