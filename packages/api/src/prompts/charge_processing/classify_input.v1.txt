@@ -1,0 +1,4 @@
+Filename: {filename}
+
+Document text (first portion):
+{sample}

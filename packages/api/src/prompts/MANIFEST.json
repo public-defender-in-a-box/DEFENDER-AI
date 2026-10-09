@@ -1,0 +1,7 @@
+{
+  "charge_processing.classify@v1": "737d4dfc53b59b226eee46d0c35afa4d7ec8ba533235e3a009c4018c950d0d5a",
+  "charge_processing.classify_input@v1": "dd63191f007d5aae32bba725ae3f29da52e14c63ab1f18e817131c3ddc096dc2",
+  "charge_processing.cross_document@v1": "82a5be254b307262f191bbbb091548eb4720b386029b24a9b915a805078ac28c",
+  "charge_processing.extract@v1": "4efe8ea25d49b1e3c33f431d4c29ef9b83f0acff26343868b1b791e58901720c",
+  "charge_processing.system@v1": "c3cc4a19e92dee650e486f538a77298573de070c7d27c77f894f354c7edd37da"
+}

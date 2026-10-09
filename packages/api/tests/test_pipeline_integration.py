@@ -11,6 +11,8 @@ Verifies:
 """
 
 import os
+from collections.abc import Iterator
+
 import pytest
 
 from src.agents.tier0.orchestrator import (
@@ -26,6 +28,7 @@ from src.models.case_state import (
     ConfidenceLevel,
     PipelineStage,
 )
+from src.services.model_gateway import using_fixtures
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -33,15 +36,17 @@ from src.models.case_state import (
 
 
 @pytest.fixture
-def accusation_text() -> str:
-    """Load the sample accusation fixture."""
+def accusation_text() -> Iterator[str]:
+    """Load the sample accusation fixture, declared as the source of any recording."""
     fixture_path = os.path.join(
         os.path.dirname(__file__),
         "fixtures",
         "sample_accusation.txt",
     )
     with open(fixture_path, "r") as f:
-        return f.read()
+        text = f.read()
+    with using_fixtures("tests/fixtures/sample_accusation.txt"):
+        yield text
 
 
 @pytest.fixture
@@ -398,18 +403,16 @@ class TestEthicsMonitorAgent:
 
 
 # ---------------------------------------------------------------------------
-# End-to-end pipeline test (requires ANTHROPIC_API_KEY)
+# End-to-end pipeline test (cassette replay)
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skipif(
-    not os.getenv("ANTHROPIC_API_KEY"),
-    reason="ANTHROPIC_API_KEY not set — skipping LLM integration tests",
-)
+@pytest.mark.recorded("charge_processing", "pre_interview_research")
 class TestFullPipeline:
-    """Full end-to-end pipeline test with real LLM calls.
+    """Full end-to-end pipeline, replayed from real recordings (no key, no network).
 
-    Requires ANTHROPIC_API_KEY environment variable.
+    Recorded by a team member with ``MODEL_GATEWAY_MODE=record`` and their own key
+    (PHASE_1_MODEL_GATEWAY.md §5.5).
     """
 
     @pytest.mark.asyncio

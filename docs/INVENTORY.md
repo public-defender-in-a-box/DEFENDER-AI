@@ -8,11 +8,11 @@
 
 | What | Files | Lines |
 |---|---|---|
-| Python, `packages/api/src` (non-test) | 99 | 18322 |
-| Python tests, `packages/api` (incl. in-package tests) | 29 | 8283 |
+| Python, `packages/api/src` (non-test) | 99 | 18019 |
+| Python tests, `packages/api` (incl. in-package tests) | 30 | 8612 |
 | TypeScript, `packages/web/src` | 66 | 4195 |
 
-Test functions: **299** in 20 files (parametrized tests count once).
+Test functions: **306** in 21 files (parametrized tests count once).
 
 ## Agents
 
@@ -26,9 +26,9 @@ Test functions: **299** in 20 files (parametrized tests count once).
 | Agent ID | Module | STATUS | Lines | Registered | In app | Used by | Tests |
 |---|---|---|---|---|---|---|---|
 | `ethics_monitor` | `agents/cross_cutting/ethics_monitor.py` | REAL | 1127 | — | yes | `agents/graph.py`, `agents/tier0/orchestrator.py` | 65 |
-| `orchestrator` | `agents/tier0/orchestrator.py` | REAL | 525 | — | yes | `agents/graph.py`, `routes/_store.py`, `routes/upload.py` | 63 |
+| `orchestrator` | `agents/tier0/orchestrator.py` | REAL | 525 | — | yes | `agents/graph.py`, `routes/_store.py`, `routes/upload.py` | 69 |
 | `case_prep_conductor` | `agents/tier1/case_prep.py` | STUB | 50 | yes | yes | `routes/intake.py` | — |
-| `charge_processing` | `agents/tier1/charge_processing.py` | REAL | 785 | yes | yes | `agents/graph.py`, `routes/upload.py` | 26 |
+| `charge_processing` | `agents/tier1/charge_processing.py` | REAL | 482 | yes | yes | `agents/graph.py`, `routes/upload.py` | 32 |
 | `intake_conductor` | `agents/tier1/intake_conductor.py` | REAL | 1396 | yes | yes | `routes/intake.py` | 26 |
 | `pre_interview_research` | `agents/tier1/pre_interview.py` | PARTIAL | 236 | yes | yes | `agents/graph.py`, `routes/upload.py` | 26 |
 | `brady_agent` | `agents/tier2_attorney/brady_agent.py` | STUB | 63 | — | — | — | — |
@@ -115,11 +115,12 @@ once.
 | `packages/api/tests/agents/tier2_attorney/test_motion_drafter.py` | 11 |
 | `packages/api/tests/agents/tier2_attorney/test_plea_trial_analyst.py` | 20 |
 | `packages/api/tests/test_agent_registry.py` | 8 |
-| `packages/api/tests/test_charge_processing.py` | 2 |
+| `packages/api/tests/test_charge_processing.py` | 6 |
 | `packages/api/tests/test_disclosure_tracking.py` | 23 |
 | `packages/api/tests/test_ethics_monitor.py` | 39 |
+| `packages/api/tests/test_gateway_migration.py` | 2 |
 | `packages/api/tests/test_intake.py` | 2 |
-| `packages/api/tests/test_model_gateway.py` | 24 |
+| `packages/api/tests/test_model_gateway.py` | 25 |
 | `packages/api/tests/test_orchestrator.py` | 2 |
 | `packages/api/tests/test_pipeline_integration.py` | 26 |
 | `packages/api/tests/test_research_agents.py` | 21 |

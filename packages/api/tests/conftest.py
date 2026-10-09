@@ -22,6 +22,7 @@ import pytest
 from src.config import settings
 from src.services import measurements
 from src.services.model_gateway import gateway
+from src.services.model_gateway.cassettes import DEFAULT_CASSETTE_ROOT
 
 
 class LiveNetworkBlocked(RuntimeError):
@@ -63,6 +64,33 @@ def gateway_test_mode(monkeypatch: pytest.MonkeyPatch) -> Iterator[str]:
     yield mode
     gateway.set_client(None)
     gateway.set_store(None)
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    config.addinivalue_line(
+        "markers",
+        "recorded(*agent_ids): replays real recordings for these agents. Skipped only "
+        "while no cassette exists for an agent on the primary model (the recording pass "
+        "has not run, §5.5); once any exists, a missing cassette fails loudly.",
+    )
+
+
+@pytest.fixture(autouse=True)
+def recorded_marker(request: pytest.FixtureRequest, gateway_test_mode: str) -> None:
+    marker = request.node.get_closest_marker("recorded")
+    if marker is None or gateway_test_mode != "replay":
+        return
+    model = settings.CLAUDE_MODEL_PRIMARY
+    unrecorded = [
+        agent
+        for agent in marker.args
+        if not any((DEFAULT_CASSETTE_ROOT / model / agent).glob("*.json"))
+    ]
+    if unrecorded:
+        pytest.skip(
+            f"awaiting the recording pass: no {model} cassettes for {', '.join(unrecorded)} "
+            "(PHASE_1_MODEL_GATEWAY.md §5.5)"
+        )
 
 
 @pytest.fixture(autouse=True)

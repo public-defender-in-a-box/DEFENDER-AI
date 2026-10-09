@@ -16,7 +16,13 @@ from datetime import datetime, timezone
 from typing import Any
 
 from src.agents.base_agent import BaseAgent
-from src.services.llm_service import call_llm
+from src.models.responses.charge_processing import (
+    CrossDocumentAnalysis,
+    DocumentClassification,
+    DocumentExtraction,
+)
+from src.prompts import compose_version, load_prompt
+from src.services.model_gateway import ModelCallRequest, call_model
 
 STATUS = "REAL"
 
@@ -27,347 +33,51 @@ _REVIEW_THRESHOLD = 0.5
 
 
 # ---------------------------------------------------------------------------
-# Prompts — preserved from standalone charge-processing-agent
+# Prompts — preserved from standalone charge-processing-agent, now versioned files
+# under src/prompts/charge_processing/
 # ---------------------------------------------------------------------------
 
-_SYSTEM_PROMPT = (
-    "You are a legal document analysis AI assisting a public defender's office "
-    "in Georgia. You extract structured information from criminal case documents "
-    "with precision and thoroughness.\n\n"
-    "JURISDICTION KNOWLEDGE:\n"
-    "- Georgia State: O.C.G.A. Title 16 (Crimes and Offenses), Title 17 (Criminal Procedure)\n"
-    "- Georgia uses accusations for misdemeanors (no grand jury required)\n"
-    "- Felonies require grand jury indictment under Georgia Constitution Art. I, \u00a7 I, \u00b6 VIII\n"
-    "- Georgia First Offender Act: O.C.G.A. \u00a7 42-8-60\n"
-    "- Georgia recidivist statute: O.C.G.A. \u00a7 17-10-7\n"
-    "- Court structure: Magistrate Courts (preliminary hearings, warrants), "
-    "State Courts (misdemeanors), Superior Courts (felonies)\n"
-    "- Federal: Title 18 U.S.C., Federal Rules of Criminal Procedure (Rules 7, 8, 12)\n"
-    "- Federal Sentencing Guidelines (USSG)\n"
-    "- Federal mandatory minimums (especially 21 U.S.C. \u00a7\u00a7 841, 846 for drug offenses)\n"
-    "- Federal conspiracy: 18 U.S.C. \u00a7 371\n"
-    "- Relevant conduct under USSG \u00a7 1B1.3\n"
-    "- Speedy Trial Act: 18 U.S.C. \u00a7\u00a7 3161-3174\n"
-    "- Brady v. Maryland / Giglio v. United States discovery obligations\n\n"
-    "EXTRACTION PRINCIPLES:\n"
-    "1. Extract EVERY relevant detail \u2014 completeness over speed. "
-    "A missed fact is worse than a false positive.\n"
-    "2. Assign confidence scores (0.0-1.0) to every extraction:\n"
-    "   - 0.9-1.0: Directly stated in clear text\n"
-    "   - 0.7-0.89: Strong extraction with minor ambiguity\n"
-    "   - 0.5-0.69: Reasonable inference with some uncertainty\n"
-    "   - 0.3-0.49: Uncertain, may be incorrect\n"
-    "   - 0.0-0.29: Best guess, likely needs correction\n"
-    "3. Always include source references (document ID and page number).\n"
-    "4. Never make legal judgments \u2014 extract, organize, and flag, "
-    "but do not recommend strategy.\n"
-    "5. Apply equal analytical rigor to all sources. Do not be more skeptical "
-    "of defendant statements than officer statements.\n"
-    "6. Actively look for misconduct indicators \u2014 do not just passively note obvious ones.\n"
-    "7. Flag uncertainty rather than guessing. A REVIEW_REQUIRED tag is better "
-    "than a wrong answer.\n\n"
-    "MISCONDUCT DETECTION \u2014 actively look for:\n"
-    "- Temporal inconsistencies in police reports (timeline doesn't add up)\n"
-    "- Boilerplate language suggesting copy-paste rather than genuine recollection\n"
-    "- Consent-to-search language that appears formulaic\n"
-    "- Miranda warnings administered after questioning already occurred\n"
-    "- Excessive time between arrest and booking\n"
-    "- Discrepancies between officer reports and witness accounts\n"
-    "- Force descriptions disproportionate to alleged resistance\n"
-    "- Search/seizure without articulated probable cause or warrant\n"
-    "- Evidence discovered in circumstances suggesting planted evidence\n"
-    "- Indications that exculpatory evidence was available but not disclosed\n\n"
-    "OUTPUT FORMAT: Always respond with valid JSON matching the requested schema. "
-    "Do not include any text outside the JSON object."
-)
+_SYSTEM = load_prompt("charge_processing.system", "v1")
+_EXTRACT = load_prompt("charge_processing.extract", "v1")
+_CLASSIFY = load_prompt("charge_processing.classify", "v1")
+_CLASSIFY_INPUT = load_prompt("charge_processing.classify_input", "v1")
+_CROSS_DOCUMENT = load_prompt("charge_processing.cross_document", "v1")
 
-_EXTRACTION_PROMPT = """Analyze this criminal case document and extract ALL structured information.
-
-Document ID: {document_id}
-Document Type: {document_type} (confidence: {doc_type_confidence})
-Filename: {filename}
-
-DOCUMENT TEXT:
-{document_text}
-
-Extract the following into a single JSON object. For every field that involves interpretation, include a "confidence" score (0.0-1.0) and "source_reference" (page number).
-
-Required JSON structure:
-{{
-  "defendant": {{
-    "name": "string",
-    "aliases": ["list"],
-    "date_of_birth": "string or null",
-    "address": "string or null",
-    "prior_record_mentioned": true/false,
-    "prior_record_details": "string or null",
-    "custody_status": "string or 'unknown'",
-    "confidence": 0.0-1.0,
-    "source_reference": "page number(s)"
-  }},
-  "charges": [
-    {{
-      "count_number": 1,
-      "charge_description": "plain language description",
-      "statute": {{
-        "code": "e.g., O.C.G.A. \u00a7 16-8-2 or 18 U.S.C. \u00a7 922(g)(1)",
-        "title": "short title",
-        "full_text_reference": "pointer for statute lookup"
-      }},
-      "degree": "felony/misdemeanor + level",
-      "classification": "e.g., Class B Felony",
-      "elements": [
-        {{
-          "element": "what prosecution must prove",
-          "factual_support_in_charging_document": "what the document alleges or null",
-          "confidence": 0.0-1.0
-        }}
-      ],
-      "penalty_range": {{
-        "minimum": "string",
-        "maximum": "string",
-        "mandatory_minimum": "string or null",
-        "notes": "string"
-      }},
-      "enhancements": [
-        {{
-          "type": "weapon/prior_record/school_zone/gang/hate_crime/etc.",
-          "statute": "string",
-          "additional_penalty": "string",
-          "factual_basis": "string",
-          "confidence": 0.0-1.0,
-          "source_reference": "page"
-        }}
-      ],
-      "lesser_included_offenses": ["statutory references"],
-      "date_of_alleged_offense": "string or null",
-      "location_of_alleged_offense": "string or null",
-      "confidence": 0.0-1.0,
-      "source_reference": "page"
-    }}
-  ],
-  "factual_allegations": [
-    {{
-      "allegation_id": "FA-001",
-      "summary": "concise plain-language summary",
-      "detail": "fuller description with specifics",
-      "source_document": "{document_id}",
-      "source_page": "page number",
-      "category": "criminal_conduct|arrest_circumstances|search_and_seizure|statement_by_defendant|statement_by_witness|physical_evidence|officer_observation",
-      "related_charges": [1],
-      "exculpatory_potential": false,
-      "exculpatory_notes": "why this might help defense, or null",
-      "confidence": 0.0-1.0
-    }}
-  ],
-  "persons_of_interest": [
-    {{
-      "person_id": "PER-001",
-      "name": "string",
-      "role": "officer|detective|witness|victim|co-defendant|informant|forensic_expert|prosecutor|other",
-      "badge_number": "string or null",
-      "agency": "string or null",
-      "involvement_summary": "string",
-      "documents_appearing_in": ["{document_id}"],
-      "potential_impeachment_notes": "string or null",
-      "confidence": 0.0-1.0
-    }}
-  ],
-  "evidence_items": [
-    {{
-      "description": "string",
-      "type": "physical|documentary|testimonial|digital|forensic",
-      "chain_of_custody_notes": "string or null",
-      "source_reference": "page",
-      "confidence": 0.0-1.0
-    }}
-  ],
-  "misconduct_flags": [
-    {{
-      "flag_id": "MF-001",
-      "category": "police_misconduct|prosecutorial_misconduct|procedural_violation|rights_violation|evidence_handling",
-      "subcategory": "excessive_force|unlawful_search|miranda_violation|coerced_confession|chain_of_custody|brady_indicator|fabrication|racial_profiling|etc.",
-      "description": "what was detected",
-      "factual_basis": "specific facts from the document",
-      "legal_significance": "why this matters (e.g., basis for suppression motion)",
-      "severity": "high|medium|low",
-      "source_document": "{document_id}",
-      "source_page": "page",
-      "related_charges": [],
-      "confidence": 0.0-1.0
-    }}
-  ],
-  "procedural_flags": [
-    {{
-      "flag_type": "speedy_trial_deadline|preliminary_hearing_required|grand_jury_required|mandatory_appearance|discovery_deadline",
-      "description": "string",
-      "deadline_date": "string or null",
-      "calculated_from": "string or null",
-      "statute_reference": "string",
-      "confidence": 0.0-1.0
-    }}
-  ]
-}}
-
-IMPORTANT:
-- Extract EVERYTHING relevant, even if uncertain (assign low confidence instead of omitting)
-- For charges, identify ALL counts including lesser-included offenses
-- For misconduct, actively analyze the narrative for red flags
-- Include page references for all extractions
-- If the document doesn't contain certain categories (e.g., a lab report won't have charges), return empty arrays for those fields"""
-
-_CLASSIFICATION_PROMPT = (
-    "You are a legal document classifier for a criminal defense system "
-    "operating in Georgia (state and federal courts).\n\n"
-    "Given the text of a document, classify it as one of these types:\n"
-    "- indictment: A grand jury indictment or superseding indictment\n"
-    "- information: A criminal information filed by a prosecutor\n"
-    "- accusation: A Georgia misdemeanor accusation\n"
-    "- complaint: A criminal complaint or affidavit\n"
-    "- arrest_report: An arrest report or booking record\n"
-    "- police_report: A police/incident report, supplemental report, or use-of-force report\n"
-    "- witness_statement: A statement from a witness or victim\n"
-    "- lab_report: A lab report, forensic report, toxicology report\n"
-    "- search_warrant: A search warrant application, affidavit, return, or inventory\n"
-    "- other: Any other document type\n\n"
-    "Respond with ONLY a JSON object in this exact format:\n"
-    '{\n  "document_type": "<type>",\n  "confidence": <0.0-1.0>,\n'
-    '  "reasoning": "<brief explanation>"\n}'
-)
-
-_VALID_DOCUMENT_TYPES = {
-    "indictment",
-    "information",
-    "accusation",
-    "complaint",
-    "arrest_report",
-    "police_report",
-    "witness_statement",
-    "lab_report",
-    "search_warrant",
-    "other",
-}
-
-_CROSS_DOCUMENT_ANALYSIS_PROMPT = """You are analyzing multiple documents from the same criminal case for a public defender's office in Georgia.
-
-You have been given per-document extractions. Your job is to perform cross-document analysis:
-
-1. INCONSISTENCIES: Identify factual contradictions or discrepancies between documents.
-2. MISCONDUCT PATTERNS: Detect patterns across documents that suggest police or prosecutorial misconduct.
-3. BRADY INDICATORS: Identify facts suggesting exculpatory evidence that may exist but wasn't disclosed.
-4. DIVERSION ELIGIBILITY: Based on the charges and defendant info, assess preliminary eligibility for:
-   - Georgia First Offender Act (O.C.G.A. \u00a7 42-8-60)
-   - Pretrial diversion (varies by judicial circuit, requires DA approval)
-   - Drug court (if drug charges present)
-   - Federal pretrial diversion (if federal case)
-
-CASE DATA:
-{case_data}
-
-Respond with a JSON object:
-{{
-  "jurisdiction": {{
-    "level": "state|federal|unknown",
-    "court": "best determination of the court",
-    "confidence": 0.0-1.0
-  }},
-  "inconsistencies": [
-    {{
-      "inconsistency_id": "INC-001",
-      "description": "what is inconsistent",
-      "document_a": {{"document_id": "string", "page": 1, "claim": "what doc A says"}},
-      "document_b": {{"document_id": "string", "page": 1, "claim": "what doc B says"}},
-      "defense_relevance": "how this helps the defense",
-      "severity": "high|medium|low",
-      "confidence": 0.0-1.0
-    }}
-  ],
-  "additional_misconduct_flags": [
-    {{
-      "flag_id": "MF-CROSS-001",
-      "category": "police_misconduct|prosecutorial_misconduct|procedural_violation|rights_violation|evidence_handling",
-      "subcategory": "string",
-      "description": "cross-document pattern detected",
-      "factual_basis": "specific facts from multiple documents",
-      "legal_significance": "why this matters",
-      "severity": "high|medium|low",
-      "source_document": "multiple",
-      "source_page": "multiple",
-      "related_charges": [],
-      "confidence": 0.0-1.0
-    }}
-  ],
-  "diversion_eligibility": {{
-    "first_offender_act_eligible": {{
-      "potentially_eligible": true/false,
-      "basis": "reasoning",
-      "disqualifying_factors": [],
-      "confidence": 0.0-1.0
-    }},
-    "pretrial_diversion_eligible": {{
-      "potentially_eligible": true/false,
-      "basis": "reasoning",
-      "notes": "string",
-      "confidence": 0.0-1.0
-    }},
-    "drug_court_eligible": {{
-      "potentially_eligible": true/false,
-      "basis": "reasoning",
-      "confidence": 0.0-1.0
-    }},
-    "federal_pretrial_diversion": {{
-      "potentially_eligible": true/false,
-      "basis": "reasoning",
-      "confidence": 0.0-1.0
-    }}
-  }},
-  "consolidated_defendant": {{
-    "name": "best name from all documents",
-    "aliases": [],
-    "date_of_birth": "string or null",
-    "address": "string or null",
-    "prior_record_mentioned": true/false,
-    "prior_record_details": "string or null",
-    "custody_status": "string",
-    "confidence": 0.0-1.0,
-    "source_reference": "best source"
-  }}
-}}
-
-IMPORTANT:
-- Compare timelines across documents for inconsistencies
-- Look for officer statements that conflict with witness statements
-- Check if Miranda timing is consistent across documents
-- Compare descriptions of the same events from different sources
-- Flag any facts that suggest exculpatory evidence should exist"""
+# Thinking tokens count toward max_tokens on current models (Phase 1 §2).
+_CLASSIFY_MAX_TOKENS = 4000
+_EXTRACT_MAX_TOKENS = 16000
+_CROSS_DOCUMENT_MAX_TOKENS = 16000
 
 
 # ---------------------------------------------------------------------------
-# Extraction helpers
+# Extraction helpers. A failed model call raises (ModelCallError); there is no
+# empty-extraction fallback, so a failure can never be merged as a zero-charge
+# success (PHASE_1_MODEL_GATEWAY.md §3).
 # ---------------------------------------------------------------------------
 
 
 async def _classify_document(text: str, filename: str) -> dict[str, Any]:
-    """Classify document type using LLM. Fallback to 'other' on failure."""
+    """Classify document type."""
     if not text or len(text.strip()) < 20:
-        return {"document_type": "other", "confidence": 0.1, "reasoning": "Insufficient text"}
+        return {"document_type": "other", "confidence": 0.1, "rationale": "Insufficient text"}
 
-    sample = text[:4000]
-    prompt = f"Filename: {filename}\n\nDocument text (first portion):\n{sample}"
-
-    try:
-        result = await call_llm(prompt, system=_CLASSIFICATION_PROMPT, max_tokens=512)
-        doc_type = result.get("document_type", "other")
-        if doc_type not in _VALID_DOCUMENT_TYPES:
-            doc_type = "other"
-        return {
-            "document_type": doc_type,
-            "confidence": min(max(float(result.get("confidence", 0.5)), 0.0), 1.0),
-            "reasoning": result.get("reasoning", ""),
-        }
-    except Exception:
-        logger.exception("Classification failed for %s", filename)
-        return {"document_type": "other", "confidence": 0.3, "reasoning": "Classification error"}
+    result = await call_model(
+        ModelCallRequest(
+            prompt=_CLASSIFY_INPUT.text.format(filename=filename, sample=text[:4000]),
+            system=_CLASSIFY.text,
+            max_tokens=_CLASSIFY_MAX_TOKENS,
+            response_model=DocumentClassification,
+            prompt_id="charge_processing.classify",
+            prompt_version=compose_version(_CLASSIFY, _CLASSIFY_INPUT),
+            agent_id="charge_processing",
+        )
+    )
+    classification = result.data
+    return {
+        "document_type": classification.document_type,
+        "confidence": min(max(classification.confidence, 0.0), 1.0),
+        "rationale": classification.rationale,
+    }
 
 
 async def _extract_from_document(
@@ -377,20 +87,25 @@ async def _extract_from_document(
     doc_type_confidence: float,
     filename: str,
 ) -> dict[str, Any]:
-    """Run Pass 1 LLM extraction on a single document."""
-    prompt = _EXTRACTION_PROMPT.format(
-        document_id=document_id,
-        document_type=document_type,
-        doc_type_confidence=doc_type_confidence,
-        filename=filename,
-        document_text=document_text,
+    """Run Pass 1 extraction on a single document."""
+    result = await call_model(
+        ModelCallRequest(
+            prompt=_EXTRACT.text.format(
+                document_id=document_id,
+                document_type=document_type,
+                doc_type_confidence=doc_type_confidence,
+                filename=filename,
+                document_text=document_text,
+            ),
+            system=_SYSTEM.text,
+            max_tokens=_EXTRACT_MAX_TOKENS,
+            response_model=DocumentExtraction,
+            prompt_id="charge_processing.extract",
+            prompt_version=compose_version(_SYSTEM, _EXTRACT),
+            agent_id="charge_processing",
+        )
     )
-
-    try:
-        return await call_llm(prompt, system=_SYSTEM_PROMPT, max_tokens=8192)
-    except Exception:
-        logger.exception("Extraction failed for %s (%s)", filename, document_id)
-        return _empty_extraction(document_id)
+    return result.data.model_dump()
 
 
 async def _run_cross_document_analysis(
@@ -404,13 +119,18 @@ async def _run_cross_document_analysis(
     if len(case_data) > 100_000:
         case_data = case_data[:100_000] + "\n... [TRUNCATED]"
 
-    prompt = _CROSS_DOCUMENT_ANALYSIS_PROMPT.format(case_data=case_data)
-
-    try:
-        return await call_llm(prompt, system=_SYSTEM_PROMPT, max_tokens=8192)
-    except Exception:
-        logger.exception("Cross-document analysis failed")
-        return _empty_analysis()
+    result = await call_model(
+        ModelCallRequest(
+            prompt=_CROSS_DOCUMENT.text.format(case_data=case_data),
+            system=_SYSTEM.text,
+            max_tokens=_CROSS_DOCUMENT_MAX_TOKENS,
+            response_model=CrossDocumentAnalysis,
+            prompt_id="charge_processing.cross_document",
+            prompt_version=compose_version(_SYSTEM, _CROSS_DOCUMENT),
+            agent_id="charge_processing",
+        )
+    )
+    return result.data.model_dump()
 
 
 # ---------------------------------------------------------------------------
@@ -588,31 +308,8 @@ def _compute_overall_confidence(case_output: dict[str, Any]) -> float:
     return round(weighted / total, 3)
 
 
-def _empty_extraction(document_id: str) -> dict[str, Any]:
-    """Minimal extraction structure when extraction fails."""
-    return {
-        "defendant": {
-            "name": "UNKNOWN",
-            "aliases": [],
-            "date_of_birth": None,
-            "address": None,
-            "prior_record_mentioned": False,
-            "prior_record_details": None,
-            "custody_status": "unknown",
-            "confidence": 0.0,
-            "source_reference": document_id,
-        },
-        "charges": [],
-        "factual_allegations": [],
-        "persons_of_interest": [],
-        "evidence_items": [],
-        "misconduct_flags": [],
-        "procedural_flags": [],
-    }
-
-
 def _empty_analysis() -> dict[str, Any]:
-    """Empty cross-document analysis structure when analysis fails."""
+    """Cross-document analysis structure when there are no documents to analyze."""
     return {
         "jurisdiction": {"level": "unknown", "court": "unknown", "confidence": 0.0},
         "inconsistencies": [],

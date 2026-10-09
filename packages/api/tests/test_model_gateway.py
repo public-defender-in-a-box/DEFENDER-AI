@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import socket
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -372,3 +373,15 @@ async def test_startup_fails_fast_without_key(monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setattr(settings, "MODEL_GATEWAY_MODE", "replay")
     async with lifespan(app):
         pass  # replay needs no key
+
+
+@pytest.fixture
+def declared_fixture() -> Iterator[None]:
+    with using_fixtures(FIXTURE):
+        yield
+
+
+async def test_fixture_ids_reach_async_tests(declared_fixture: None) -> None:
+    from src.services.model_gateway.cassettes import current_fixture_ids
+
+    assert current_fixture_ids() == (FIXTURE,)

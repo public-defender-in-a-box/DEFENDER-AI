@@ -1,0 +1,134 @@
+Analyze this criminal case document and extract ALL structured information.
+
+Document ID: {document_id}
+Document Type: {document_type} (confidence: {doc_type_confidence})
+Filename: {filename}
+
+DOCUMENT TEXT:
+{document_text}
+
+Extract the following into a single JSON object. For every field that involves interpretation, include a "confidence" score (0.0-1.0) and "source_reference" (page number).
+
+Required JSON structure:
+{{
+  "defendant": {{
+    "name": "string",
+    "aliases": ["list"],
+    "date_of_birth": "string or null",
+    "address": "string or null",
+    "prior_record_mentioned": true/false,
+    "prior_record_details": "string or null",
+    "custody_status": "string or 'unknown'",
+    "confidence": 0.0-1.0,
+    "source_reference": "page number(s)"
+  }},
+  "charges": [
+    {{
+      "count_number": 1,
+      "charge_description": "plain language description",
+      "statute": {{
+        "code": "e.g., O.C.G.A. § 16-8-2 or 18 U.S.C. § 922(g)(1)",
+        "title": "short title",
+        "full_text_reference": "pointer for statute lookup"
+      }},
+      "degree": "felony/misdemeanor + level",
+      "classification": "e.g., Class B Felony",
+      "elements": [
+        {{
+          "element": "what prosecution must prove",
+          "factual_support_in_charging_document": "what the document alleges or null",
+          "confidence": 0.0-1.0
+        }}
+      ],
+      "penalty_range": {{
+        "minimum": "string",
+        "maximum": "string",
+        "mandatory_minimum": "string or null",
+        "notes": "string"
+      }},
+      "enhancements": [
+        {{
+          "type": "weapon/prior_record/school_zone/gang/hate_crime/etc.",
+          "statute": "string",
+          "additional_penalty": "string",
+          "factual_basis": "string",
+          "confidence": 0.0-1.0,
+          "source_reference": "page"
+        }}
+      ],
+      "lesser_included_offenses": ["statutory references"],
+      "date_of_alleged_offense": "string or null",
+      "location_of_alleged_offense": "string or null",
+      "confidence": 0.0-1.0,
+      "source_reference": "page"
+    }}
+  ],
+  "factual_allegations": [
+    {{
+      "allegation_id": "FA-001",
+      "summary": "concise plain-language summary",
+      "detail": "fuller description with specifics",
+      "source_document": "{document_id}",
+      "source_page": "page number",
+      "category": "criminal_conduct|arrest_circumstances|search_and_seizure|statement_by_defendant|statement_by_witness|physical_evidence|officer_observation",
+      "related_charges": [1],
+      "exculpatory_potential": false,
+      "exculpatory_notes": "why this might help defense, or null",
+      "confidence": 0.0-1.0
+    }}
+  ],
+  "persons_of_interest": [
+    {{
+      "person_id": "PER-001",
+      "name": "string",
+      "role": "officer|detective|witness|victim|co-defendant|informant|forensic_expert|prosecutor|other",
+      "badge_number": "string or null",
+      "agency": "string or null",
+      "involvement_summary": "string",
+      "documents_appearing_in": ["{document_id}"],
+      "potential_impeachment_notes": "string or null",
+      "confidence": 0.0-1.0
+    }}
+  ],
+  "evidence_items": [
+    {{
+      "description": "string",
+      "type": "physical|documentary|testimonial|digital|forensic",
+      "chain_of_custody_notes": "string or null",
+      "source_reference": "page",
+      "confidence": 0.0-1.0
+    }}
+  ],
+  "misconduct_flags": [
+    {{
+      "flag_id": "MF-001",
+      "category": "police_misconduct|prosecutorial_misconduct|procedural_violation|rights_violation|evidence_handling",
+      "subcategory": "excessive_force|unlawful_search|miranda_violation|coerced_confession|chain_of_custody|brady_indicator|fabrication|racial_profiling|etc.",
+      "description": "what was detected",
+      "factual_basis": "specific facts from the document",
+      "legal_significance": "why this matters (e.g., basis for suppression motion)",
+      "severity": "high|medium|low",
+      "source_document": "{document_id}",
+      "source_page": "page",
+      "related_charges": [],
+      "confidence": 0.0-1.0
+    }}
+  ],
+  "procedural_flags": [
+    {{
+      "flag_type": "speedy_trial_deadline|preliminary_hearing_required|grand_jury_required|mandatory_appearance|discovery_deadline",
+      "description": "string",
+      "deadline_date": "string or null",
+      "calculated_from": "string or null",
+      "statute_reference": "string",
+      "confidence": 0.0-1.0
+    }}
+  ]
+}}
+
+IMPORTANT:
+- Extract EVERYTHING relevant, even if uncertain (assign low confidence instead of omitting)
+- For charges, identify ALL counts including lesser-included offenses
+- For misconduct, actively analyze the narrative for red flags
+- Include page references for all extractions
+- If the document doesn't contain certain categories (e.g., a lab report won't have charges), return empty arrays for those fields

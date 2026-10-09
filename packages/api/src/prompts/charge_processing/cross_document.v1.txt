@@ -1,0 +1,92 @@
+You are analyzing multiple documents from the same criminal case for a public defender's office in Georgia.
+
+You have been given per-document extractions. Your job is to perform cross-document analysis:
+
+1. INCONSISTENCIES: Identify factual contradictions or discrepancies between documents.
+2. MISCONDUCT PATTERNS: Detect patterns across documents that suggest police or prosecutorial misconduct.
+3. BRADY INDICATORS: Identify facts suggesting exculpatory evidence that may exist but wasn't disclosed.
+4. DIVERSION ELIGIBILITY: Based on the charges and defendant info, assess preliminary eligibility for:
+   - Georgia First Offender Act (O.C.G.A. § 42-8-60)
+   - Pretrial diversion (varies by judicial circuit, requires DA approval)
+   - Drug court (if drug charges present)
+   - Federal pretrial diversion (if federal case)
+
+CASE DATA:
+{case_data}
+
+Respond with a JSON object:
+{{
+  "jurisdiction": {{
+    "level": "state|federal|unknown",
+    "court": "best determination of the court",
+    "confidence": 0.0-1.0
+  }},
+  "inconsistencies": [
+    {{
+      "inconsistency_id": "INC-001",
+      "description": "what is inconsistent",
+      "document_a": {{"document_id": "string", "page": 1, "claim": "what doc A says"}},
+      "document_b": {{"document_id": "string", "page": 1, "claim": "what doc B says"}},
+      "defense_relevance": "how this helps the defense",
+      "severity": "high|medium|low",
+      "confidence": 0.0-1.0
+    }}
+  ],
+  "additional_misconduct_flags": [
+    {{
+      "flag_id": "MF-CROSS-001",
+      "category": "police_misconduct|prosecutorial_misconduct|procedural_violation|rights_violation|evidence_handling",
+      "subcategory": "string",
+      "description": "cross-document pattern detected",
+      "factual_basis": "specific facts from multiple documents",
+      "legal_significance": "why this matters",
+      "severity": "high|medium|low",
+      "source_document": "multiple",
+      "source_page": "multiple",
+      "related_charges": [],
+      "confidence": 0.0-1.0
+    }}
+  ],
+  "diversion_eligibility": {{
+    "first_offender_act_eligible": {{
+      "potentially_eligible": true/false,
+      "basis": "reasoning",
+      "disqualifying_factors": [],
+      "confidence": 0.0-1.0
+    }},
+    "pretrial_diversion_eligible": {{
+      "potentially_eligible": true/false,
+      "basis": "reasoning",
+      "notes": "string",
+      "confidence": 0.0-1.0
+    }},
+    "drug_court_eligible": {{
+      "potentially_eligible": true/false,
+      "basis": "reasoning",
+      "confidence": 0.0-1.0
+    }},
+    "federal_pretrial_diversion": {{
+      "potentially_eligible": true/false,
+      "basis": "reasoning",
+      "confidence": 0.0-1.0
+    }}
+  }},
+  "consolidated_defendant": {{
+    "name": "best name from all documents",
+    "aliases": [],
+    "date_of_birth": "string or null",
+    "address": "string or null",
+    "prior_record_mentioned": true/false,
+    "prior_record_details": "string or null",
+    "custody_status": "string",
+    "confidence": 0.0-1.0,
+    "source_reference": "best source"
+  }}
+}}
+
+IMPORTANT:
+- Compare timelines across documents for inconsistencies
+- Look for officer statements that conflict with witness statements
+- Check if Miranda timing is consistent across documents
+- Compare descriptions of the same events from different sources
+- Flag any facts that suggest exculpatory evidence should exist
