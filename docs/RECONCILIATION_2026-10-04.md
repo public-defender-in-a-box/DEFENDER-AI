@@ -81,7 +81,7 @@ phase numbers; §5 records what Phase 0 did. SPEC v2.1 later renumbered the phas
 | Disclosure tracking: "no such file has ever existed" | **Wrong.** `disclosure_tracking.py` (573 lines) plus 23 tests, on `main` since March 23 (PR #3). It **is** in `_AGENT_CONFIG` but **nothing ever invokes it** | Wrong |
 | Thirteen Tier 2 agents are 35–65 line stubs | **12 stub files on `main`:** `recency_monitor` 35, `case_prep` 48 (Tier 1), `personal_circumstances` 49, `citation_verifier` 51, `statute_agent` 51, `fact_gatherer` 52, `collateral_agent` 54, `case_law_agent` 57, `sentencing_agent.py` 57 (dead), `brady_agent` 61, `plea_trial_analyst` 61, `motion_drafter` 63. Open branches replace or supersede 8 of them, and the dead sentencing stub is deleted on another branch, leaving only `recency_monitor`, `brady_agent`, and `case_prep` (§1.4) | Roughly right on `main`; wrong for the project |
 | `corpus/data/` empty | Confirmed. **Also:** `.gitignore` excludes `packages/api/src/corpus/data/*.json`, so Phase 4's corpus would be silently left out of commits. `corpus/loader.py` defaults to `"IL"` | Correct, with a hazard |
-| `llm_service.py` 42 lines, no retry, timeout, accounting, or validation, bare `json.loads`; docstring overclaims | 41 lines (after black). The docstring overclaims as described. **Nuance:** the Anthropic SDK client already retries twice and has a default timeout, so the real gaps are typed validation, failure semantics, token accounting, recording, and model pinning. **New:** the default model `claude-sonnet-4-20250514` is deprecated. The installed SDK warns of end-of-life on June 15, 2026; Anthropic's model list shows its retirement date as "TBD". Not verified with a live call (correction, October 4: an earlier version of this row said live calls fail) | Mostly correct |
+| `llm_service.py` 42 lines, no retry, timeout, accounting, or validation, bare `json.loads`; docstring overclaims | 41 lines (after black). The docstring overclaims as described. **Nuance:** the Anthropic SDK client already retries twice and has a default timeout, so the real gaps are typed validation, failure semantics, token accounting, recording, and model pinning. **New:** the default model `claude-sonnet-4-20250514` was **retired on June 15, 2026**, so every live call fails today. (Verified October 9 against Anthropic's model-deprecations page. An October 4 edit wrongly softened this to "retirement TBD", based on a cached model list.) | Mostly correct |
 | `_store.py` module-level dict; Prisma unused by the backend | Confirmed. **Also:** `packages/web/src/lib/prisma.ts` is imported by nothing, so Prisma is unused by the frontend too. **Also:** the Orchestrator keeps `_blocked`, `_merge_history`, and `_human_review_required` on the Python object, **outside `CaseState`**. Persisting `CaseState` alone will lose them | Correct, and understated |
 | Five of nineteen agents in `_AGENT_CONFIG`, with disclosure mapping to a nonexistent file | Keys: `charge_processing`, `pre_interview_research`, `intake_conductor`, `case_prep`, `case_prep_conductor` (alias), `disclosure_tracking`. **Five agents is right, but disclosure maps to a real file.** Only four are ever invoked. The real Rights Scanner is not registered at all | Count right, reason wrong |
 | Rights Scanner unmerged; `main` has a 65-line stub | **Wrong.** Merged March 24 (PR #4). On `main` with 20 tests, but **never invoked** by any route or graph | Wrong |
@@ -259,8 +259,8 @@ conflict with each other.
      - **Failure semantics:** no silent empty outputs.
      - Token accounting (reuse PR #6's `cost_tracker.py`).
      - The cassette layer.
-     - **Deliberately pinning the model the study evaluates.** The current default is
-       deprecated. Which model is studied is a research decision, not a config detail.
+     - **Deliberately pinning the model the study evaluates.** The current default was
+       retired on June 15, 2026. Which model is studied is a research decision, not a config detail.
    - The "43 tests instead of 200" rationale is wrong (185 exist), but the cassette
      argument still stands: no model-response path runs in CI.
 
@@ -362,7 +362,7 @@ produces no demonstrable output.
   - Of 24 agents, 10 are registered with the Orchestrator, and only **6 are reachable from `main.py`** (actually runnable through the app).
   - 8 of 18 `CaseState` agent-output slots have no writer.
   - The newly merged research agents are registered but not reachable from any route.
-- **The default model is deprecated.** The SDK warns of end-of-life on June 15, 2026, but Anthropic's model list shows the retirement date as "TBD", and no live call was attempted. Pinning a current model is Phase 1. (Corrected October 4; an earlier version said no live run works.)
+- **The default model was retired on June 15, 2026**, so no live run works. Pinning a current model is Phase 1. (Verified October 9 against Anthropic's model-deprecations page; an October 4 edit had wrongly softened this to "retirement TBD".)
 
 ### 5.5 What this makes measurable
 

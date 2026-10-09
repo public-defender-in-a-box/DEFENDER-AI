@@ -68,7 +68,7 @@ Defects still open after Phase 0, each with the phase that closes it:
 
 | Defect | Phase |
 |---|---|
-| `services/llm_service.py` (41 lines, 22 importers): no schema validation, no token accounting (`response.usage` is discarded), bare `json.loads`. Retries and timeouts are only the SDK's defaults. The default model `claude-sonnet-4-20250514` is deprecated (the SDK warns of end-of-life on June 15, 2026). | 1 |
+| `services/llm_service.py` (41 lines, 22 importers): no schema validation, no token accounting (`response.usage` is discarded), bare `json.loads`. Retries and timeouts are only the SDK's defaults. The default model `claude-sonnet-4-20250514` was **retired on June 15, 2026** (Anthropic's model-deprecations page), so every live call fails. | 1 |
 | 45 `except Exception` blocks across 21 agent modules, most turning a failure into a well-formed empty success. | 1 |
 | The Orchestrator blocks on `CRITICAL` ethics flags, and LOW-confidence outputs skip the ethics check entirely. | 1 |
 | No persistence (`routes/_store.py` is a module-level dict); a case cannot be re-run; Orchestrator state (`_blocked`, `_merge_history`, `_human_review_required`) lives outside `CaseState`. | 2a |
@@ -525,7 +525,7 @@ suppression-hearing simulator are post-Phase-6 and should not be scoped now.
    Phase 5 rather than during it.
 5. **Which two models to pin.** Phase 1's recorded test runs and Phase 6's scoring
    are tied to specific model versions. The current default
-   (`claude-sonnet-4-20250514`) is deprecated. Decide before Phase 1 records
+   (`claude-sonnet-4-20250514`) was retired on June 15, 2026. Decide before Phase 1 records
    anything.
 6. **Validation partner.** Prof. Hines offered introductions — her husband,
    Amanda Grantham, and contacts in the Athens PD office. Under the research
