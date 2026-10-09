@@ -523,10 +523,11 @@ suppression-hearing simulator are post-Phase-6 and should not be scoped now.
 4. **The bias probe design.** Varying demographic attributes and holding
    everything else constant sounds simple and is not. Worth deciding before
    Phase 5 rather than during it.
-5. **Which two models to pin.** Phase 1's recorded test runs and Phase 6's scoring
-   are tied to specific model versions. The current default
-   (`claude-sonnet-4-20250514`) was retired on June 15, 2026. Decide before Phase 1 records
-   anything.
+5. **Models — decided October 9, 2026.** Primary `claude-opus-5-5`; users can
+   switch a run to a cheaper allowlisted model to manage cost; no automatic
+   fallbacks; each user supplies their own API key. Still open: confirming
+   `claude-sonnet-5-5` as the comparison model before Phase 1 records anything.
+   See `PHASE_1_MODEL_GATEWAY.md` §0 and §8.
 6. **Validation partner.** Prof. Hines offered introductions — her husband,
    Amanda Grantham, and contacts in the Athens PD office. Under the research
    framing the ask is "help us find where this breaks," which is a much easier

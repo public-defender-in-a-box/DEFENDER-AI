@@ -232,7 +232,8 @@ the model had a good day. That is the whole reason this section exists.
 Persist, for each run:
 
 - `run_id`, timestamp, git commit SHA
-- model name and version, temperature, and any seed
+- model name and version, and the `effort` setting (current models accept no
+  `temperature` or seed; see `PHASE_1_MODEL_GATEWAY.md` §5.3)
 - prompt template version per agent (prompts are versioned files, not inline
   strings — see §9)
 - input fixture identifier
