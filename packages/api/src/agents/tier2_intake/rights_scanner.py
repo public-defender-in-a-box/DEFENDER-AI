@@ -21,7 +21,9 @@ import logging
 from typing import Any
 
 from src.agents.base_agent import BaseAgent
-from src.services.llm_service import call_llm
+from src.models.responses.rights import DocumentScan, NarrativeCrossReference
+from src.prompts import compose_version, load_prompt
+from src.services.model_gateway import ModelCallRequest, call_model
 
 STATUS = "REAL"
 
@@ -33,237 +35,12 @@ _CRITICAL_SEVERITIES = {"CRITICAL", "SIGNIFICANT"}
 # Confidence floor — below this, individual violation flags get LOW confidence
 _VIOLATION_CONFIDENCE_FLOOR = 0.4
 
-_SYSTEM_PROMPT = (
-    "You are a constitutional rights violation scanner for a public defender's "
-    "office in Georgia. You analyze arrest reports, officer conduct records, and "
-    "client narratives to identify potential violations of constitutional rights.\n\n"
-    "JURISDICTION KNOWLEDGE:\n"
-    "- Georgia Constitution Art. I, § I (Bill of Rights)\n"
-    "- O.C.G.A. Title 17 — Criminal Procedure\n"
-    "- O.C.G.A. § 17-5-1 et seq. — Search and Seizure\n"
-    "- O.C.G.A. § 17-5-30 — Motion to Suppress\n"
-    "- O.C.G.A. § 24-5-506 — Privileged communications\n"
-    "- O.C.G.A. § 17-4-20 — Arrest by law enforcement officers\n"
-    "- O.C.G.A. § 17-4-21 — Arrest by private person\n"
-    "- O.C.G.A. § 17-7-50 — Right to counsel\n"
-    "- O.C.G.A. § 17-7-170 — Speedy trial demand\n"
-    "- O.C.G.A. § 17-6-1 — Bail in non-capital cases\n"
-    "- Federal: 4th, 5th, 6th, 8th, 14th Amendments\n"
-    "- Key cases: Mapp v. Ohio, Miranda v. Arizona, Gideon v. Wainwright, "
-    "Terry v. Ohio, Katz v. United States, Strickland v. Washington, "
-    "Berghuis v. Thompkins, Salinas v. Texas, Riley v. California, "
-    "Carpenter v. United States\n\n"
-    "ANALYSIS PRINCIPLES:\n"
-    "1. Be thorough — a missed violation is worse than a false positive.\n"
-    "2. Assign confidence scores (0.0-1.0) to every finding.\n"
-    "3. Apply equal analytical rigor to officer and defendant accounts.\n"
-    "4. Actively look for violations — do not just passively note obvious ones.\n"
-    "5. Flag uncertainty rather than ignoring it.\n"
-    "6. Never make legal conclusions — identify issues for attorney review.\n"
-    "7. Every output that reaches the attorney must include: "
-    "'ATTORNEY REVIEW REQUIRED — This analysis is decision support only.'\n\n"
-    "OUTPUT FORMAT: Always respond with valid JSON matching the requested schema. "
-    "Do not include any text outside the JSON object."
-)
-
-# ---------------------------------------------------------------------------
-# Pass 1 — Document-level extraction
-# ---------------------------------------------------------------------------
-_PASS1_PROMPT = """Analyze the following documents for potential constitutional rights violations.
-
-ARREST REPORT:
-{arrest_report}
-
-OFFICER CONDUCT DETAILS:
-{officer_conduct}
-
-CHARGES:
-{charges}
-
-PRE-INTERVIEW FLAGS:
-{pre_interview_flags}
-
-Perform a thorough constitutional rights analysis. Return a JSON object with:
-
-{{
-  "violations": [
-    {{
-      "id": "V001",
-      "amendment": "4TH|5TH|6TH|8TH",
-      "category": "string — e.g. WARRANTLESS_SEARCH, MIRANDA_VIOLATION, etc.",
-      "description": "detailed description of the potential violation",
-      "severity": "CRITICAL|SIGNIFICANT|MODERATE|MINOR",
-      "confidence": 0.0-1.0,
-      "supporting_facts": ["fact1", "fact2"],
-      "source": "ARREST_REPORT|OFFICER_CONDUCT",
-      "legal_standard": "applicable legal standard or test",
-      "relevant_case_law": ["case1", "case2"],
-      "suppression_potential": "HIGH|MEDIUM|LOW"
-    }}
-  ],
-  "miranda_analysis": {{
-    "miranda_given": true|false|null,
-    "timing": "BEFORE_QUESTIONING|DURING_QUESTIONING|AFTER_QUESTIONING|NOT_GIVEN|UNKNOWN",
-    "custodial": true|false|null,
-    "statements_before_miranda": ["statement1"],
-    "statements_after_miranda": ["statement1"],
-    "waiver_validity": "VALID|QUESTIONABLE|INVALID|UNKNOWN",
-    "suppression_basis": "string"
-  }},
-  "search_analysis": {{
-    "search_occurred": true|false,
-    "warrant_present": true|false|null,
-    "probable_cause_articulated": "string describing stated probable cause",
-    "consent_given": true|false|null,
-    "consent_voluntariness": "VOLUNTARY|COERCED|QUESTIONABLE|NOT_APPLICABLE",
-    "scope_exceeded": true|false|null,
-    "exigent_circumstances_claimed": true|false,
-    "plain_view_claimed": true|false,
-    "search_incident_to_arrest": true|false,
-    "vehicle_exception": true|false,
-    "evidence_found": ["item1", "item2"],
-    "suppression_basis": "string"
-  }},
-  "sixth_amendment_analysis": {{
-    "counsel_requested": true|false|null,
-    "counsel_provided": true|false|null,
-    "counsel_denied_or_delayed": true|false,
-    "lineup_conducted": true|false,
-    "lineup_procedural_issues": ["issue1"],
-    "speedy_trial_concerns": "string",
-    "confrontation_issues": ["issue1"]
-  }},
-  "eighth_amendment_analysis": {{
-    "excessive_bail": true|false|null,
-    "bail_amount": "string",
-    "bail_proportionality": "string",
-    "excessive_force": true|false|null,
-    "force_description": "string",
-    "cruel_conditions": ["condition1"]
-  }}
-}}
-
-KEY AREAS TO CHECK:
-
-4TH AMENDMENT — Search and Seizure:
-- Was a warrant obtained? If so, was it properly scoped?
-- Was there probable cause? What facts support it?
-- If consent was given, was it truly voluntary (not coerced)?
-- Did the search exceed the scope of consent or warrant?
-- Were there exigent circumstances justifying a warrantless search?
-- Was plain view doctrine properly applied?
-- For vehicle searches: was there probable cause or valid exception?
-- For digital devices: was a separate warrant obtained (Riley v. California)?
-- For cell location data: warrant required (Carpenter v. United States)?
-
-5TH AMENDMENT — Self-Incrimination and Miranda:
-- Were Miranda rights read before custodial interrogation?
-- Was the person in custody (not free to leave) when questioned?
-- Were statements made before Miranda warnings administered?
-- Was the Miranda waiver knowing and voluntary?
-- Did the person invoke their right to silence? Was it honored?
-- Were there any coercive interrogation tactics?
-
-6TH AMENDMENT — Right to Counsel and Fair Trial:
-- Was counsel requested? Was request honored?
-- Was there any questioning after counsel was requested?
-- Were lineup procedures properly conducted?
-- Any speedy trial concerns?
-- Right to confront accusers preserved?
-
-8TH AMENDMENT — Bail and Punishment:
-- Was bail set at an excessive amount given the charges?
-- Was excessive force used during arrest or detention?
-- Were detention conditions cruel or unusual?
-
-Return valid JSON only."""
-
-# ---------------------------------------------------------------------------
-# Pass 2 — Client narrative cross-reference and discrepancy analysis
-# ---------------------------------------------------------------------------
-_PASS2_PROMPT = """You are cross-referencing the client's narrative against the official
-record to identify discrepancies and additional rights violations.
-
-PASS 1 VIOLATIONS FOUND:
-{pass1_violations}
-
-PASS 1 MIRANDA ANALYSIS:
-{pass1_miranda}
-
-PASS 1 SEARCH ANALYSIS:
-{pass1_search}
-
-CLIENT NARRATIVE:
-{client_narrative}
-
-ARREST REPORT:
-{arrest_report}
-
-Analyze the client's account against the official record. Return JSON with:
-
-{{
-  "additional_violations": [
-    {{
-      "id": "CV001",
-      "amendment": "4TH|5TH|6TH|8TH",
-      "category": "string",
-      "description": "string",
-      "severity": "CRITICAL|SIGNIFICANT|MODERATE|MINOR",
-      "confidence": 0.0-1.0,
-      "supporting_facts": ["fact1"],
-      "source": "CLIENT_NARRATIVE|CROSS_REFERENCE",
-      "legal_standard": "string",
-      "relevant_case_law": ["case1"],
-      "suppression_potential": "HIGH|MEDIUM|LOW"
-    }}
-  ],
-  "discrepancy_report": [
-    {{
-      "id": "D001",
-      "topic": "string — e.g. consent to search, Miranda timing, force used",
-      "officer_account": "what the officer/report says",
-      "client_account": "what the client says",
-      "significance": "CRITICAL|NOTABLE|MINOR",
-      "possible_explanations": ["explanation1"],
-      "defense_relevance": "how this discrepancy may help the defense"
-    }}
-  ],
-  "miranda_updates": {{
-    "statements_before_miranda": ["any additional statements client reports"],
-    "waiver_validity": "VALID|QUESTIONABLE|INVALID|UNKNOWN",
-    "suppression_basis": "updated basis if client narrative changes analysis"
-  }},
-  "search_updates": {{
-    "consent_given": true|false|null,
-    "consent_voluntariness": "VOLUNTARY|COERCED|QUESTIONABLE|NOT_APPLICABLE",
-    "scope_exceeded": true|false|null,
-    "suppression_basis": "updated basis"
-  }},
-  "suppression_viability": {{
-    "score": 0-100,
-    "confidence": 0.0-1.0,
-    "basis": ["legal basis for suppression motion"],
-    "risks": ["risks or weaknesses in suppression argument"],
-    "recommended_motions": ["MOTION_TO_SUPPRESS", "MOTION_TO_DISMISS", etc.]
-  }},
-  "attorney_flags": [
-    "CRITICAL: description of urgent issue for attorney"
-  ]
-}}
-
-IMPORTANT ANALYSIS NOTES:
-- Discrepancies between the officer account and client account are VERY significant.
-  Officers may omit details; clients may reveal rights violations not in the report.
-- If the client says they did NOT consent to a search but the report says they did,
-  this is a CRITICAL discrepancy.
-- If the client says they asked for a lawyer but the report doesn't mention it,
-  this is a CRITICAL discrepancy.
-- If the client says Miranda was not read but the report says it was, flag this.
-- Look for indications of coercion, intimidation, or pressure.
-- The suppression_viability score should reflect the overall strength of potential
-  suppression motions considering ALL violations and discrepancies.
-
-Return valid JSON only."""
+# Prompts: src/prompts/rights_scanner/
+_SYSTEM = load_prompt("rights_scanner.system", "v1")
+_PASS1 = load_prompt("rights_scanner.pass1", "v1")
+_PASS2 = load_prompt("rights_scanner.pass2", "v1")
+# Thinking tokens count toward max_tokens on current models (Phase 1 §2).
+_MAX_TOKENS = 16000
 
 
 class RightsScannerAgent(BaseAgent):
@@ -394,15 +171,25 @@ class RightsScannerAgent(BaseAgent):
             "\n".join(f"- {f}" for f in pre_interview_flags) if pre_interview_flags else "None"
         )
 
-        prompt = _PASS1_PROMPT.format(
+        prompt = _PASS1.text.format(
             arrest_report=arrest_report or "Not provided",
             officer_conduct=officer_conduct or "Not provided",
             charges=charges_text,
             pre_interview_flags=flags_text,
         )
 
-        result = await call_llm(prompt, system=_SYSTEM_PROMPT, max_tokens=4096)
-        return result
+        result = await call_model(
+            ModelCallRequest(
+                prompt=prompt,
+                system=_SYSTEM.text,
+                max_tokens=_MAX_TOKENS,
+                response_model=DocumentScan,
+                prompt_id="rights_scanner.pass1",
+                prompt_version=compose_version(_SYSTEM, _PASS1),
+                agent_id=self.agent_id,
+            )
+        )
+        return result.data.model_dump()
 
     async def _run_pass2(
         self,
@@ -411,7 +198,7 @@ class RightsScannerAgent(BaseAgent):
         arrest_report: str,
     ) -> dict[str, Any]:
         """Pass 2: Cross-reference client narrative with official record."""
-        prompt = _PASS2_PROMPT.format(
+        prompt = _PASS2.text.format(
             pass1_violations=json.dumps(pass1_result.get("violations", []), indent=2),
             pass1_miranda=json.dumps(pass1_result.get("miranda_analysis", {}), indent=2),
             pass1_search=json.dumps(pass1_result.get("search_analysis", {}), indent=2),
@@ -419,8 +206,18 @@ class RightsScannerAgent(BaseAgent):
             arrest_report=arrest_report or "Not provided",
         )
 
-        result = await call_llm(prompt, system=_SYSTEM_PROMPT, max_tokens=4096)
-        return result
+        result = await call_model(
+            ModelCallRequest(
+                prompt=prompt,
+                system=_SYSTEM.text,
+                max_tokens=_MAX_TOKENS,
+                response_model=NarrativeCrossReference,
+                prompt_id="rights_scanner.pass2",
+                prompt_version=compose_version(_SYSTEM, _PASS2),
+                agent_id=self.agent_id,
+            )
+        )
+        return result.data.model_dump()
 
     def _merge_passes(
         self,

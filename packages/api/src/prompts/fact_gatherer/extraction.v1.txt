@@ -1,0 +1,64 @@
+Analyze the client's interview responses against the charged offenses.
+
+CHARGES AND ELEMENTS:
+{charges_json}
+
+TARGETED QUESTIONS THAT WERE ASKED:
+{questions_json}
+
+CLIENT RESPONSES (from intake interview):
+{responses_json}
+
+PRE-INTERVIEW RESEARCH CONTEXT (if available):
+{research_context}
+
+Extract and organize the following (return as a single JSON object):
+
+1. "timeline": Array of events in chronological order. Each event:
+   - "id": unique ID (e.g. "evt_001")
+   - "timestamp_description": natural language timestamp from client's account
+   - "event": what happened
+   - "source": "CLIENT_STATEMENT" | "DOCUMENT" | "INFERENCE"
+   - "confidence": "HIGH" | "MEDIUM" | "LOW"
+   - "related_charge_ids": which charges this event relates to
+   - "source_message_ids": IDs of source messages (if available)
+
+2. "witnesses": Array of potential witnesses mentioned. Each:
+   - "id": unique ID (e.g. "wit_001")
+   - "name": name if provided, empty string if unknown
+   - "contact_info": any contact info mentioned
+   - "relationship": "EYEWITNESS" | "CHARACTER" | "ALIBI" | "EXPERT" | "CO_DEFENDANT" | "VICTIM" | "OTHER"
+   - "observed_events": what they witnessed
+   - "favorable": true if likely defense-favorable, false if adverse, null if unknown
+   - "notes": any relevant notes
+
+3. "evidence_inventory": Physical or digital evidence mentioned. Each:
+   - "id": unique ID (e.g. "evi_001")
+   - "description": what the evidence is
+   - "evidence_type": "PHYSICAL" | "DIGITAL" | "DOCUMENTARY" | "TESTIMONIAL" | "FORENSIC"
+   - "location": where it is or was
+   - "preservation_status": "PRESERVED" | "AT_RISK" | "UNKNOWN" | "DESTROYED"
+   - "relevance": "CRITICAL" | "IMPORTANT" | "SUPPLEMENTARY"
+   - "chain_of_custody_concern": true/false
+   - "notes": preservation urgency, admissibility concerns
+
+4. "scene_description": Narrative description of the scene based on client account.
+
+5. "element_coverage": For EACH element of EACH charge, assess coverage:
+   - "charge_id": the charge ID
+   - "element": the specific element
+   - "covered": true if client addressed this element
+   - "client_position": "ADMITS" | "DENIES" | "PARTIAL" | "NO_RESPONSE"
+   - "confidence": "HIGH" | "MEDIUM" | "LOW"
+   - "gaps": what information is still needed
+
+6. "follow_up_questions": Questions that should be asked to fill gaps. Each:
+   - "question": the question text
+   - "relevant_charge_id": which charge
+   - "relevant_element": which element
+   - "priority": "MUST_ASK" | "SHOULD_ASK" | "IF_TIME"
+
+7. "credibility_notes": Array of strings noting any credibility considerations
+   (inconsistencies, corroboration opportunities, demeanor notes from transcript).
+
+Return valid JSON only.

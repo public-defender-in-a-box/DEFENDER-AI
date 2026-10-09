@@ -158,6 +158,11 @@ class FakeCallModel:
         return self._queue.pop(0)
 
     async def __call__(self, req: ModelCallRequest[BaseModel]) -> ModelCallResult[BaseModel]:
+        return await self.respond(req)
+
+    async def respond(self, req: ModelCallRequest[BaseModel]) -> ModelCallResult[BaseModel]:
+        """The same, as a plain coroutine function: usable as an ``AsyncMock``
+        ``side_effect`` where a test also wants the mock's call assertions."""
         self.requests.append(req)
         canned = self._next(req)
         if isinstance(canned, ModelCallError):

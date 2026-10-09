@@ -8,11 +8,11 @@
 
 | What | Files | Lines |
 |---|---|---|
-| Python, `packages/api/src` (non-test) | 105 | 18086 |
-| Python tests, `packages/api` (incl. in-package tests) | 33 | 9181 |
+| Python, `packages/api/src` (non-test) | 106 | 17473 |
+| Python tests, `packages/api` (incl. in-package tests) | 33 | 9272 |
 | TypeScript, `packages/web/src` | 66 | 4195 |
 
-Test functions: **328** in 24 files (parametrized tests count once).
+Test functions: **331** in 24 files (parametrized tests count once).
 
 ## Agents
 
@@ -26,7 +26,7 @@ Test functions: **328** in 24 files (parametrized tests count once).
 | Agent ID | Module | STATUS | Lines | Registered | In app | Used by | Tests |
 |---|---|---|---|---|---|---|---|
 | `ethics_monitor` | `agents/cross_cutting/ethics_monitor.py` | REAL | 1127 | — | yes | `agents/graph.py`, `agents/tier0/orchestrator.py` | 65 |
-| `orchestrator` | `agents/tier0/orchestrator.py` | REAL | 525 | — | yes | `agents/graph.py`, `routes/_store.py`, `routes/upload.py` | 69 |
+| `orchestrator` | `agents/tier0/orchestrator.py` | REAL | 525 | — | yes | `agents/graph.py`, `routes/_store.py`, `routes/upload.py` | 72 |
 | `case_prep_conductor` | `agents/tier1/case_prep.py` | STUB | 50 | yes | yes | `routes/intake.py` | — |
 | `charge_processing` | `agents/tier1/charge_processing.py` | REAL | 482 | yes | yes | `agents/graph.py`, `routes/upload.py` | 32 |
 | `intake_conductor` | `agents/tier1/intake_conductor.py` | REAL | 1161 | yes | yes | `routes/intake.py` | 32 |
@@ -36,10 +36,10 @@ Test functions: **328** in 24 files (parametrized tests count once).
 | `motion_drafter` | `agents/tier2_attorney/motion_drafter.py` | REAL | 585 | — | — | — | 11 |
 | `plea_trial_analyst` | `agents/tier2_attorney/plea_trial_analyst.py` | REAL | 504 | — | — | — | 20 |
 | `sentencing_agent` | `agents/tier2_attorney/sentencing_agent/agent.py` | REAL | 106 | — | — | — | 71 |
-| `collateral_agent` | `agents/tier2_intake/collateral_agent.py` | REAL | 301 | — | — | `agents/graph.py` | 24 |
-| `fact_gatherer` | `agents/tier2_intake/fact_gatherer.py` | REAL | 339 | — | — | `agents/graph.py` | 24 |
-| `personal_circumstances` | `agents/tier2_intake/personal_circumstances.py` | REAL | 361 | — | — | `agents/graph.py` | 24 |
-| `rights_scanner` | `agents/tier2_intake/rights_scanner.py` | REAL | 526 | — | — | — | 20 |
+| `collateral_agent` | `agents/tier2_intake/collateral_agent.py` | REAL | 174 | — | — | `agents/graph.py` | 24 |
+| `fact_gatherer` | `agents/tier2_intake/fact_gatherer.py` | REAL | 158 | — | — | `agents/graph.py` | 24 |
+| `personal_circumstances` | `agents/tier2_intake/personal_circumstances.py` | REAL | 170 | — | — | `agents/graph.py` | 24 |
+| `rights_scanner` | `agents/tier2_intake/rights_scanner.py` | REAL | 323 | — | — | — | 20 |
 | `case_law_agent` | `agents/tier2_research/case_law_agent.py` | STUB | 59 | — | — | — | — |
 | `citation_verification` | `agents/tier2_research/citation_verification.py` | REAL | 487 | yes | — | `agents/tier2_research/research_orchestrator.py` | 28 |
 | `citation_verifier` | `agents/tier2_research/citation_verifier.py` | STUB | 53 | — | — | — | — |
@@ -128,7 +128,7 @@ once.
 | `packages/api/tests/test_prompts.py` | 2 |
 | `packages/api/tests/test_research_agents.py` | 28 |
 | `packages/api/tests/test_rights_scanner.py` | 20 |
-| `packages/api/tests/test_sensor_switch.py` | 6 |
+| `packages/api/tests/test_sensor_switch.py` | 9 |
 | `packages/api/tests/test_tier2_intake.py` | 24 |
 
 ## Legal corpus

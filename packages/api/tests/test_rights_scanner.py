@@ -7,6 +7,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from src.services.model_gateway.testing import FakeCallModel
+
 from src.models.rights import (
     DiscrepancyItem,
     EighthAmendmentAnalysis,
@@ -501,9 +503,9 @@ class TestRightsScannerAgent:
         agent = RightsScannerAgent()
 
         with patch(
-            "src.agents.tier2_intake.rights_scanner.call_llm",
+            "src.agents.tier2_intake.rights_scanner.call_model",
             new_callable=AsyncMock,
-            return_value=sample_pass1_result,
+            side_effect=FakeCallModel(sample_pass1_result).respond,
         ) as mock_llm:
             result = await agent.run(
                 {
@@ -533,9 +535,9 @@ class TestRightsScannerAgent:
         agent = RightsScannerAgent()
 
         with patch(
-            "src.agents.tier2_intake.rights_scanner.call_llm",
+            "src.agents.tier2_intake.rights_scanner.call_model",
             new_callable=AsyncMock,
-            side_effect=[sample_pass1_result, sample_pass2_result],
+            side_effect=FakeCallModel(sample_pass1_result, sample_pass2_result).respond,
         ) as mock_llm:
             result = await agent.run(
                 {
@@ -569,9 +571,9 @@ class TestRightsScannerAgent:
         agent = RightsScannerAgent()
 
         with patch(
-            "src.agents.tier2_intake.rights_scanner.call_llm",
+            "src.agents.tier2_intake.rights_scanner.call_model",
             new_callable=AsyncMock,
-            side_effect=[sample_pass1_result, sample_pass2_result],
+            side_effect=FakeCallModel(sample_pass1_result, sample_pass2_result).respond,
         ):
             result = await agent.run(
                 {
@@ -598,9 +600,9 @@ class TestRightsScannerAgent:
         agent = RightsScannerAgent()
 
         with patch(
-            "src.agents.tier2_intake.rights_scanner.call_llm",
+            "src.agents.tier2_intake.rights_scanner.call_model",
             new_callable=AsyncMock,
-            side_effect=[sample_pass1_result, sample_pass2_result],
+            side_effect=FakeCallModel(sample_pass1_result, sample_pass2_result).respond,
         ):
             result = await agent.run(
                 {
@@ -628,9 +630,9 @@ class TestRightsScannerAgent:
         agent = RightsScannerAgent()
 
         with patch(
-            "src.agents.tier2_intake.rights_scanner.call_llm",
+            "src.agents.tier2_intake.rights_scanner.call_model",
             new_callable=AsyncMock,
-            side_effect=[sample_pass1_result, sample_pass2_result],
+            side_effect=FakeCallModel(sample_pass1_result, sample_pass2_result).respond,
         ):
             result = await agent.run(
                 {
@@ -656,9 +658,9 @@ class TestRightsScannerAgent:
         agent = RightsScannerAgent()
 
         with patch(
-            "src.agents.tier2_intake.rights_scanner.call_llm",
+            "src.agents.tier2_intake.rights_scanner.call_model",
             new_callable=AsyncMock,
-            side_effect=[sample_pass1_result, sample_pass2_result],
+            side_effect=FakeCallModel(sample_pass1_result, sample_pass2_result).respond,
         ):
             await agent.run(
                 {

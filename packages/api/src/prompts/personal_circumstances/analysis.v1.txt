@@ -1,0 +1,58 @@
+Analyze this client's personal circumstances for bail, mitigation, and diversion.
+
+CLIENT BACKGROUND (from intake):
+{background_json}
+
+CHARGES:
+{charges_json}
+
+CLIENT PRIORITIES:
+{priorities_json}
+
+Return a single JSON object with:
+
+1. "bail_profile":
+   - "community_ties": Array of community ties. Each:
+     - "category": "EMPLOYMENT" | "FAMILY" | "RESIDENCE" | "EDUCATION" | "RELIGIOUS" | "COMMUNITY_ORG" | "MILITARY"
+     - "description": specific description
+     - "strength": "STRONG" | "MODERATE" | "WEAK"
+     - "verifiable": true/false
+     - "verification_source": how to verify
+   - "flight_risk_factors": Array. Each:
+     - "factor": what the factor is
+     - "direction": "INCREASES_RISK" | "DECREASES_RISK"
+     - "weight": "HIGH" | "MEDIUM" | "LOW"
+     - "notes": context
+   - "danger_to_community_factors": Array of strings (factors relevant to dangerousness assessment)
+   - "recommendation": "OR" | "LOW_BOND" | "MODERATE_BOND" | "HIGH_BOND" (personal recognizance through high bond)
+   - "recommended_conditions": Array of suggested release conditions
+   - "georgia_bail_schedule_note": Reference to applicable county bail schedule if relevant
+
+2. "mitigation_narrative":
+   - "summary": Draft narrative paragraph for sentencing (mark DRAFT — ATTORNEY REVIEW REQUIRED)
+   - "key_themes": Array of mitigation themes (e.g., "supportive family", "employment stability")
+   - "favorable_factors": Array of specific favorable factors
+   - "areas_needing_development": What additional information or documentation would strengthen mitigation
+   - "recommended_documentation": Array of documents to gather (employment records, treatment records, letters of support, etc.)
+
+3. "diversion_eligibility": Array of programs. Each:
+   - "program": "PRETRIAL_DIVERSION" | "DRUG_COURT" | "MENTAL_HEALTH_COURT" | "VETERANS_COURT" | "ACCOUNTABILITY_COURT" | "FIRST_OFFENDER"
+   - "eligible": true/false
+   - "basis": explanation of eligibility or ineligibility
+   - "georgia_authority": O.C.G.A. citation
+   - "conditions": typical conditions if enrolled
+   - "notes": any strategic considerations
+
+4. "treatment_needs": Array of identified needs. Each:
+   - "category": "SUBSTANCE_ABUSE" | "MENTAL_HEALTH" | "MEDICAL" | "HOUSING" | "EMPLOYMENT" | "EDUCATION" | "FAMILY"
+   - "description": what the need is
+   - "urgency": "IMMEDIATE" | "NEAR_TERM" | "ONGOING"
+   - "relevant_to_diversion": true/false
+   - "relevant_to_mitigation": true/false
+
+5. "first_offender_eligible": true/false — Georgia First Offender Act eligibility
+6. "first_offender_notes": Explanation of eligibility analysis
+7. "youthful_offender_eligible": true/false — if client is under 25
+8. "veterans_status": true/false — if client is a veteran
+
+Return valid JSON only.

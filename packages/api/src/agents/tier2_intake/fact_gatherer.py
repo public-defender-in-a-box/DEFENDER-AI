@@ -19,19 +19,12 @@ from __future__ import annotations
 
 import json
 import logging
-import uuid
 from typing import Any
 
 from src.agents.base_agent import BaseAgent
-from src.models.intake import (
-    ElementCoverage,
-    EvidenceItem,
-    FactGatheringOutput,
-    TargetedQuestion,
-    TimelineEvent,
-    WitnessRecord,
-)
-from src.services.llm_service import call_llm
+from src.models.intake import FactGatheringOutput
+from src.prompts import compose_version, load_prompt
+from src.services.model_gateway import ModelCallRequest, call_model
 
 STATUS = "REAL"
 
@@ -42,94 +35,11 @@ logger = logging.getLogger(__name__)
 # Prompts
 # ---------------------------------------------------------------------------
 
-_SYSTEM_PROMPT = (
-    "You are a fact-gathering specialist for a Georgia public defender's office. "
-    "Your role is to extract, organize, and structure factual information from "
-    "client interview responses. You cross-reference client statements against "
-    "the elements of each charged offense to identify what has been established, "
-    "what is disputed, and where gaps remain.\n\n"
-    "JURISDICTION: Georgia (O.C.G.A. Title 16 — Crimes and Offenses)\n\n"
-    "CRITICAL RULES:\n"
-    "1. You are an INFORMATION ORGANIZER, not an advocate or advisor.\n"
-    "2. Report what the client said, not what you think happened.\n"
-    "3. Flag inconsistencies neutrally — they may have innocent explanations.\n"
-    "4. Confidence scores reflect clarity of client statement, NOT truth.\n"
-    "5. Every charge element must be tracked — gaps are as important as coverage.\n"
-    "6. Preserve the client's own language for key statements.\n"
-    "7. All information is attorney-client privileged.\n\n"
-    "EVIDENCE PRESERVATION ALERTS:\n"
-    "- Flag any evidence at risk of destruction (surveillance footage typically "
-    "retained 30-90 days, cell phone records require preservation letter)\n"
-    "- Note chain-of-custody concerns for physical evidence\n"
-    "- Identify digital evidence (body cam, dashcam, cell location) that may "
-    "require timely subpoena\n\n"
-    "OUTPUT: Always respond with valid JSON matching the requested schema."
-)
-
-_EXTRACTION_PROMPT_TEMPLATE = """Analyze the client's interview responses against the charged offenses.
-
-CHARGES AND ELEMENTS:
-{charges_json}
-
-TARGETED QUESTIONS THAT WERE ASKED:
-{questions_json}
-
-CLIENT RESPONSES (from intake interview):
-{responses_json}
-
-PRE-INTERVIEW RESEARCH CONTEXT (if available):
-{research_context}
-
-Extract and organize the following (return as a single JSON object):
-
-1. "timeline": Array of events in chronological order. Each event:
-   - "id": unique ID (e.g. "evt_001")
-   - "timestamp_description": natural language timestamp from client's account
-   - "event": what happened
-   - "source": "CLIENT_STATEMENT" | "DOCUMENT" | "INFERENCE"
-   - "confidence": "HIGH" | "MEDIUM" | "LOW"
-   - "related_charge_ids": which charges this event relates to
-   - "source_message_ids": IDs of source messages (if available)
-
-2. "witnesses": Array of potential witnesses mentioned. Each:
-   - "id": unique ID (e.g. "wit_001")
-   - "name": name if provided, empty string if unknown
-   - "contact_info": any contact info mentioned
-   - "relationship": "EYEWITNESS" | "CHARACTER" | "ALIBI" | "EXPERT" | "CO_DEFENDANT" | "VICTIM" | "OTHER"
-   - "observed_events": what they witnessed
-   - "favorable": true if likely defense-favorable, false if adverse, null if unknown
-   - "notes": any relevant notes
-
-3. "evidence_inventory": Physical or digital evidence mentioned. Each:
-   - "id": unique ID (e.g. "evi_001")
-   - "description": what the evidence is
-   - "evidence_type": "PHYSICAL" | "DIGITAL" | "DOCUMENTARY" | "TESTIMONIAL" | "FORENSIC"
-   - "location": where it is or was
-   - "preservation_status": "PRESERVED" | "AT_RISK" | "UNKNOWN" | "DESTROYED"
-   - "relevance": "CRITICAL" | "IMPORTANT" | "SUPPLEMENTARY"
-   - "chain_of_custody_concern": true/false
-   - "notes": preservation urgency, admissibility concerns
-
-4. "scene_description": Narrative description of the scene based on client account.
-
-5. "element_coverage": For EACH element of EACH charge, assess coverage:
-   - "charge_id": the charge ID
-   - "element": the specific element
-   - "covered": true if client addressed this element
-   - "client_position": "ADMITS" | "DENIES" | "PARTIAL" | "NO_RESPONSE"
-   - "confidence": "HIGH" | "MEDIUM" | "LOW"
-   - "gaps": what information is still needed
-
-6. "follow_up_questions": Questions that should be asked to fill gaps. Each:
-   - "question": the question text
-   - "relevant_charge_id": which charge
-   - "relevant_element": which element
-   - "priority": "MUST_ASK" | "SHOULD_ASK" | "IF_TIME"
-
-7. "credibility_notes": Array of strings noting any credibility considerations
-   (inconsistencies, corroboration opportunities, demeanor notes from transcript).
-
-Return valid JSON only."""
+# Prompts: src/prompts/fact_gatherer/
+_SYSTEM = load_prompt("fact_gatherer.system", "v1")
+_EXTRACTION = load_prompt("fact_gatherer.extraction", "v1")
+# Thinking tokens count toward max_tokens on current models (Phase 1 §2).
+_MAX_TOKENS = 16000
 
 
 class FactGathererAgent(BaseAgent):
@@ -187,22 +97,27 @@ class FactGathererAgent(BaseAgent):
             return self.wrap_output(empty_output.model_dump(), confidence=0.0)
 
         # Build the prompt
-        prompt = _EXTRACTION_PROMPT_TEMPLATE.format(
+        prompt = _EXTRACTION.text.format(
             charges_json=json.dumps(charges, indent=2, default=str),
             questions_json=json.dumps(questions, indent=2, default=str),
             responses_json=json.dumps(client_responses, indent=2, default=str),
             research_context=json.dumps(research_context, indent=2, default=str),
         )
 
-        try:
-            result = await call_llm(prompt, system=_SYSTEM_PROMPT, max_tokens=8192)
-        except Exception as e:
-            logger.error("Fact gathering LLM call failed: %s", e)
-            self.log_action("fact_gathering_llm_error", {"error": str(e)})
-            raise
-
-        # Validate and structure the output
-        output = self._structure_output(result, charges)
+        # The response model is the output model: structured outputs constrain every
+        # item, so there is no per-item "skip malformed" pass (Phase 1 §3.2).
+        result = await call_model(
+            ModelCallRequest(
+                prompt=prompt,
+                system=_SYSTEM.text,
+                max_tokens=_MAX_TOKENS,
+                response_model=FactGatheringOutput,
+                prompt_id="fact_gatherer.extraction",
+                prompt_version=compose_version(_SYSTEM, _EXTRACTION),
+                agent_id=self.agent_id,
+            )
+        )
+        output = result.data
 
         # Calculate confidence based on element coverage
         confidence = self._calculate_confidence(output)
@@ -221,102 +136,6 @@ class FactGathererAgent(BaseAgent):
         )
 
         return self.wrap_output(output.model_dump(), confidence=confidence)
-
-    def _structure_output(
-        self, raw: dict[str, Any], charges: list[dict[str, Any]]
-    ) -> FactGatheringOutput:
-        """Validate and structure the LLM output into Pydantic models."""
-        timeline = []
-        for evt in raw.get("timeline", []):
-            try:
-                timeline.append(
-                    TimelineEvent(
-                        id=evt.get("id", f"evt_{uuid.uuid4().hex[:6]}"),
-                        timestamp_description=evt.get("timestamp_description", ""),
-                        event=evt.get("event", ""),
-                        source=evt.get("source", "CLIENT_STATEMENT"),
-                        confidence=evt.get("confidence", "LOW"),
-                        related_charge_ids=evt.get("related_charge_ids", []),
-                        source_message_ids=evt.get("source_message_ids", []),
-                    )
-                )
-            except Exception as e:
-                logger.warning("Skipping malformed timeline event: %s", e)
-
-        witnesses = []
-        for wit in raw.get("witnesses", []):
-            try:
-                witnesses.append(
-                    WitnessRecord(
-                        id=wit.get("id", f"wit_{uuid.uuid4().hex[:6]}"),
-                        name=wit.get("name", ""),
-                        contact_info=wit.get("contact_info", ""),
-                        relationship=wit.get("relationship", "OTHER"),
-                        observed_events=wit.get("observed_events", []),
-                        favorable=wit.get("favorable"),
-                        notes=wit.get("notes", ""),
-                    )
-                )
-            except Exception as e:
-                logger.warning("Skipping malformed witness record: %s", e)
-
-        evidence = []
-        for evi in raw.get("evidence_inventory", []):
-            try:
-                evidence.append(
-                    EvidenceItem(
-                        id=evi.get("id", f"evi_{uuid.uuid4().hex[:6]}"),
-                        description=evi.get("description", ""),
-                        evidence_type=evi.get("evidence_type", "PHYSICAL"),
-                        location=evi.get("location", ""),
-                        preservation_status=evi.get("preservation_status", "UNKNOWN"),
-                        relevance=evi.get("relevance", "SUPPLEMENTARY"),
-                        chain_of_custody_concern=evi.get("chain_of_custody_concern", False),
-                        notes=evi.get("notes", ""),
-                    )
-                )
-            except Exception as e:
-                logger.warning("Skipping malformed evidence item: %s", e)
-
-        element_coverage = []
-        for ec in raw.get("element_coverage", []):
-            try:
-                element_coverage.append(
-                    ElementCoverage(
-                        charge_id=ec.get("charge_id", ""),
-                        element=ec.get("element", ""),
-                        covered=ec.get("covered", False),
-                        client_position=ec.get("client_position", "NO_RESPONSE"),
-                        confidence=ec.get("confidence", "LOW"),
-                        gaps=ec.get("gaps", []),
-                    )
-                )
-            except Exception as e:
-                logger.warning("Skipping malformed element coverage: %s", e)
-
-        follow_ups = []
-        for fq in raw.get("follow_up_questions", []):
-            try:
-                follow_ups.append(
-                    TargetedQuestion(
-                        question=fq.get("question", ""),
-                        relevant_charge_id=fq.get("relevant_charge_id", ""),
-                        relevant_element=fq.get("relevant_element", ""),
-                        priority=fq.get("priority", "SHOULD_ASK"),
-                    )
-                )
-            except Exception as e:
-                logger.warning("Skipping malformed follow-up question: %s", e)
-
-        return FactGatheringOutput(
-            timeline=timeline,
-            witnesses=witnesses,
-            evidence_inventory=evidence,
-            scene_description=raw.get("scene_description", ""),
-            element_coverage=element_coverage,
-            follow_up_questions=follow_ups,
-            credibility_notes=raw.get("credibility_notes", []),
-        )
 
     def _calculate_confidence(self, output: FactGatheringOutput) -> float:
         """Calculate overall confidence based on element coverage and data quality."""

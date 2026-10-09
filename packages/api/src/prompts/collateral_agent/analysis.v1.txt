@@ -1,0 +1,54 @@
+Analyze collateral consequences for this Georgia criminal case.
+
+CHARGES:
+{charges_json}
+
+CLIENT PERSONAL CIRCUMSTANCES:
+{circumstances_json}
+
+CLIENT STATED PRIORITIES (from intake):
+{priorities_json}
+
+For each charge, identify ALL collateral consequences across every category.
+Return a single JSON object with:
+
+1. "consequences": Array of consequences. Each must include:
+   - "id": unique ID (e.g. "cc_001")
+   - "category": "IMMIGRATION" | "EMPLOYMENT" | "HOUSING" | "EDUCATION" | "FAMILY" | "CIVIL_RIGHTS" | "PROFESSIONAL_LICENSE" | "SEX_OFFENDER" | "FINANCIAL"
+   - "description": clear explanation of the consequence
+   - "severity": "SEVERE" | "MODERATE" | "MINOR"
+   - "charge_specific": true if tied to a specific charge
+   - "related_charge_ids": which charges trigger this consequence
+   - "affects_plea_strategy": true if this should influence plea negotiations
+   - "georgia_statute": O.C.G.A. citation if applicable
+   - "federal_statute": Federal citation if applicable
+   - "mitigation_possible": true if there's a way to avoid or reduce this consequence
+   - "mitigation_strategy": how to mitigate (e.g. First Offender Act, lesser included offense plea)
+
+2. "padilla_assessment": Padilla v. Kentucky compliance check:
+   - "non_citizen": true/false based on client circumstances
+   - "immigration_status": "LPR" | "VISA_HOLDER" | "UNDOCUMENTED" | "DACA" | "TPS" | "ASYLEE" | "REFUGEE" | "UNKNOWN" | "CITIZEN"
+   - "deportation_risk": "CERTAIN" | "LIKELY" | "POSSIBLE" | "UNLIKELY" | "UNKNOWN"
+   - "aggravated_felony_risk": true/false (8 U.S.C. § 1101(a)(43))
+   - "crime_involving_moral_turpitude": true/false
+   - "controlled_substance_offense": true/false
+   - "firearm_offense": true/false
+   - "domestic_violence_offense": true/false
+   - "advisory_required": true if Padilla advisory must be given
+   - "advisory_summary": specific immigration advice counsel must provide
+
+3. "plea_strategy_impact": Narrative of how collateral consequences should
+   influence plea strategy. Include charge-specific bargaining points.
+
+4. "priority_consequences": Array of consequence IDs for the most critical
+   consequences — these should be flagged for immediate attorney attention.
+
+5. "client_stated_priorities": Echo back the client's stated priorities
+   and note which consequences directly affect them.
+
+IMPORTANT: For immigration consequences, always flag whether the offense
+qualifies as an "aggravated felony" under 8 U.S.C. § 1101(a)(43), even if
+the Georgia offense is a misdemeanor — federal immigration law uses its own
+definitions.
+
+Return valid JSON only.

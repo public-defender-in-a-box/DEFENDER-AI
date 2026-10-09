@@ -9,6 +9,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from src.models.intake import CollateralConsequence, PadillaAssessment
+
 Priority = Literal["required", "recommended", "optional"]
 Severity = Literal["high", "medium", "low"]
 Subagent = Literal["fact_gatherer", "rights_violation_scanner", "collateral_consequences"]
@@ -157,3 +159,16 @@ class InconsistencyAnalysis(BaseModel):
 
 class TurnMessage(BaseModel):
     combined_message: str
+
+
+# --- Collateral Consequences Agent ---------------------------------------------
+
+
+class CollateralAnalysis(BaseModel):
+    """The model's part of ``CollateralConsequencesOutput``; the client's stated
+    priorities come from the agent's input, not the model."""
+
+    consequences: list[CollateralConsequence]
+    padilla_assessment: PadillaAssessment
+    plea_strategy_impact: str
+    priority_consequences: list[str]

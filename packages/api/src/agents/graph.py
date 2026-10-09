@@ -16,6 +16,9 @@ from typing import Any, Optional, TypedDict
 
 from langgraph.graph import END, StateGraph
 
+from src.services import measurements
+from src.services.model_gateway import ModelCallError
+
 logger = logging.getLogger(__name__)
 
 
@@ -104,11 +107,9 @@ async def charge_processing_node(state: GraphState) -> GraphState:
                 "matter_id": state["case_id"],
             }
         )
-    except Exception as e:
-        failure = await orchestrator.handle_agent_failure(
-            "charge_processing",
-            str(e),
-        )
+    except ModelCallError as e:
+        # Pipeline boundary: narrowed to model failures (Phase 1 §3.2).
+        failure = await orchestrator.handle_agent_failure("charge_processing", e)
         state["error"] = failure["error"]
         state["case_state"] = orchestrator.get_case_state_snapshot()
         return state
@@ -156,11 +157,9 @@ async def pre_interview_node(state: GraphState) -> GraphState:
                 "charge_processing": state["case_state"].get("charge_processing"),
             }
         )
-    except Exception as e:
-        failure = await orchestrator.handle_agent_failure(
-            "pre_interview_research",
-            str(e),
-        )
+    except ModelCallError as e:
+        # Pipeline boundary: narrowed to model failures (Phase 1 §3.2).
+        failure = await orchestrator.handle_agent_failure("pre_interview_research", e)
         state["error"] = failure["error"]
         state["case_state"] = orchestrator.get_case_state_snapshot()
         return state
@@ -242,64 +241,84 @@ async def intake_sub_agents_node(state: GraphState) -> GraphState:
     collateral_agent = CollateralConsequencesAgent()
     personal_agent = PersonalCircumstancesAgent()
 
-    try:
-        fact_result, collateral_result, personal_result = await asyncio.gather(
-            fact_agent.run(fact_input),
-            collateral_agent.run(collateral_input),
-            personal_agent.run(personal_input),
-            return_exceptions=True,
-        )
+    fact_result, collateral_result, personal_result = await asyncio.gather(
+        fact_agent.run(fact_input),
+        collateral_agent.run(collateral_input),
+        personal_agent.run(personal_input),
+        return_exceptions=True,
+    )
 
-        # Ethics monitor for Tier 2 outputs before merging into state
-        ethics = EthicsMonitorAgent()
+    # Ethics Sensor on Tier 2 outputs: classify and record, never discard
+    # (CLAUDE.md §3.1). A CRITICAL flag used to replace the output with an error.
+    ethics = EthicsMonitorAgent()
 
-        # Agent ID → (state field, result) mapping
-        agent_results = [
-            ("fact_gatherer", "fact_gathering", fact_result),
-            ("collateral_consequences", "collateral_consequences", collateral_result),
-            ("personal_circumstances", "personal_circumstances", personal_result),
-        ]
+    # Agent ID → (state field, result) mapping
+    agent_results = [
+        ("fact_gatherer", "fact_gathering", fact_result),
+        ("collateral_consequences", "collateral_consequences", collateral_result),
+        ("personal_circumstances", "personal_circumstances", personal_result),
+    ]
 
-        for agent_id, state_field, result in agent_results:
-            if isinstance(result, Exception):
-                logger.error("%s failed: %s", agent_id, result)
-                state["case_state"][state_field] = {
-                    "error": str(result),
-                    "confidence": "LOW",
-                }
-                continue
-
-            # Run ethics check before writing to state
-            ethics_result = await ethics.run(
-                {
-                    "output": result,
-                    "agent_id": agent_id,
-                    "is_client_facing": False,
-                }
-            )
-
-            ethics_flags = ethics_result.get("flags", [])
-            p1_flags = [f for f in ethics_flags if f.get("priority") == "CRITICAL"]
-
-            if p1_flags or ethics_result.get("blocked", False):
-                logger.warning(
-                    "%s output blocked by ethics monitor: %s",
-                    agent_id,
-                    p1_flags,
+    for agent_id, state_field, result in agent_results:
+        if isinstance(result, ModelCallError):
+            # Pipeline boundary (Phase 1 §3.2): a model failure is recorded with its
+            # type; the other sub-agents' results still merge.
+            logger.error("%s failed (%s): %s", agent_id, result.error_type, result)
+            state["case_state"][state_field] = {
+                "status": "FAILED",
+                "error_type": result.error_type,
+                "error": str(result),
+                "confidence": "LOW",
+            }
+            measurements.record(
+                measurements.Measurement(
+                    kind=measurements.MeasurementKind.AGENT_FAILURE,
+                    agent_id=agent_id,
+                    case_id=state.get("case_id"),
+                    payload={"error_type": result.error_type, "error": str(result)},
                 )
-                state["case_state"][state_field] = {
-                    "error": "Blocked by ethics monitor",
-                    "confidence": "LOW",
-                    "ethics_flags": ethics_flags,
-                }
-            else:
-                state["case_state"][state_field] = result
-                if ethics_flags:
-                    state["case_state"].setdefault("ethical_flags", []).extend(ethics_flags)
+            )
+            state["error"] = f"Intake sub-agent {agent_id} failed: {result}"
+            continue
+        if isinstance(result, BaseException):
+            raise result  # anything else is a bug, not a recordable agent failure
 
-    except Exception as e:
-        logger.error("Intake sub-agents node failed: %s", e)
-        state["error"] = f"Intake sub-agents failed: {e}"
+        ethics_result = await ethics.run(
+            {
+                "output": result,
+                "agent_id": agent_id,
+                "is_client_facing": False,
+            }
+        )
+        ethics_flags = ethics_result.get("flags", [])
+        p1_flags = [f for f in ethics_flags if f.get("priority") == "CRITICAL"]
+        would_have_blocked = bool(p1_flags) or bool(ethics_result.get("blocked", False))
+        if would_have_blocked:
+            logger.warning("%s carries a CRITICAL ethics flag (merged): %s", agent_id, p1_flags)
+
+        state["case_state"][state_field] = result
+        state["case_state"].setdefault("ethical_flags", []).extend(
+            {
+                **f,
+                "merge_decision": (
+                    "MERGED_WITH_CRITICAL_FLAG" if f.get("priority") == "CRITICAL" else "LOGGED"
+                ),
+            }
+            for f in ethics_flags
+        )
+        measurements.record(
+            measurements.Measurement(
+                kind=measurements.MeasurementKind.MERGE_DECISION,
+                agent_id=agent_id,
+                case_id=state.get("case_id"),
+                payload={
+                    "decision": ("MERGED_WITH_CRITICAL_FLAG" if would_have_blocked else "MERGED"),
+                    "ethics_flags": len(ethics_flags),
+                    "critical_flags": len(p1_flags),
+                    "would_have_blocked": would_have_blocked,
+                },
+            )
+        )
 
     state["current_stage"] = "INTAKE_COMPLETE"
     return state

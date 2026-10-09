@@ -14,6 +14,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from src.services.model_gateway.testing import FakeCallModel
+
 from src.agents.tier2_intake.collateral_agent import CollateralConsequencesAgent
 from src.agents.tier2_intake.fact_gatherer import FactGathererAgent
 from src.agents.tier2_intake.personal_circumstances import PersonalCircumstancesAgent
@@ -536,9 +538,9 @@ class TestFactGathererAgent:
         agent = FactGathererAgent()
 
         with patch(
-            "src.agents.tier2_intake.fact_gatherer.call_llm", new_callable=AsyncMock
+            "src.agents.tier2_intake.fact_gatherer.call_model", new_callable=AsyncMock
         ) as mock_llm:
-            mock_llm.return_value = _FACT_GATHERER_GOLDEN_RESPONSE
+            mock_llm.side_effect = FakeCallModel(_FACT_GATHERER_GOLDEN_RESPONSE).respond
 
             result = await agent.run(
                 {
@@ -641,9 +643,9 @@ class TestCollateralConsequencesAgent:
         agent = CollateralConsequencesAgent()
 
         with patch(
-            "src.agents.tier2_intake.collateral_agent.call_llm", new_callable=AsyncMock
+            "src.agents.tier2_intake.collateral_agent.call_model", new_callable=AsyncMock
         ) as mock_llm:
-            mock_llm.return_value = _COLLATERAL_GOLDEN_RESPONSE
+            mock_llm.side_effect = FakeCallModel(_COLLATERAL_GOLDEN_RESPONSE).respond
 
             result = await agent.run(
                 {
@@ -699,9 +701,9 @@ class TestCollateralConsequencesAgent:
         }
 
         with patch(
-            "src.agents.tier2_intake.collateral_agent.call_llm", new_callable=AsyncMock
+            "src.agents.tier2_intake.collateral_agent.call_model", new_callable=AsyncMock
         ) as mock_llm:
-            mock_llm.return_value = padilla_response
+            mock_llm.side_effect = FakeCallModel(padilla_response).respond
             result = await agent.run(
                 {
                     "charges": [
@@ -725,9 +727,9 @@ class TestPersonalCircumstancesAgent:
         agent = PersonalCircumstancesAgent()
 
         with patch(
-            "src.agents.tier2_intake.personal_circumstances.call_llm", new_callable=AsyncMock
+            "src.agents.tier2_intake.personal_circumstances.call_model", new_callable=AsyncMock
         ) as mock_llm:
-            mock_llm.return_value = _PERSONAL_GOLDEN_RESPONSE
+            mock_llm.side_effect = FakeCallModel(_PERSONAL_GOLDEN_RESPONSE).respond
 
             result = await agent.run(
                 {
@@ -861,19 +863,19 @@ class TestIntakeSubAgentsNode:
 
         with (
             patch(
-                "src.agents.tier2_intake.fact_gatherer.call_llm", new_callable=AsyncMock
+                "src.agents.tier2_intake.fact_gatherer.call_model", new_callable=AsyncMock
             ) as mock_fact,
             patch(
-                "src.agents.tier2_intake.collateral_agent.call_llm", new_callable=AsyncMock
+                "src.agents.tier2_intake.collateral_agent.call_model", new_callable=AsyncMock
             ) as mock_coll,
             patch(
-                "src.agents.tier2_intake.personal_circumstances.call_llm", new_callable=AsyncMock
+                "src.agents.tier2_intake.personal_circumstances.call_model", new_callable=AsyncMock
             ) as mock_pers,
         ):
 
-            mock_fact.return_value = _FACT_GATHERER_GOLDEN_RESPONSE
-            mock_coll.return_value = _COLLATERAL_GOLDEN_RESPONSE
-            mock_pers.return_value = _PERSONAL_GOLDEN_RESPONSE
+            mock_fact.side_effect = FakeCallModel(_FACT_GATHERER_GOLDEN_RESPONSE).respond
+            mock_coll.side_effect = FakeCallModel(_COLLATERAL_GOLDEN_RESPONSE).respond
+            mock_pers.side_effect = FakeCallModel(_PERSONAL_GOLDEN_RESPONSE).respond
 
             result = await intake_sub_agents_node(state)
 

@@ -1,0 +1,83 @@
+You are cross-referencing the client's narrative against the official
+record to identify discrepancies and additional rights violations.
+
+PASS 1 VIOLATIONS FOUND:
+{pass1_violations}
+
+PASS 1 MIRANDA ANALYSIS:
+{pass1_miranda}
+
+PASS 1 SEARCH ANALYSIS:
+{pass1_search}
+
+CLIENT NARRATIVE:
+{client_narrative}
+
+ARREST REPORT:
+{arrest_report}
+
+Analyze the client's account against the official record. Return JSON with:
+
+{{
+  "additional_violations": [
+    {{
+      "id": "CV001",
+      "amendment": "4TH|5TH|6TH|8TH",
+      "category": "string",
+      "description": "string",
+      "severity": "CRITICAL|SIGNIFICANT|MODERATE|MINOR",
+      "confidence": 0.0-1.0,
+      "supporting_facts": ["fact1"],
+      "source": "CLIENT_NARRATIVE|CROSS_REFERENCE",
+      "legal_standard": "string",
+      "relevant_case_law": ["case1"],
+      "suppression_potential": "HIGH|MEDIUM|LOW"
+    }}
+  ],
+  "discrepancy_report": [
+    {{
+      "id": "D001",
+      "topic": "string — e.g. consent to search, Miranda timing, force used",
+      "officer_account": "what the officer/report says",
+      "client_account": "what the client says",
+      "significance": "CRITICAL|NOTABLE|MINOR",
+      "possible_explanations": ["explanation1"],
+      "defense_relevance": "how this discrepancy may help the defense"
+    }}
+  ],
+  "miranda_updates": {{
+    "statements_before_miranda": ["any additional statements client reports"],
+    "waiver_validity": "VALID|QUESTIONABLE|INVALID|UNKNOWN",
+    "suppression_basis": "updated basis if client narrative changes analysis"
+  }},
+  "search_updates": {{
+    "consent_given": true|false|null,
+    "consent_voluntariness": "VOLUNTARY|COERCED|QUESTIONABLE|NOT_APPLICABLE",
+    "scope_exceeded": true|false|null,
+    "suppression_basis": "updated basis"
+  }},
+  "suppression_viability": {{
+    "score": 0-100,
+    "confidence": 0.0-1.0,
+    "basis": ["legal basis for suppression motion"],
+    "risks": ["risks or weaknesses in suppression argument"],
+    "recommended_motions": ["MOTION_TO_SUPPRESS", "MOTION_TO_DISMISS", etc.]
+  }},
+  "attorney_flags": [
+    "CRITICAL: description of urgent issue for attorney"
+  ]
+}}
+
+IMPORTANT ANALYSIS NOTES:
+- Discrepancies between the officer account and client account are VERY significant.
+  Officers may omit details; clients may reveal rights violations not in the report.
+- If the client says they did NOT consent to a search but the report says they did,
+  this is a CRITICAL discrepancy.
+- If the client says they asked for a lawyer but the report doesn't mention it,
+  this is a CRITICAL discrepancy.
+- If the client says Miranda was not read but the report says it was, flag this.
+- Look for indications of coercion, intimidation, or pressure.
+- The suppression_viability score should reflect the overall strength of potential
+  suppression motions considering ALL violations and discrepancies.
+
+Return valid JSON only.
