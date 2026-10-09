@@ -15,8 +15,8 @@ API_ROOT = Path(__file__).resolve().parents[1]
 AGENTS = API_ROOT / "src" / "agents"
 SRC = API_ROOT / "src"
 
-# path relative to packages/api -> (count, reason). Shrinks; never grows silently.
-_PENDING = "not yet migrated (Phase 1 §9 order)"
+# path relative to packages/api -> (count, reason). Empty since Phase 1 removed or narrowed
+# all 45. An entry needs a reason why handling the failure there is correct.
 BROAD_EXCEPT_ALLOWLIST: dict[str, tuple[int, str]] = {}
 
 # The deprecated call_llm shim had 36 callers when Phase 1 began; it was deleted when

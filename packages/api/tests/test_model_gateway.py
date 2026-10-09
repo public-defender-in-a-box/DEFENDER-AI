@@ -278,9 +278,10 @@ async def test_abstention_is_not_error(live: MockAnthropic) -> None:
     live.queue(api_message({"abstained": True, "abstention_reason": "The record does not say."}))
     result = await call_model(_request(response_model=Finding))
     assert result.data.abstained is True
-    assert result.record.outcome == "ok"
+    assert result.record.outcome == "ok" and result.record.abstained is True
     (event,) = measurements.events(measurements.MeasurementKind.MODEL_CALL)
-    assert event.payload["outcome"] == "ok"
+    assert event.payload["outcome"] == "ok", "an abstention is not a failure"
+    assert event.payload["abstained"] is True, "it is counted as an abstention"
 
 
 async def test_usage_recorded(

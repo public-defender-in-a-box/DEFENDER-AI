@@ -525,9 +525,9 @@ suppression-hearing simulator are post-Phase-6 and should not be scoped now.
    Phase 5 rather than during it.
 5. **Models — decided October 9, 2026.** Primary `claude-opus-5-5`; users can
    switch a run to a cheaper allowlisted model to manage cost; no automatic
-   fallbacks; each user supplies their own API key. Still open: confirming
-   `claude-sonnet-5-5` as the comparison model before Phase 1 records anything.
-   See `PHASE_1_MODEL_GATEWAY.md` §0 and §8.
+   fallbacks; each user supplies their own API key. Comparison model
+   `claude-sonnet-5-5`, confirmed October 9, 2026. See `PHASE_1_MODEL_GATEWAY.md`
+   §0 and §8, and `docs/MODELS.md`.
 6. **Validation partner.** Prof. Hines offered introductions — her husband,
    Amanda Grantham, and contacts in the Athens PD office. Under the research
    framing the ask is "help us find where this breaks," which is a much easier

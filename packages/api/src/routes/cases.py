@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse
 
 from src.routes._store import case_store
+from src.services.model_gateway import resolve_model
 
 router = APIRouter(tags=["cases"])
 
@@ -39,7 +40,7 @@ async def get_case_status(case_id: str):
     orch = case_store.get(case_id)
     if not orch:
         raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
-    return orch.get_status().to_dict()
+    return {**orch.get_status().to_dict(), "model": resolve_model(orch.run_model)}
 
 
 @router.get("/cases/{case_id}/merge-history")

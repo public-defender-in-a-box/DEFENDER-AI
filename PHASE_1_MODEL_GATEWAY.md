@@ -405,8 +405,8 @@ All have a 1M-token context window. Dateless IDs are pinned snapshots.
   (comma-separated). A per-run selection is a request parameter validated against
   the allowlist; **any model ID not on it is rejected with a clear error**, so
   runs stay comparable and costs predictable. The UI control is Phase 2b.
-- **Comparison model for recorded runs: `claude-sonnet-5-5`, proposed — confirm
-  before recording.** Cassettes are recorded for the primary and the comparison
+- **Comparison model for recorded runs: `claude-sonnet-5-5`, confirmed by the team
+  October 9, 2026.** Cassettes are recorded for the primary and the comparison
   model. Haiku 5.5 is selectable for cost but has no recordings unless the team
   adds it, so it runs live only.
 - **Effort is pinned at `high` for every model** (§5.3).

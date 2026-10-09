@@ -59,6 +59,9 @@ class ModelCallRecord(BaseModel):
     cost_usd: float = 0.0
     # "ok", or the ModelCallError subclass name.
     outcome: str = "ok"
+    # A valid response that abstained (AbstainableResponse.abstained): counted as an
+    # abstention, never as a failure (§3.1).
+    abstained: bool = False
     at: datetime
 
     @property

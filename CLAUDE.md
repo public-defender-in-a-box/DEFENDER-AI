@@ -311,14 +311,11 @@ Snapshot at PR #13 (October 4, 2026), from `docs/INVENTORY.md`:
 - The Ethics Monitor is REAL code but keyword-based; Phase 5 replaces it.
 
 **Invariants not yet enforced in code.** Do not assume these hold until the phase
-that builds them has landed:
+that builds them has landed (§3.1, sensor not filter, landed in Phase 1):
 
 - §2, synthetic-only: no `provenance_class`, no fixture test, no banner. Uploads
   are accepted as-is. Banner and fixture test: Phase 2b. `provenance_class`:
   Phase 4 (Discovery Intake).
-- §3.1, sensor not filter: the Orchestrator still blocks on `CRITICAL` ethics
-  flags (`BLOCKED_ETHICS_P1`), and LOW-confidence outputs skip the ethics check
-  entirely. The blocking switch is Phase 1.
 - §7, contraband: image uploads are OCR'd rather than quarantined. Phase 4.
 
 ---
@@ -358,10 +355,11 @@ Carried forward from the existing repo where they work, with additions.
 **Commands**
 
 ```bash
-cd packages/api && pytest                     # all testpaths, incl. sentencing_agent/tests
+cd packages/api && pytest                     # replay mode: no key, no network
 cd packages/api && black src/ tests/ && ruff check src/
-python scripts/inventory.py                   # regenerate docs/INVENTORY.md (CI checks it)
-cd packages/api && uvicorn src.main:app --reload
+cd packages/api && python -m src.prompts      # register new prompt files in MANIFEST.json
+python scripts/inventory.py                   # regenerate docs/INVENTORY.md + PROMPT_DEBT.md
+cd packages/api && uvicorn src.main:app --reload --env-file ../../.env   # your own key
 cd packages/web && npm run dev
 ```
 

@@ -10,7 +10,7 @@ def make_sample_case_state() -> dict:
     """Return a fully populated case state dict for testing."""
     return {
         "case_id": "test_case_GA_2024_001",
-        "case_number": "24-CR-12345",
+        "case_number": "SYN-24-CR-12345",
         "jurisdiction": "GA",
         "charges": [
             {
@@ -216,7 +216,7 @@ def make_minimal_case_state() -> dict:
     """Return a minimal case state with limited data for testing edge cases."""
     return {
         "case_id": "test_case_GA_2024_002",
-        "case_number": "24-CR-99999",
+        "case_number": "SYN-24-CR-99999",
         "jurisdiction": "GA",
         "charges": [
             {
@@ -240,7 +240,7 @@ def make_minimal_case_state() -> dict:
 # Pre-built LLM response for mocking — matches the expected JSON schema
 SAMPLE_LLM_SUPPRESS_RESPONSE: dict = {
     "title": "DEFENDANT'S MOTION TO SUPPRESS PHYSICAL EVIDENCE",
-    "case_caption": "STATE OF GEORGIA v. DEFENDANT, Case No. 24-CR-12345",
+    "case_caption": "STATE OF GEORGIA v. DEFENDANT, Case No. SYN-24-CR-12345",
     "court": "IN THE STATE COURT OF FULTON COUNTY, STATE OF GEORGIA",
     "sections": [
         {
@@ -334,7 +334,7 @@ SAMPLE_LLM_SUPPRESS_RESPONSE: dict = {
 
 SAMPLE_LLM_DISCOVERY_RESPONSE: dict = {
     "title": "DEFENDANT'S DEMAND FOR DISCOVERY AND BRADY MATERIAL",
-    "case_caption": "STATE OF GEORGIA v. DEFENDANT, Case No. 24-CR-12345",
+    "case_caption": "STATE OF GEORGIA v. DEFENDANT, Case No. SYN-24-CR-12345",
     "court": "IN THE STATE COURT OF FULTON COUNTY, STATE OF GEORGIA",
     "sections": [
         {
@@ -414,7 +414,7 @@ SAMPLE_LLM_DISCOVERY_RESPONSE: dict = {
 
 SAMPLE_LLM_BAIL_RESPONSE: dict = {
     "title": "DEFENDANT'S MOTION FOR REDUCTION OF BAIL",
-    "case_caption": "STATE OF GEORGIA v. DEFENDANT, Case No. 24-CR-12345",
+    "case_caption": "STATE OF GEORGIA v. DEFENDANT, Case No. SYN-24-CR-12345",
     "court": "IN THE STATE COURT OF FULTON COUNTY, STATE OF GEORGIA",
     "sections": [
         {

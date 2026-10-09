@@ -179,6 +179,9 @@ class OrchestratorAgent(BaseAgent):
         self._blocked_reason: str | None = None
         self._human_review_required = False
         self._merge_history: list[dict[str, Any]] = []
+        # The allowlisted model this case's runs use (PHASE_1_MODEL_GATEWAY.md §8); None
+        # means the primary. Lives on the object like _blocked until Phase 2a persists it.
+        self.run_model: str | None = None
 
     @property
     def case_state(self) -> CaseState | None:

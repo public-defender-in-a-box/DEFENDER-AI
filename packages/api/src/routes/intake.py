@@ -23,7 +23,7 @@ from src.models.case_state import PipelineStage
 from src.models.responses.intake import TurnMessage
 from src.prompts import compose_version, load_prompt
 from src.routes._store import case_store
-from src.services.model_gateway import ModelCallError, ModelCallRequest, call_model
+from src.services.model_gateway import ModelCallError, ModelCallRequest, call_model, use_model
 
 logger = logging.getLogger(__name__)
 
@@ -272,6 +272,17 @@ async def finalize_stuck_interview(case_id: str) -> dict[str, Any]:
         pre_interview_data = session.pre_interview_data
         responses = session.responses
 
+    with use_model(orch.run_model):
+        return await _finalize_case(orch, case_id, charge_data, pre_interview_data, responses)
+
+
+async def _finalize_case(
+    orch: Any,
+    case_id: str,
+    charge_data: dict[str, Any],
+    pre_interview_data: dict[str, Any],
+    responses: dict[str, list[dict[str, Any]]],
+) -> dict[str, Any]:
     conductor = IntakeConductorAgent()
     result = await conductor.run(
         {
@@ -316,7 +327,16 @@ async def intake_websocket(websocket: WebSocket, session_id: str) -> None:
     Protocol:
         Server -> Client: {type, content, sender, timestamp, messageId, ...}
         Client -> Server: plain text
+
+    Every model call in the session (and the background tasks it starts) runs on
+    the case's model (PHASE_1_MODEL_GATEWAY.md §8).
     """
+    orch = case_store.get(session_id)
+    with use_model(getattr(orch, "run_model", None)):
+        await _intake_session(websocket, session_id)
+
+
+async def _intake_session(websocket: WebSocket, session_id: str) -> None:
     await websocket.accept()
 
     # --- 1. Validate case ---

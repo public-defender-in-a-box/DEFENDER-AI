@@ -8,11 +8,11 @@
 
 | What | Files | Lines |
 |---|---|---|
-| Python, `packages/api/src` (non-test) | 107 | 17128 |
-| Python tests, `packages/api` (incl. in-package tests) | 34 | 9326 |
+| Python, `packages/api/src` (non-test) | 109 | 17329 |
+| Python tests, `packages/api` (incl. in-package tests) | 35 | 9457 |
 | TypeScript, `packages/web/src` | 66 | 4195 |
 
-Test functions: **332** in 25 files (parametrized tests count once).
+Test functions: **334** in 26 files (parametrized tests count once).
 
 ## Agents
 
@@ -26,12 +26,12 @@ Test functions: **332** in 25 files (parametrized tests count once).
 | Agent ID | Module | STATUS | Lines | Registered | In app | Used by | Tests |
 |---|---|---|---|---|---|---|---|
 | `ethics_monitor` | `agents/cross_cutting/ethics_monitor.py` | REAL | 1127 | — | yes | `agents/graph.py`, `agents/tier0/orchestrator.py` | 65 |
-| `orchestrator` | `agents/tier0/orchestrator.py` | REAL | 525 | — | yes | `agents/graph.py`, `routes/_store.py`, `routes/upload.py` | 72 |
-| `case_prep_conductor` | `agents/tier1/case_prep.py` | STUB | 53 | yes | yes | `routes/intake.py` | — |
+| `orchestrator` | `agents/tier0/orchestrator.py` | REAL | 528 | — | yes | `agents/graph.py`, `routes/_store.py`, `routes/upload.py` | 72 |
+| `case_prep_conductor` | `agents/tier1/case_prep.py` | STUB | 53 | yes | yes | `routes/intake.py` | 2 |
 | `charge_processing` | `agents/tier1/charge_processing.py` | REAL | 482 | yes | yes | `agents/graph.py`, `routes/upload.py` | 32 |
 | `intake_conductor` | `agents/tier1/intake_conductor.py` | REAL | 1161 | yes | yes | `routes/intake.py` | 32 |
 | `pre_interview_research` | `agents/tier1/pre_interview.py` | PARTIAL | 125 | yes | yes | `agents/graph.py`, `routes/upload.py` | 28 |
-| `brady_agent` | `agents/tier2_attorney/brady_agent.py` | STUB | 59 | — | — | — | — |
+| `brady_agent` | `agents/tier2_attorney/brady_agent.py` | STUB | 59 | — | — | — | 2 |
 | `disclosure_tracking` | `agents/tier2_attorney/disclosure_tracking.py` | REAL | 416 | yes | — | — | 23 |
 | `motion_drafter` | `agents/tier2_attorney/motion_drafter.py` | REAL | 580 | — | — | — | 11 |
 | `plea_trial_analyst` | `agents/tier2_attorney/plea_trial_analyst.py` | REAL | 456 | — | — | — | 19 |
@@ -40,15 +40,15 @@ Test functions: **332** in 25 files (parametrized tests count once).
 | `fact_gatherer` | `agents/tier2_intake/fact_gatherer.py` | REAL | 158 | — | — | `agents/graph.py` | 24 |
 | `personal_circumstances` | `agents/tier2_intake/personal_circumstances.py` | REAL | 170 | — | — | `agents/graph.py` | 24 |
 | `rights_scanner` | `agents/tier2_intake/rights_scanner.py` | REAL | 323 | — | — | — | 20 |
-| `case_law_agent` | `agents/tier2_research/case_law_agent.py` | STUB | 58 | — | — | — | — |
+| `case_law_agent` | `agents/tier2_research/case_law_agent.py` | STUB | 58 | — | — | — | 2 |
 | `citation_verification` | `agents/tier2_research/citation_verification.py` | REAL | 487 | yes | — | `agents/tier2_research/research_orchestrator.py` | 28 |
-| `citation_verifier` | `agents/tier2_research/citation_verifier.py` | STUB | 56 | — | — | — | — |
+| `citation_verifier` | `agents/tier2_research/citation_verifier.py` | STUB | 56 | — | — | — | 2 |
 | `constitutional_case_law` | `agents/tier2_research/constitutional_case_law.py` | REAL | 212 | yes | — | `agents/tier2_research/research_orchestrator.py` | 28 |
 | `ga_criminal_case_law` | `agents/tier2_research/ga_criminal_case_law.py` | REAL | 254 | yes | — | `agents/tier2_research/research_orchestrator.py` | 28 |
 | `ga_statutes_agent` | `agents/tier2_research/ga_statutes_agent.py` | REAL | 141 | yes | — | `agents/tier2_research/research_orchestrator.py` | 28 |
 | `recency_monitor` | `agents/tier2_research/recency_monitor.py` | STUB | 37 | — | — | — | — |
 | `research_orchestrator` | `agents/tier2_research/research_orchestrator.py` | REAL | 299 | yes | — | — | 28 |
-| `statute_agent` | `agents/tier2_research/statute_agent.py` | STUB | 56 | — | — | — | — |
+| `statute_agent` | `agents/tier2_research/statute_agent.py` | STUB | 56 | — | — | — | 2 |
 
 Tests = test functions in files that import the class (or, for an agent that owns its
 package, any module of that package). Integration tests that reach an agent only
@@ -130,7 +130,44 @@ once.
 | `packages/api/tests/test_research_agents.py` | 28 |
 | `packages/api/tests/test_rights_scanner.py` | 20 |
 | `packages/api/tests/test_sensor_switch.py` | 9 |
+| `packages/api/tests/test_stub_agents.py` | 2 |
 | `packages/api/tests/test_tier2_intake.py` | 24 |
+
+## Model gateway
+
+Every model call goes through `services/model_gateway.call_model` (PHASE_1_MODEL_GATEWAY.md).
+
+| Module | `call_model` call sites |
+|---|---|
+| `agents/tier1/case_prep.py` | 1 |
+| `agents/tier1/charge_processing.py` | 3 |
+| `agents/tier1/intake_conductor.py` | 3 |
+| `agents/tier1/pre_interview.py` | 1 |
+| `agents/tier2_attorney/brady_agent.py` | 1 |
+| `agents/tier2_attorney/disclosure_tracking.py` | 5 |
+| `agents/tier2_attorney/motion_drafter.py` | 1 |
+| `agents/tier2_attorney/plea_trial_analyst.py` | 1 |
+| `agents/tier2_attorney/sentencing_agent/nodes/leniency_argument_builder.py` | 1 |
+| `agents/tier2_attorney/sentencing_agent/nodes/mitigation_narrative_builder.py` | 1 |
+| `agents/tier2_intake/collateral_agent.py` | 1 |
+| `agents/tier2_intake/fact_gatherer.py` | 1 |
+| `agents/tier2_intake/personal_circumstances.py` | 1 |
+| `agents/tier2_intake/rights_scanner.py` | 2 |
+| `agents/tier2_research/case_law_agent.py` | 1 |
+| `agents/tier2_research/citation_verification.py` | 2 |
+| `agents/tier2_research/citation_verifier.py` | 1 |
+| `agents/tier2_research/constitutional_case_law.py` | 2 |
+| `agents/tier2_research/ga_criminal_case_law.py` | 2 |
+| `agents/tier2_research/ga_statutes_agent.py` | 3 |
+| `agents/tier2_research/statute_agent.py` | 1 |
+| `routes/intake.py` | 1 |
+| **Total** | **36** |
+
+Prompt versions pinned in `src/prompts/MANIFEST.json`: **58** across 22 prompt directories. Prompts still inline or unversioned: **2** (`docs/PROMPT_DEBT.md`).
+
+Committed cassettes (`packages/api/tests/cassettes/`):
+
+None yet: the recording pass has not run (PHASE_1_MODEL_GATEWAY.md §5.5).
 
 ## Legal corpus
 

@@ -18,7 +18,7 @@ def make_minimal_case_state() -> dict[str, Any]:
     """Bare-minimum case state for motion drafter tests."""
     return {
         "case_id": "test_case_GA_2024_002",
-        "case_number": "24-CR-99999",
+        "case_number": "SYN-24-CR-99999",
         "jurisdiction": "GA",
         "stage": "CASE_PREP_IN_PROGRESS",
         "attorney_id": "attorney_001",
@@ -141,7 +141,7 @@ def make_sample_case_state() -> dict[str, Any]:
     """
     return {
         "case_id": "test_case_GA_2024_001",
-        "case_number": "24-CR-12345",
+        "case_number": "SYN-24-CR-12345",
         "jurisdiction": "GA",
         "stage": "CASE_PREP_IN_PROGRESS",
         "attorney_id": "attorney_001",

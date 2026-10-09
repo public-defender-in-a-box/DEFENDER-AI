@@ -46,6 +46,7 @@ from src.services.model_gateway.errors import (
 )
 from src.services.model_gateway.pricing import cost_usd
 from src.services.model_gateway.types import (
+    AbstainableResponse,
     CassetteOutcome,
     GatewayMode,
     ModelCallRecord,
@@ -341,6 +342,8 @@ def _complete(
     except ModelCallError as exc:
         _failure(record, exc)
         raise
+    if isinstance(data, AbstainableResponse) and data.abstained:
+        record = record.model_copy(update={"abstained": True})
     _ledger(record)
     return ModelCallResult(data=data, record=record)
 

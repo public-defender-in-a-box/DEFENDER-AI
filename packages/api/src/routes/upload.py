@@ -12,6 +12,12 @@ from src.agents.tier1.charge_processing import ChargeProcessingAgent
 from src.agents.tier1.pre_interview import PreInterviewResearchAgent
 from src.routes._store import case_store
 from src.services.document_parser import extract_text_from_image, extract_text_from_pdf
+from src.services.model_gateway import (
+    ModelNotAllowedError,
+    resolve_model,
+    use_model,
+    validate_model,
+)
 from src.services.storage_service import save_file
 
 logger = logging.getLogger(__name__)
@@ -29,6 +35,7 @@ async def upload_document(
     jurisdiction: str = Form("GA"),
     attorney_id: str = Form("default_attorney"),
     case_id: str = Form(""),
+    model: str = Form(""),
 ):
     """Upload a charging document and trigger the processing pipeline.
 
@@ -36,7 +43,16 @@ async def upload_document(
     and runs Charge Processing + Pre-Interview Research in the background.
 
     Returns the case_id immediately so you can poll /cases/{case_id}/status.
+
+    ``model`` optionally runs this case on a cheaper allowlisted model to manage cost
+    (PHASE_1_MODEL_GATEWAY.md §8); empty means the primary. Anything off the allowlist
+    is rejected with 422 before any work is done.
     """
+    try:
+        run_model = validate_model(model) if model else None
+    except ModelNotAllowedError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
     filename = file.filename or "document"
     ext = "." + filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
 
@@ -89,6 +105,7 @@ async def upload_document(
     )
 
     # Store orchestrator and document text for pipeline use
+    orchestrator.run_model = run_model
     case_store[case_id] = orchestrator
 
     # Run the pipeline in the background so the upload returns immediately
@@ -105,6 +122,7 @@ async def upload_document(
         "file_name": filename,
         "document_type": document_type,
         "jurisdiction": jurisdiction,
+        "model": resolve_model(run_model),
         "text_length": len(document_text),
         "status": "PROCESSING",
         "summary_url": f"/api/v1/cases/{case_id}/summary",
@@ -131,6 +149,18 @@ async def _run_pipeline(
     if not orchestrator:
         logger.error("No orchestrator found for case %s", case_id)
         return
+    with use_model(orchestrator.run_model):
+        await _run_tier1(orchestrator, case_id, document_text, document_type, jurisdiction)
+
+
+async def _run_tier1(
+    orchestrator: OrchestratorAgent,
+    case_id: str,
+    document_text: str,
+    document_type: str,
+    jurisdiction: str,
+) -> None:
+    """Charge Processing, then Pre-Interview Research, on the case's model."""
 
     # --- Charge Processing ---
     can_run, reason = orchestrator.can_run_agent("charge_processing")
