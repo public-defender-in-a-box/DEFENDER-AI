@@ -9,6 +9,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from pydantic import ValidationError
+
 from src.agents.base_agent import BaseAgent
 
 from .graph import run_sentencing_analysis
@@ -34,30 +36,23 @@ class SentencingAgent(BaseAgent):
         case_id = input_data.get("case_id") or input_data.get("id", "unknown")
         self.log_action("sentencing_analysis_started", {"case_id": case_id})
 
-        try:
-            agent_input = self._map_case_state_to_input(input_data)
-            output = await run_sentencing_analysis(agent_input)
-            output_dict = output.model_dump()
+        # A failure raises to the caller (Orchestrator.handle_agent_failure). It used to
+        # return a zero-confidence {"error": ...} payload the Orchestrator would merge.
+        agent_input = self._map_case_state_to_input(input_data)
+        output = await run_sentencing_analysis(agent_input)
+        output_dict = output.model_dump()
 
-            confidence = output.confidence_score
-            self.log_action(
-                "sentencing_analysis_completed",
-                {
-                    "case_id": case_id,
-                    "scope_status": output.scope_status,
-                    "confidence": confidence,
-                },
-            )
+        confidence = output.confidence_score
+        self.log_action(
+            "sentencing_analysis_completed",
+            {
+                "case_id": case_id,
+                "scope_status": output.scope_status,
+                "confidence": confidence,
+            },
+        )
 
-            return self.wrap_output(output_dict, confidence=confidence)
-
-        except Exception:
-            logger.error("Sentencing analysis failed for case %s", case_id)
-            self.log_action("sentencing_analysis_error", {"case_id": case_id})
-            return self.wrap_output(
-                {"error": "Sentencing analysis failed", "case_id": case_id},
-                confidence=0.0,
-            )
+        return self.wrap_output(output_dict, confidence=confidence)
 
     def _map_case_state_to_input(self, input_data: dict[str, Any]) -> SentencingAgentInput:
         """Map CaseState dict fields to SentencingAgentInput.
@@ -68,7 +63,8 @@ class SentencingAgent(BaseAgent):
         # Try direct construction first (if Orchestrator passes pre-mapped data)
         try:
             return SentencingAgentInput(**input_data)
-        except Exception:
+        except ValidationError:
+            # Not pre-mapped: fall through to mapping from CaseState conventions.
             pass
 
         # Fallback: map from CaseState conventions

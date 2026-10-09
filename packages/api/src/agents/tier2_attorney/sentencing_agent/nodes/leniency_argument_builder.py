@@ -2,6 +2,9 @@
 
 Generates candidate leniency arguments from a deterministic menu,
 then uses LLM to explain and strengthen them based on case facts.
+
+A failed model call fails the node (PHASE_1_MODEL_GATEWAY.md §0.4): the labeled
+deterministic fallback that used to stand in for the model's arguments is removed.
 """
 
 from __future__ import annotations
@@ -9,17 +12,22 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
-from src.services.llm_service import call_llm
+from src.models.responses.sentencing import LeniencyArguments
+from src.prompts import compose_version, load_prompt
+from src.services.model_gateway import ModelCallRequest, call_model
 
 from ..models.outputs import DepartureArgument, NodeAuditRecord
 from ..models.state import SentencingGraphState
 
 logger = logging.getLogger(__name__)
 
-PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "leniency_arguments.txt"
+# Prompts: src/prompts/sentencing_agent/
+_SYSTEM = load_prompt("sentencing_agent.leniency_arguments", "v1")
+_INPUT = load_prompt("sentencing_agent.leniency_input", "v1")
+# Thinking tokens count toward max_tokens on current models (Phase 1 §2).
+_MAX_TOKENS = 16000
 
 
 def _build_deterministic_candidates(state: SentencingGraphState) -> list[dict[str, Any]]:
@@ -154,88 +162,35 @@ def _build_llm_prompt(
     state: SentencingGraphState, candidates: list[dict[str, Any]]
 ) -> tuple[str, str]:
     """Build the system and user prompts for leniency argument generation."""
-    system_prompt = PROMPT_PATH.read_text()
-
     input_data = state["input"]
     fact_sheet = state.get("mitigation_fact_sheet")
     guideline_range = state.get("guideline_range")
 
-    user_prompt = f"""
-OFFENSE DETAILS:
-- Statute: {input_data.offense_details.statute}
-- Description: {input_data.offense_details.charge_description}
-- Quantity: {input_data.offense_details.quantity_text or "not specified"}
-
-MITIGATION FACT SHEET:
-{json.dumps(fact_sheet, default=str, indent=2) if fact_sheet else "No facts available"}
-
-SENTENCING EXPOSURE:
-{json.dumps(guideline_range.model_dump(), default=str, indent=2) if guideline_range else "Not calculated"}
-
-CANDIDATE ARGUMENTS:
-{json.dumps(candidates, indent=2)}
-
-DIVERSION OPTIONS:
-{json.dumps([opt.model_dump() for opt in (state.get("diversion_options") or [])], default=str, indent=2)}
-
-Return valid JSON array matching the required schema."""
-
-    return system_prompt, user_prompt
-
-
-def _parse_llm_response(raw: dict[str, Any]) -> list[DepartureArgument]:
-    """Parse LLM response into DepartureArgument objects."""
-    # Handle both direct array and wrapped response
-    if isinstance(raw, list):
-        items = raw
-    elif isinstance(raw, dict) and "arguments" in raw:
-        items = raw["arguments"]
-    else:
-        # Empty dict or unrecognized format — return nothing
-        items = []
-
-    results: list[DepartureArgument] = []
-    for item in items:
-        try:
-            results.append(
-                DepartureArgument(
-                    argument_type=item.get("argument_type", "judicial_discretion_argument"),
-                    basis=item.get("basis", ""),
-                    supporting_facts=item.get("supporting_facts", []),
-                    supporting_fact_ids=item.get("supporting_fact_ids", []),
-                    strength=item.get("strength", "moderate"),
-                    applicable_authority=item.get("applicable_authority", []),
-                    authority_verification_status=item.get(
-                        "authority_verification_status", "not_applicable"
-                    ),
-                    notes=item.get("notes", ""),
-                )
-            )
-        except Exception:
-            continue
-
-    return results
+    user_prompt = _INPUT.text.format(
+        statute=input_data.offense_details.statute,
+        charge_description=input_data.offense_details.charge_description,
+        quantity=input_data.offense_details.quantity_text or "not specified",
+        fact_sheet=(
+            json.dumps(fact_sheet, default=str, indent=2) if fact_sheet else "No facts available"
+        ),
+        exposure=(
+            json.dumps(guideline_range.model_dump(), default=str, indent=2)
+            if guideline_range
+            else "Not calculated"
+        ),
+        candidates=json.dumps(candidates, indent=2),
+        diversion_options=json.dumps(
+            [opt.model_dump() for opt in (state.get("diversion_options") or [])],
+            default=str,
+            indent=2,
+        ),
+    )
+    return _SYSTEM.text, user_prompt
 
 
-def _fallback_arguments(candidates: list[dict[str, Any]]) -> list[DepartureArgument]:
-    """Generate fallback arguments without LLM if the call fails."""
-    results: list[DepartureArgument] = []
-    for cand in candidates:
-        results.append(
-            DepartureArgument(
-                argument_type=cand.get("argument_type", "alternative_sentence"),
-                basis=cand.get("basis", ""),
-                supporting_facts=[],
-                supporting_fact_ids=[],
-                strength="moderate",
-                applicable_authority=cand.get("applicable_authority", []),
-                authority_verification_status=cand.get(
-                    "authority_verification_status", "not_applicable"
-                ),
-                notes="Generated without LLM refinement — attorney review required",
-            )
-        )
-    return results
+def _to_departure_arguments(response: LeniencyArguments) -> list[DepartureArgument]:
+    """Convert the validated response; field-for-field, so it cannot drop an item."""
+    return [DepartureArgument(**argument.model_dump()) for argument in response.arguments]
 
 
 async def leniency_argument_builder(state: SentencingGraphState) -> SentencingGraphState:
@@ -260,19 +215,22 @@ async def leniency_argument_builder(state: SentencingGraphState) -> SentencingGr
 
     candidates = _build_deterministic_candidates(state)
 
-    try:
-        system_prompt, user_prompt = _build_llm_prompt(state, candidates)
-        raw = await call_llm(user_prompt, system=system_prompt, max_tokens=4096)
-        arguments = _parse_llm_response(raw)
-
-        if not arguments:
-            warnings.append("LLM returned no valid arguments — using fallback")
-            arguments = _fallback_arguments(candidates)
-
-    except Exception as e:
-        logger.warning("Leniency argument LLM call failed: %s — using fallback", e)
-        warnings.append(f"LLM call failed: {e} — using deterministic fallback arguments")
-        arguments = _fallback_arguments(candidates)
+    system_prompt, user_prompt = _build_llm_prompt(state, candidates)
+    result = await call_model(
+        ModelCallRequest(
+            prompt=user_prompt,
+            system=system_prompt,
+            max_tokens=_MAX_TOKENS,
+            response_model=LeniencyArguments,
+            prompt_id="sentencing_agent.leniency_arguments",
+            prompt_version=compose_version(_SYSTEM, _INPUT),
+            agent_id="sentencing_agent",
+        )
+    )
+    arguments = _to_departure_arguments(result.data)
+    if not arguments:
+        # A valid answer (no menu item is supported by the facts), recorded as such.
+        warnings.append("Model returned no leniency arguments")
 
     state["departure_arguments"] = arguments
     state["warnings"] = warnings

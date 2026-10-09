@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
+
+from src.services.model_gateway import TransportError
+from src.services.model_gateway.testing import FakeCallModel
 
 from ..graph import run_sentencing_analysis
 from ..models.inputs import (
@@ -35,7 +38,7 @@ class TestFullPipelineIntegration:
 
     @pytest.fixture
     def mock_llm(self):
-        """Mock call_llm in both LLM node modules."""
+        """Canned, schema-validated responses for both model-calling nodes."""
         narrative_response = {
             "summary": "Test mitigation summary.",
             "full_narrative": "Test full narrative for the defendant.",
@@ -47,31 +50,37 @@ class TestFullPipelineIntegration:
             "unsupported_claim_warnings": [],
             "tone_notes": "Professional tone",
         }
-        leniency_response = [
-            {
-                "argument_type": "alternative_sentence",
-                "basis": "Straight probation",
-                "supporting_facts": ["Employed full-time"],
-                "supporting_fact_ids": ["auto-1"],
-                "strength": "strong",
-                "applicable_authority": ["O.C.G.A. § 42-8-34"],
-                "authority_verification_status": "confirmed",
-                "notes": "Test argument",
-            }
-        ]
+        leniency_response = {
+            "arguments": [
+                {
+                    "argument_type": "alternative_sentence",
+                    "basis": "Straight probation",
+                    "supporting_facts": ["Employed full-time"],
+                    "supporting_fact_ids": ["auto-1"],
+                    "strength": "strong",
+                    "applicable_authority": ["O.C.G.A. § 42-8-34"],
+                    "authority_verification_status": "confirmed",
+                    "notes": "Test argument",
+                }
+            ]
+        }
 
         leniency_mod = "src.agents.tier2_attorney.sentencing_agent.nodes.leniency_argument_builder"
         narrative_mod = (
             "src.agents.tier2_attorney.sentencing_agent.nodes.mitigation_narrative_builder"
         )
 
+        fake = FakeCallModel(
+            by_prompt={
+                "sentencing_agent.leniency_arguments": leniency_response,
+                "sentencing_agent.mitigation_narrative": narrative_response,
+            }
+        )
         with (
-            patch(f"{leniency_mod}.call_llm", new_callable=AsyncMock) as mock_len,
-            patch(f"{narrative_mod}.call_llm", new_callable=AsyncMock) as mock_narr,
+            patch(f"{leniency_mod}.call_model", new=fake),
+            patch(f"{narrative_mod}.call_model", new=fake),
         ):
-            mock_len.return_value = leniency_response
-            mock_narr.return_value = narrative_response
-            yield mock_narr
+            yield fake
 
     @pytest.mark.asyncio
     async def test_in_scope_case_produces_valid_output(self, mock_llm):
@@ -280,3 +289,22 @@ class TestRegressionPriorDraftMistakes:
         }
         result = scope_gate(state)
         assert result["scope_status"] == "out_of_scope"
+
+
+class TestModelFailure:
+    """A failed model call fails the pipeline; there is no fallback output (Phase 1 §0.4)."""
+
+    @pytest.mark.asyncio
+    async def test_failed_call_raises(self):
+        input_data = _load_fixture("in_scope_case.json")
+        leniency_mod = "src.agents.tier2_attorney.sentencing_agent.nodes.leniency_argument_builder"
+        narrative_mod = (
+            "src.agents.tier2_attorney.sentencing_agent.nodes.mitigation_narrative_builder"
+        )
+        fake = FakeCallModel(TransportError("overloaded"), TransportError("overloaded"))
+        with (
+            patch(f"{leniency_mod}.call_model", new=fake),
+            patch(f"{narrative_mod}.call_model", new=fake),
+            pytest.raises(TransportError),
+        ):
+            await run_sentencing_analysis(input_data)

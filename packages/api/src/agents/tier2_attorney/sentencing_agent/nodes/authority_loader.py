@@ -74,46 +74,25 @@ def authority_loader(state: SentencingGraphState) -> SentencingGraphState:
         state["audit_records"] = audit_records
         return state
 
-    try:
-        all_statutes = load_statutes()
-        bundle = build_authority_bundle(all_statutes)
+    # Bundled seed data: a load failure is a bug and raises (Phase 1 §3.2).
+    all_statutes = load_statutes()
+    bundle = build_authority_bundle(all_statutes)
 
-        if bundle["missing_statutes"]:
-            warnings.append(
-                f"Missing statutes from corpus: {', '.join(bundle['missing_statutes'])}"
-            )
+    if bundle["missing_statutes"]:
+        warnings.append(f"Missing statutes from corpus: {', '.join(bundle['missing_statutes'])}")
 
-        state["authority_bundle"] = bundle
-        state["warnings"] = warnings
-        audit_records.append(
-            NodeAuditRecord(
-                node_name="authority_loader",
-                status="ok" if not bundle["missing_statutes"] else "warning",
-                started_at=started_at,
-                completed_at=datetime.now(timezone.utc).isoformat(),
-                warnings=warnings,
-                output_keys=["authority_bundle"],
-            )
+    state["authority_bundle"] = bundle
+    state["warnings"] = warnings
+    audit_records.append(
+        NodeAuditRecord(
+            node_name="authority_loader",
+            status="ok" if not bundle["missing_statutes"] else "warning",
+            started_at=started_at,
+            completed_at=datetime.now(timezone.utc).isoformat(),
+            warnings=warnings,
+            output_keys=["authority_bundle"],
         )
-    except Exception as e:
-        warnings.append(f"Authority loader error: {e}")
-        state["authority_bundle"] = {
-            "statutes": {},
-            "missing_statutes": MVP_STATUTES,
-            "loaded_count": 0,
-            "expected_count": len(MVP_STATUTES),
-        }
-        state["warnings"] = warnings
-        audit_records.append(
-            NodeAuditRecord(
-                node_name="authority_loader",
-                status="error",
-                started_at=started_at,
-                completed_at=datetime.now(timezone.utc).isoformat(),
-                warnings=[str(e)],
-                output_keys=["authority_bundle"],
-            )
-        )
+    )
 
     state["audit_records"] = audit_records
     return state

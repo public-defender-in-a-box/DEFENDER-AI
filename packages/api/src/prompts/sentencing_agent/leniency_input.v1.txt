@@ -1,0 +1,19 @@
+
+OFFENSE DETAILS:
+- Statute: {statute}
+- Description: {charge_description}
+- Quantity: {quantity}
+
+MITIGATION FACT SHEET:
+{fact_sheet}
+
+SENTENCING EXPOSURE:
+{exposure}
+
+CANDIDATE ARGUMENTS:
+{candidates}
+
+DIVERSION OPTIONS:
+{diversion_options}
+
+Return valid JSON matching the required schema.

@@ -126,11 +126,8 @@ def comparable_sentence_lookup(state: SentencingGraphState) -> SentencingGraphSt
 
     input_data = state["input"]
 
-    try:
-        comparables = find_comparable_sentences(input_data)
-    except Exception as e:
-        comparables = []
-        warnings.append(f"Comparable sentence lookup error: {e}")
+    # Bundled seed data: a load failure is a bug and raises (Phase 1 §3.2).
+    comparables = find_comparable_sentences(input_data)
 
     if len(comparables) < MIN_COMPARABLES_WARNING_THRESHOLD:
         warnings.append(

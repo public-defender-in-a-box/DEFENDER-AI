@@ -22,23 +22,13 @@ BROAD_EXCEPT_ALLOWLIST: dict[str, tuple[int, str]] = {
     "src/agents/tier1/pre_interview.py": (1, _PENDING),
     "src/agents/tier2_attorney/motion_drafter.py": (1, _PENDING),
     "src/agents/tier2_attorney/plea_trial_analyst.py": (2, _PENDING),
-    "src/agents/tier2_attorney/sentencing_agent/agent.py": (2, _PENDING),
-    "src/agents/tier2_attorney/sentencing_agent/api/routes.py": (1, _PENDING),
-    "src/agents/tier2_attorney/sentencing_agent/nodes/authority_loader.py": (1, _PENDING),
-    "src/agents/tier2_attorney/sentencing_agent/nodes/comparable_sentence_lookup.py": (1, _PENDING),
-    "src/agents/tier2_attorney/sentencing_agent/nodes/diversion_checker.py": (1, _PENDING),
-    "src/agents/tier2_attorney/sentencing_agent/nodes/leniency_argument_builder.py": (2, _PENDING),
-    "src/agents/tier2_attorney/sentencing_agent/nodes/mitigation_narrative_builder.py": (
-        1,
-        _PENDING,
-    ),
     "src/agents/tier2_intake/collateral_agent.py": (2, _PENDING),
     "src/agents/tier2_intake/fact_gatherer.py": (6, _PENDING),
     "src/agents/tier2_intake/personal_circumstances.py": (5, _PENDING),
 }
 
 # Lower this as call sites migrate; it must never go up.
-SHIM_CALLERS_MAX = 20
+SHIM_CALLERS_MAX = 18
 
 
 def _is_broad(handler: ast.ExceptHandler) -> bool:

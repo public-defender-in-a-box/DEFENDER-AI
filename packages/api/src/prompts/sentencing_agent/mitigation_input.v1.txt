@@ -1,0 +1,10 @@
+
+OFFENSE CONTEXT:
+- Statute: {statute}
+- Description: {charge_description}
+- County: {county}
+
+MITIGATION FACT SHEET:
+{fact_sheet}
+
+Draft the mitigation narrative based ONLY on the facts provided above. Return JSON only.

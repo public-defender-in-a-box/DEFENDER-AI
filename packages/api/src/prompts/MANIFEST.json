@@ -21,5 +21,9 @@
   "intake_conductor.question_generation@v1": "216f089c6eefd35768e31e91febd22c48ab00d9ee14f151e9cf57be22f3c629f",
   "intake_conductor.response_processing@v1": "4a8ab1b9a1a1d9621880ab117de0ea80b68a591805ef0f4c48b8eca65b8401bf",
   "intake_conductor.system@v1": "ae4dc8425489b69f937e22db6bce88938ab0d34b251a325fb9a3d8b5b48e6029",
-  "intake_route.turn_message@v1": "3b1f4a1d7573adf25b40b3c2cfae0c625ea77afd13d92a4da380f4a53ebe3e19"
+  "intake_route.turn_message@v1": "3b1f4a1d7573adf25b40b3c2cfae0c625ea77afd13d92a4da380f4a53ebe3e19",
+  "sentencing_agent.leniency_arguments@v1": "13e03e32ad382edf4c84e23f4fd89bb46f2e864a7a6771865ee1358d9d19685c",
+  "sentencing_agent.leniency_input@v1": "4f09ed5d87bf53bfeff78dfd7a675b0c8a7ccf877d8c6210d491d01800c6fd80",
+  "sentencing_agent.mitigation_input@v1": "8d7e09ebefd7b1c2afae2c7491b79a35c37fd2fe585a4e6b55ed4606d92ff10c",
+  "sentencing_agent.mitigation_narrative@v1": "21566d7f7316f9386e3e1d149a32f1612433618723124e518a8f13a5a5dc3bba"
 }

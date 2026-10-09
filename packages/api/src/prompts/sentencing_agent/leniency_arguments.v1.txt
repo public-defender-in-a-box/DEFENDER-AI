@@ -15,7 +15,7 @@ RULES:
 - If a fact is tagged as self-reported or unverified, note that limitation.
 - Return JSON ONLY — no markdown, no commentary outside JSON.
 
-Return a JSON array of argument objects, each with:
+Return a JSON object with an "arguments" array of argument objects, each with:
 {
   "argument_type": "mitigating_factor" | "alternative_sentence" | "judicial_discretion_argument",
   "basis": "short description of the argument",

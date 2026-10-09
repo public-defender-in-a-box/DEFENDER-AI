@@ -8,11 +8,11 @@
 
 | What | Files | Lines |
 |---|---|---|
-| Python, `packages/api/src` (non-test) | 104 | 18022 |
-| Python tests, `packages/api` (incl. in-package tests) | 32 | 9017 |
+| Python, `packages/api/src` (non-test) | 105 | 18086 |
+| Python tests, `packages/api` (incl. in-package tests) | 33 | 9181 |
 | TypeScript, `packages/web/src` | 66 | 4195 |
 
-Test functions: **322** in 23 files (parametrized tests count once).
+Test functions: **328** in 24 files (parametrized tests count once).
 
 ## Agents
 
@@ -29,13 +29,13 @@ Test functions: **322** in 23 files (parametrized tests count once).
 | `orchestrator` | `agents/tier0/orchestrator.py` | REAL | 525 | — | yes | `agents/graph.py`, `routes/_store.py`, `routes/upload.py` | 69 |
 | `case_prep_conductor` | `agents/tier1/case_prep.py` | STUB | 50 | yes | yes | `routes/intake.py` | — |
 | `charge_processing` | `agents/tier1/charge_processing.py` | REAL | 482 | yes | yes | `agents/graph.py`, `routes/upload.py` | 32 |
-| `intake_conductor` | `agents/tier1/intake_conductor.py` | REAL | 1161 | yes | yes | `routes/intake.py` | 26 |
+| `intake_conductor` | `agents/tier1/intake_conductor.py` | REAL | 1161 | yes | yes | `routes/intake.py` | 32 |
 | `pre_interview_research` | `agents/tier1/pre_interview.py` | PARTIAL | 236 | yes | yes | `agents/graph.py`, `routes/upload.py` | 26 |
 | `brady_agent` | `agents/tier2_attorney/brady_agent.py` | STUB | 63 | — | — | — | — |
 | `disclosure_tracking` | `agents/tier2_attorney/disclosure_tracking.py` | REAL | 575 | yes | — | — | 23 |
 | `motion_drafter` | `agents/tier2_attorney/motion_drafter.py` | REAL | 585 | — | — | — | 11 |
 | `plea_trial_analyst` | `agents/tier2_attorney/plea_trial_analyst.py` | REAL | 504 | — | — | — | 20 |
-| `sentencing_agent` | `agents/tier2_attorney/sentencing_agent/agent.py` | REAL | 110 | — | — | — | 71 |
+| `sentencing_agent` | `agents/tier2_attorney/sentencing_agent/agent.py` | REAL | 106 | — | — | — | 71 |
 | `collateral_agent` | `agents/tier2_intake/collateral_agent.py` | REAL | 301 | — | — | `agents/graph.py` | 24 |
 | `fact_gatherer` | `agents/tier2_intake/fact_gatherer.py` | REAL | 339 | — | — | `agents/graph.py` | 24 |
 | `personal_circumstances` | `agents/tier2_intake/personal_circumstances.py` | REAL | 361 | — | — | `agents/graph.py` | 24 |
@@ -109,8 +109,8 @@ once.
 | `packages/api/src/agents/tier2_attorney/sentencing_agent/tests/test_bias_audit.py` | 7 |
 | `packages/api/src/agents/tier2_attorney/sentencing_agent/tests/test_diversion_checker.py` | 14 |
 | `packages/api/src/agents/tier2_attorney/sentencing_agent/tests/test_exposure_calculator.py` | 8 |
-| `packages/api/src/agents/tier2_attorney/sentencing_agent/tests/test_integration.py` | 10 |
-| `packages/api/src/agents/tier2_attorney/sentencing_agent/tests/test_llm_outputs.py` | 8 |
+| `packages/api/src/agents/tier2_attorney/sentencing_agent/tests/test_integration.py` | 11 |
+| `packages/api/src/agents/tier2_attorney/sentencing_agent/tests/test_llm_outputs.py` | 7 |
 | `packages/api/src/agents/tier2_attorney/sentencing_agent/tests/test_scope_gate.py` | 24 |
 | `packages/api/tests/agents/tier2_attorney/test_motion_drafter.py` | 11 |
 | `packages/api/tests/agents/tier2_attorney/test_plea_trial_analyst.py` | 20 |
@@ -121,6 +121,7 @@ once.
 | `packages/api/tests/test_ethics_monitor.py` | 39 |
 | `packages/api/tests/test_gateway_migration.py` | 2 |
 | `packages/api/tests/test_intake.py` | 2 |
+| `packages/api/tests/test_intake_conductor.py` | 6 |
 | `packages/api/tests/test_model_gateway.py` | 25 |
 | `packages/api/tests/test_orchestrator.py` | 2 |
 | `packages/api/tests/test_pipeline_integration.py` | 26 |

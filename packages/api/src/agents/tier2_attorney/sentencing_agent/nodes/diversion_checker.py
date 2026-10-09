@@ -251,11 +251,8 @@ def diversion_checker(state: SentencingGraphState) -> SentencingGraphState:
     input_data = state["input"]
     options: list[DiversionOption] = []
 
-    try:
-        directory = load_program_directory()
-    except Exception:
-        directory = []
-        warnings.append("Could not load program directory — diversion availability will be unknown")
+    # Bundled seed data: a load failure is a bug and raises (Phase 1 §3.2).
+    directory = load_program_directory()
 
     # 1. Conditional discharge (statewide, statutory)
     cd_elig, cd_reasons = conditional_discharge_prelim(input_data.criminal_history)

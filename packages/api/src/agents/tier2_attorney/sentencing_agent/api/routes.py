@@ -90,10 +90,8 @@ async def check_diversion(input_data: DiversionRequest) -> list[DiversionOption]
         program_availability_overrides=input_data.program_availability_overrides,
     )
 
-    try:
-        directory = load_program_directory()
-    except Exception:
-        directory = []
+    # Bundled seed data: a load failure is a bug and raises (Phase 1 §3.2).
+    directory = load_program_directory()
 
     options: list[DiversionOption] = []
 
