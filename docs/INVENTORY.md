@@ -8,11 +8,11 @@
 
 | What | Files | Lines |
 |---|---|---|
-| Python, `packages/api/src` (non-test) | 109 | 17329 |
-| Python tests, `packages/api` (incl. in-package tests) | 35 | 9457 |
+| Python, `packages/api/src` (non-test) | 109 | 17310 |
+| Python tests, `packages/api` (incl. in-package tests) | 37 | 9635 |
 | TypeScript, `packages/web/src` | 66 | 4195 |
 
-Test functions: **334** in 26 files (parametrized tests count once).
+Test functions: **340** in 28 files (parametrized tests count once).
 
 ## Agents
 
@@ -115,6 +115,7 @@ once.
 | `packages/api/tests/agents/tier2_attorney/test_motion_drafter.py` | 11 |
 | `packages/api/tests/agents/tier2_attorney/test_plea_trial_analyst.py` | 19 |
 | `packages/api/tests/test_agent_registry.py` | 8 |
+| `packages/api/tests/test_cassettes.py` | 3 |
 | `packages/api/tests/test_charge_processing.py` | 6 |
 | `packages/api/tests/test_courtlistener.py` | 7 |
 | `packages/api/tests/test_disclosure_tracking.py` | 23 |
@@ -123,6 +124,7 @@ once.
 | `packages/api/tests/test_intake.py` | 2 |
 | `packages/api/tests/test_intake_conductor.py` | 6 |
 | `packages/api/tests/test_model_gateway.py` | 25 |
+| `packages/api/tests/test_model_selection.py` | 3 |
 | `packages/api/tests/test_orchestrator.py` | 2 |
 | `packages/api/tests/test_pipeline_integration.py` | 26 |
 | `packages/api/tests/test_pre_interview.py` | 2 |

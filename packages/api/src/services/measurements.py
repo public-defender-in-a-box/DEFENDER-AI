@@ -1,8 +1,8 @@
 """Append-only measurements store (CLAUDE.md §3.3, PHASE_1_MODEL_GATEWAY.md §6).
 
 Everything the study counts is written here as a typed event rather than only into
-prose or logs: model calls (successes and failures), malformed items dropped from
-model output, agent failures, and merge decisions.
+prose or logs: model calls (successes and failures), external service calls, agent
+failures, and merge decisions.
 
 Phase 1 keeps the store in process memory, with an optional JSON Lines sink
 (``MEASUREMENTS_PATH``). Durable storage keyed by ``(case_id, run_id)`` is Phase 2a.
@@ -27,7 +27,6 @@ logger = logging.getLogger(__name__)
 
 class MeasurementKind(str, Enum):
     MODEL_CALL = "MODEL_CALL"
-    ITEM_DROPPED = "ITEM_DROPPED"
     AGENT_FAILURE = "AGENT_FAILURE"
     MERGE_DECISION = "MERGE_DECISION"
     EXTERNAL_CALL = "EXTERNAL_CALL"
@@ -90,21 +89,3 @@ def capture() -> Iterator[list[Measurement]]:
         yield sink
     finally:
         _captures.reset(token)
-
-
-def record_dropped_item(
-    agent_id: str, item_kind: str, error: Exception, item: JsonValue = None
-) -> None:
-    """Count a malformed item dropped from model output (§3.2: a drop is a measurement)."""
-    logger.warning("%s dropped a malformed %s: %s", agent_id, item_kind, error)
-    record(
-        Measurement(
-            kind=MeasurementKind.ITEM_DROPPED,
-            agent_id=agent_id,
-            payload={"item_kind": item_kind, "error": str(error)[:2000], "item": item},
-        )
-    )
-
-
-def dropped_item_count(agent_id: str | None = None) -> int:
-    return len(events(MeasurementKind.ITEM_DROPPED, agent_id))
