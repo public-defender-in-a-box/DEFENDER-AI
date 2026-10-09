@@ -12,6 +12,8 @@ import pytest
 
 from src.agents.tier2_attorney.motion_drafter import MotionDrafterAgent
 from src.models.motions import DraftMotion, MotionDrafterOutput, MotionType
+from src.services.model_gateway import ModelCallRequest, TransportError
+from src.services.model_gateway.testing import FakeCallModel
 from tests.fixtures.sample_case_state import (
     SAMPLE_LLM_BAIL_RESPONSE,
     SAMPLE_LLM_DISCOVERY_RESPONSE,
@@ -26,9 +28,9 @@ from tests.fixtures.sample_case_state import (
 # ---------------------------------------------------------------------------
 
 
-def _mock_call_llm_side_effect(prompt: str, **kwargs) -> dict:
-    """Return the appropriate mock response based on the prompt content."""
-    prompt_lower = prompt.lower()
+def _payload_for(req: ModelCallRequest) -> dict:
+    """Return the appropriate canned response based on the prompt content."""
+    prompt_lower = req.prompt.lower()
     if "suppress" in prompt_lower:
         return SAMPLE_LLM_SUPPRESS_RESPONSE
     elif "discovery" in prompt_lower or "brady" in prompt_lower:
@@ -82,12 +84,12 @@ def minimal_case_data() -> dict:
 
 
 @pytest.mark.asyncio
-@patch("src.agents.tier2_attorney.motion_drafter.call_llm", new_callable=AsyncMock)
+@patch("src.agents.tier2_attorney.motion_drafter.call_model", new_callable=AsyncMock)
 async def test_determines_applicable_motions(
     mock_llm: AsyncMock, agent: MotionDrafterAgent, full_case_data: dict
 ) -> None:
     """Given full case state, suppress + discovery + bail should be generated."""
-    mock_llm.side_effect = _mock_call_llm_side_effect
+    mock_llm.side_effect = FakeCallModel(respond_with=_payload_for).respond
 
     result = await agent.run(full_case_data)
     output_data = result["data"]
@@ -101,12 +103,12 @@ async def test_determines_applicable_motions(
 
 
 @pytest.mark.asyncio
-@patch("src.agents.tier2_attorney.motion_drafter.call_llm", new_callable=AsyncMock)
+@patch("src.agents.tier2_attorney.motion_drafter.call_model", new_callable=AsyncMock)
 async def test_suppress_motion_structure(
     mock_llm: AsyncMock, agent: MotionDrafterAgent, full_case_data: dict
 ) -> None:
     """Verify a suppression motion has all required sections and warnings."""
-    mock_llm.side_effect = _mock_call_llm_side_effect
+    mock_llm.side_effect = FakeCallModel(respond_with=_payload_for).respond
 
     result = await agent.run(full_case_data)
     output_data = result["data"]
@@ -133,12 +135,12 @@ async def test_suppress_motion_structure(
 
 
 @pytest.mark.asyncio
-@patch("src.agents.tier2_attorney.motion_drafter.call_llm", new_callable=AsyncMock)
+@patch("src.agents.tier2_attorney.motion_drafter.call_model", new_callable=AsyncMock)
 async def test_confidence_scoring(
     mock_llm: AsyncMock, agent: MotionDrafterAgent, full_case_data: dict
 ) -> None:
     """Verify confidence scoring logic."""
-    mock_llm.side_effect = _mock_call_llm_side_effect
+    mock_llm.side_effect = FakeCallModel(respond_with=_payload_for).respond
 
     result = await agent.run(full_case_data)
     output_data = result["data"]
@@ -155,12 +157,12 @@ async def test_confidence_scoring(
 
 
 @pytest.mark.asyncio
-@patch("src.agents.tier2_attorney.motion_drafter.call_llm", new_callable=AsyncMock)
+@patch("src.agents.tier2_attorney.motion_drafter.call_model", new_callable=AsyncMock)
 async def test_missing_upstream_data_flag(
     mock_llm: AsyncMock, agent: MotionDrafterAgent, minimal_case_data: dict
 ) -> None:
     """When rights_violations is empty, suppress is skipped."""
-    mock_llm.side_effect = _mock_call_llm_side_effect
+    mock_llm.side_effect = FakeCallModel(respond_with=_payload_for).respond
 
     result = await agent.run(minimal_case_data)
     output_data = result["data"]
@@ -185,12 +187,12 @@ async def test_missing_upstream_data_flag(
 
 
 @pytest.mark.asyncio
-@patch("src.agents.tier2_attorney.motion_drafter.call_llm", new_callable=AsyncMock)
+@patch("src.agents.tier2_attorney.motion_drafter.call_model", new_callable=AsyncMock)
 async def test_unverified_citation_flag(
     mock_llm: AsyncMock, agent: MotionDrafterAgent, full_case_data: dict
 ) -> None:
     """When a motion includes UNVERIFIED citations, the flag is present."""
-    mock_llm.side_effect = _mock_call_llm_side_effect
+    mock_llm.side_effect = FakeCallModel(respond_with=_payload_for).respond
 
     result = await agent.run(full_case_data)
     output_data = result["data"]
@@ -206,12 +208,12 @@ async def test_unverified_citation_flag(
 
 
 @pytest.mark.asyncio
-@patch("src.agents.tier2_attorney.motion_drafter.call_llm", new_callable=AsyncMock)
+@patch("src.agents.tier2_attorney.motion_drafter.call_model", new_callable=AsyncMock)
 async def test_draft_warning_always_present(
     mock_llm: AsyncMock, agent: MotionDrafterAgent, full_case_data: dict
 ) -> None:
     """Every generated motion must have the draft warning."""
-    mock_llm.side_effect = _mock_call_llm_side_effect
+    mock_llm.side_effect = FakeCallModel(respond_with=_payload_for).respond
 
     result = await agent.run(full_case_data)
     output_data = result["data"]
@@ -223,12 +225,12 @@ async def test_draft_warning_always_present(
 
 
 @pytest.mark.asyncio
-@patch("src.agents.tier2_attorney.motion_drafter.call_llm", new_callable=AsyncMock)
+@patch("src.agents.tier2_attorney.motion_drafter.call_model", new_callable=AsyncMock)
 async def test_all_motions_have_confidence(
     mock_llm: AsyncMock, agent: MotionDrafterAgent, full_case_data: dict
 ) -> None:
     """Every DraftMotion must have non-null confidence and confidence_level."""
-    mock_llm.side_effect = _mock_call_llm_side_effect
+    mock_llm.side_effect = FakeCallModel(respond_with=_payload_for).respond
 
     result = await agent.run(full_case_data)
     output_data = result["data"]
@@ -243,12 +245,12 @@ async def test_all_motions_have_confidence(
 
 
 @pytest.mark.asyncio
-@patch("src.agents.tier2_attorney.motion_drafter.call_llm", new_callable=AsyncMock)
+@patch("src.agents.tier2_attorney.motion_drafter.call_model", new_callable=AsyncMock)
 async def test_golden_output_structure(
     mock_llm: AsyncMock, agent: MotionDrafterAgent, full_case_data: dict
 ) -> None:
     """Golden output test: verify structural properties of the full output."""
-    mock_llm.side_effect = _mock_call_llm_side_effect
+    mock_llm.side_effect = FakeCallModel(respond_with=_payload_for).respond
 
     result = await agent.run(full_case_data)
     output_data = result["data"]
@@ -290,12 +292,12 @@ async def test_golden_output_structure(
 
 
 @pytest.mark.asyncio
-@patch("src.agents.tier2_attorney.motion_drafter.call_llm", new_callable=AsyncMock)
+@patch("src.agents.tier2_attorney.motion_drafter.call_model", new_callable=AsyncMock)
 async def test_discovery_always_generated(
     mock_llm: AsyncMock, agent: MotionDrafterAgent, minimal_case_data: dict
 ) -> None:
     """Discovery/Brady demand should always be generated, even with minimal data."""
-    mock_llm.side_effect = _mock_call_llm_side_effect
+    mock_llm.side_effect = FakeCallModel(respond_with=_payload_for).respond
 
     result = await agent.run(minimal_case_data)
     output_data = result["data"]
@@ -305,28 +307,25 @@ async def test_discovery_always_generated(
 
 
 @pytest.mark.asyncio
-@patch("src.agents.tier2_attorney.motion_drafter.call_llm", new_callable=AsyncMock)
-async def test_llm_failure_handled_gracefully(
+@patch("src.agents.tier2_attorney.motion_drafter.call_model", new_callable=AsyncMock)
+async def test_llm_failure_fails_the_agent(
     mock_llm: AsyncMock, agent: MotionDrafterAgent, full_case_data: dict
 ) -> None:
-    """If the LLM call fails, the agent should not crash."""
-    mock_llm.side_effect = Exception("API unavailable")
+    """A failed model call fails the agent (Phase 1 §3). It used to return an output
+    with no motions, which the Orchestrator would have merged as a success."""
+    mock_llm.side_effect = TransportError("API unavailable")
 
-    result = await agent.run(full_case_data)
-    output_data = result["data"]
-
-    # No motions generated but agent didn't crash
-    assert output_data["motions"] == []
-    assert len(output_data["warnings"]) > 0
+    with pytest.raises(TransportError):
+        await agent.run(full_case_data)
 
 
 @pytest.mark.asyncio
-@patch("src.agents.tier2_attorney.motion_drafter.call_llm", new_callable=AsyncMock)
+@patch("src.agents.tier2_attorney.motion_drafter.call_model", new_callable=AsyncMock)
 async def test_output_wrapped_with_confidence(
     mock_llm: AsyncMock, agent: MotionDrafterAgent, full_case_data: dict
 ) -> None:
     """Verify the output uses BaseAgent.wrap_output format."""
-    mock_llm.side_effect = _mock_call_llm_side_effect
+    mock_llm.side_effect = FakeCallModel(respond_with=_payload_for).respond
 
     result = await agent.run(full_case_data)
 

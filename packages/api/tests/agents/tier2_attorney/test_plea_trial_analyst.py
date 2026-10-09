@@ -8,6 +8,9 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from src.services.model_gateway import TransportError
+from src.services.model_gateway.testing import FakeCallModel
+
 from src.agents.tier2_attorney.plea_trial_analyst import PleaTrialAnalyst
 from tests.fixtures.plea_trial_case_state import (
     SAMPLE_LLM_PLEA_TRIAL_NO_OFFER_RESPONSE,
@@ -30,33 +33,33 @@ def full_case_data() -> dict[str, Any]:
 
 @pytest.fixture
 def mock_llm_full():
-    """Mock call_llm returning the full plea/trial response."""
+    """Canned model response: the full plea/trial response."""
     with patch(
-        "src.agents.tier2_attorney.plea_trial_analyst.call_llm",
+        "src.agents.tier2_attorney.plea_trial_analyst.call_model",
         new_callable=AsyncMock,
-        return_value=copy.deepcopy(SAMPLE_LLM_PLEA_TRIAL_RESPONSE),
+        side_effect=FakeCallModel(copy.deepcopy(SAMPLE_LLM_PLEA_TRIAL_RESPONSE)).respond,
     ) as mock:
         yield mock
 
 
 @pytest.fixture
 def mock_llm_no_offer():
-    """Mock call_llm returning trial-only response (no plea offer)."""
+    """Canned model response: trial-only response (no plea offer)."""
     with patch(
-        "src.agents.tier2_attorney.plea_trial_analyst.call_llm",
+        "src.agents.tier2_attorney.plea_trial_analyst.call_model",
         new_callable=AsyncMock,
-        return_value=copy.deepcopy(SAMPLE_LLM_PLEA_TRIAL_NO_OFFER_RESPONSE),
+        side_effect=FakeCallModel(copy.deepcopy(SAMPLE_LLM_PLEA_TRIAL_NO_OFFER_RESPONSE)).respond,
     ) as mock:
         yield mock
 
 
 @pytest.fixture
 def mock_llm_error():
-    """Mock call_llm that raises an exception."""
+    """The model call fails with a transport error."""
     with patch(
-        "src.agents.tier2_attorney.plea_trial_analyst.call_llm",
+        "src.agents.tier2_attorney.plea_trial_analyst.call_model",
         new_callable=AsyncMock,
-        side_effect=Exception("LLM service unavailable"),
+        side_effect=TransportError("LLM service unavailable"),
     ) as mock:
         yield mock
 
@@ -117,20 +120,6 @@ async def test_decision_support_warning_always_present(
 
     # Also verify the flag is always present
     assert "DECISION_SUPPORT_ONLY" in data["flags"]
-
-
-@pytest.mark.asyncio
-async def test_decision_support_warning_on_error(
-    agent: PleaTrialAnalyst,
-    full_case_data: dict[str, Any],
-    mock_llm_error: AsyncMock,
-) -> None:
-    """Even on LLM failure, the decision support warning must be present."""
-    result = await agent.run(full_case_data)
-    data = result["data"]
-    assert data["decision_support_warning"] == (
-        "DECISION SUPPORT ONLY — ATTORNEY AND CLIENT DECIDE"
-    )
 
 
 # -----------------------------------------------------------------------
@@ -216,9 +205,9 @@ async def test_probability_normalization(
     bad_response["trial_scenario"]["outcomes"][2]["probability"] = 0.25
 
     with patch(
-        "src.agents.tier2_attorney.plea_trial_analyst.call_llm",
+        "src.agents.tier2_attorney.plea_trial_analyst.call_model",
         new_callable=AsyncMock,
-        return_value=bad_response,
+        side_effect=FakeCallModel(bad_response).respond,
     ):
         result = await agent.run(full_case_data)
 
@@ -251,9 +240,9 @@ async def test_bias_check_flag(
         dim["advantage"] = "PLEA"
 
     with patch(
-        "src.agents.tier2_attorney.plea_trial_analyst.call_llm",
+        "src.agents.tier2_attorney.plea_trial_analyst.call_model",
         new_callable=AsyncMock,
-        return_value=biased_response,
+        side_effect=FakeCallModel(biased_response).respond,
     ):
         result = await agent.run(full_case_data)
 
@@ -392,26 +381,16 @@ async def test_attorney_inputs_not_provided_recorded(
 
 
 @pytest.mark.asyncio
-async def test_llm_failure_handled_gracefully(
+async def test_llm_failure_fails_the_agent(
     agent: PleaTrialAnalyst,
     full_case_data: dict[str, Any],
     mock_llm_error: AsyncMock,
 ) -> None:
-    """If call_llm raises an exception, the agent should not crash."""
-    result = await agent.run(full_case_data)
-
-    # Should still return a valid wrapped output
-    assert "data" in result
-    assert "confidence" in result
-    assert "source" in result
-    assert "timestamp" in result
-
-    data = result["data"]
-    assert data["confidence"] == 0.0
-    assert data["confidence_level"] == "LOW"
-    assert data["decision_support_warning"] == (
-        "DECISION SUPPORT ONLY — ATTORNEY AND CLIENT DECIDE"
-    )
+    """A failed model call fails the agent (Phase 1 §3). It used to return a
+    zero-confidence "Analysis failed" output carrying the decision-support warning,
+    which the Orchestrator would merge."""
+    with pytest.raises(TransportError):
+        await agent.run(full_case_data)
 
 
 # -----------------------------------------------------------------------
@@ -457,9 +436,9 @@ async def test_trial_may_be_warranted_flag(
             dim["advantage"] = "TRIAL"
 
     with patch(
-        "src.agents.tier2_attorney.plea_trial_analyst.call_llm",
+        "src.agents.tier2_attorney.plea_trial_analyst.call_model",
         new_callable=AsyncMock,
-        return_value=trial_favored,
+        side_effect=FakeCallModel(trial_favored).respond,
     ):
         result = await agent.run(full_case_data)
 
@@ -483,9 +462,9 @@ async def test_significant_collateral_consequences_flag(
     ]
 
     with patch(
-        "src.agents.tier2_attorney.plea_trial_analyst.call_llm",
+        "src.agents.tier2_attorney.plea_trial_analyst.call_model",
         new_callable=AsyncMock,
-        return_value=high_collateral,
+        side_effect=FakeCallModel(high_collateral).respond,
     ):
         result = await agent.run(full_case_data)
 

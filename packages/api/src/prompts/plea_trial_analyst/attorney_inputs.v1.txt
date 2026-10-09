@@ -1,0 +1,3 @@
+
+ATTORNEY SUBJECTIVE ASSESSMENTS (provided by the reviewing attorney):
+{attorney_inputs}

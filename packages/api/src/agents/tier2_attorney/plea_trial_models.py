@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -102,3 +102,51 @@ class PleaTrialOutput(BaseModel):
 
     # Attorney subjective inputs used (for audit trail)
     attorney_inputs_used: dict[str, Any] = {}
+
+
+# ---------------------------------------------------------------------------
+# Response model: what the model returns (src/prompts/plea_trial_analyst/system.v1.txt).
+# ``ComparisonMatrix.dimensions`` and ``PleaScenario.collateral_consequences_detail``
+# are free-form dicts above, which structured outputs cannot express; these typed
+# versions carry the same keys.
+# ---------------------------------------------------------------------------
+
+
+class CollateralDetail(BaseModel):
+    category: str
+    description: str
+    severity: Literal["HIGH", "MEDIUM", "LOW"]
+
+
+class PleaScenarioResponse(BaseModel):
+    offer_description: str
+    plea_charge: str
+    plea_charge_statute: str
+    original_charges: list[str]
+    sentences: OutcomeScenario
+    collateral_consequences_detail: list[CollateralDetail]
+    diversion_eligible: bool
+    diversion_details: str
+    expungement_eligible: bool
+    expungement_details: str
+
+
+class Dimension(BaseModel):
+    factor: str
+    plea_value: str
+    trial_value: str
+    advantage: Literal["PLEA", "TRIAL", "NEUTRAL"]
+
+
+class ComparisonMatrixResponse(BaseModel):
+    dimensions: list[Dimension]
+
+
+class PleaTrialResponse(BaseModel):
+    # None when there is no plea offer: the prompt asks for the trial analysis only.
+    plea_scenario: PleaScenarioResponse | None
+    trial_scenario: TrialScenario
+    comparison_matrix: ComparisonMatrixResponse
+    risk_factors: list[RiskFactor]
+    flags: list[str]
+    confidence_reasoning: str

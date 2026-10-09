@@ -1,0 +1,35 @@
+Analyze the plea vs. trial calculus for the following case.
+
+CHARGES:
+{charges}
+
+RIGHTS VIOLATIONS:
+{rights_violations}
+
+INTAKE SUMMARY:
+{intake_summary}
+
+LEGAL RESEARCH:
+{legal_research}
+
+COLLATERAL CONSEQUENCES:
+{collateral_consequences}
+
+BRADY ANALYSIS:
+{brady_analysis}
+{plea_section}
+{attorney_section}
+{suppression_section}
+
+INSTRUCTIONS:
+1. Calculate sentencing exposure at trial using the charges and Georgia sentencing law.
+2. Model at least 3 trial outcomes with probabilities that roughly sum to 1.0.
+3. If a plea offer exists, evaluate its full consequences including collateral impacts.
+4. Factor suppression motion viability into trial outcome probabilities.
+5. Build the comparison matrix across all required dimensions.
+6. Identify risk factors with honest assessments of what favors plea vs. trial.
+7. Check Georgia First Offender Act and conditional discharge eligibility.
+8. Flag if trial appears warranted despite conventional pressure to plead.
+9. Tag all citations with [VERIFIED] or [UNVERIFIED] status.
+
+Return valid JSON matching the required schema.

@@ -17,14 +17,10 @@ SRC = API_ROOT / "src"
 
 # path relative to packages/api -> (count, reason). Shrinks; never grows silently.
 _PENDING = "not yet migrated (Phase 1 §9 order)"
-BROAD_EXCEPT_ALLOWLIST: dict[str, tuple[int, str]] = {
-    "src/agents/tier1/pre_interview.py": (1, _PENDING),
-    "src/agents/tier2_attorney/motion_drafter.py": (1, _PENDING),
-    "src/agents/tier2_attorney/plea_trial_analyst.py": (2, _PENDING),
-}
+BROAD_EXCEPT_ALLOWLIST: dict[str, tuple[int, str]] = {}
 
 # Lower this as call sites migrate; it must never go up.
-SHIM_CALLERS_MAX = 13
+SHIM_CALLERS_MAX = 10
 
 
 def _is_broad(handler: ast.ExceptHandler) -> bool:

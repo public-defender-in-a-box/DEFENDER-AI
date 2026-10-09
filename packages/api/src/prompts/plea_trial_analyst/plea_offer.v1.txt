@@ -1,0 +1,3 @@
+
+PLEA OFFER FROM THE STATE:
+{plea_offer}

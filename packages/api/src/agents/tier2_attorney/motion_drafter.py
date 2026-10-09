@@ -9,25 +9,29 @@ with other agents.
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
 from src.agents.base_agent import BaseAgent
 from src.models.motions import (
     DraftMotion,
+    MotionDraftResponse,
     MotionDrafterOutput,
     MotionSection,
     MotionType,
 )
-from src.services.llm_service import call_llm
+from src.prompts import compose_version
+from src.services.model_gateway import ModelCallRequest, call_model
 
-from .prompts import MOTION_DRAFTER_SYSTEM_PROMPT, build_motion_user_prompt
+from .prompts import DRAFT, SYSTEM, build_motion_user_prompt
 from .templates import TEMPLATES
 
 STATUS = "REAL"
 
 logger = logging.getLogger(__name__)
+
+# Thinking tokens count toward max_tokens on current models (Phase 1 §2).
+_MAX_TOKENS = 24000
 
 
 class MotionDrafterAgent(BaseAgent):
@@ -111,55 +115,54 @@ class MotionDrafterAgent(BaseAgent):
                 case_data=case_data,
             )
 
-            if draft is not None:
-                # Score confidence
-                confidence_score = self._calculate_confidence(
-                    motion_type=motion_type,
-                    charges=charges,
-                    rights_violations=rights_violations,
-                    intake_summary=intake_summary,
-                    legal_research=legal_research,
-                    brady_analysis=brady_analysis,
-                    draft=draft,
-                )
-                confidence_level = self.score_confidence(confidence_score)
+            # Score confidence
+            confidence_score = self._calculate_confidence(
+                motion_type=motion_type,
+                charges=charges,
+                rights_violations=rights_violations,
+                intake_summary=intake_summary,
+                legal_research=legal_research,
+                brady_analysis=brady_analysis,
+                draft=draft,
+            )
+            confidence_level = self.score_confidence(confidence_score)
 
-                # Determine flags
-                motion_flags = self._determine_flags(
-                    draft=draft,
-                    confidence_score=confidence_score,
-                    intake_summary=intake_summary,
-                    rights_violations=rights_violations,
-                    legal_research=legal_research,
-                    motion_type=motion_type,
-                )
+            # Determine flags
+            motion_flags = self._determine_flags(
+                draft=draft,
+                confidence_score=confidence_score,
+                intake_summary=intake_summary,
+                rights_violations=rights_violations,
+                legal_research=legal_research,
+                motion_type=motion_type,
+            )
 
-                final_motion = DraftMotion(
-                    motion_type=motion_type,
-                    title=draft.get("title", ""),
-                    case_caption=draft.get("case_caption", ""),
-                    court=draft.get("court", ""),
-                    sections=[
-                        MotionSection(
-                            heading=s.get("heading", ""),
-                            content=s.get("content", ""),
-                            citations=s.get("citations", []),
-                        )
-                        for s in draft.get("sections", [])
-                    ],
-                    prayer_for_relief=draft.get("prayer_for_relief", ""),
-                    filing_deadline=draft.get("filing_deadline"),
-                    filing_deadline_basis=draft.get("filing_deadline_basis"),
-                    confidence=confidence_score,
-                    confidence_level=confidence_level.value,
-                    confidence_reasoning=draft.get(
-                        "confidence_reasoning",
-                        f"Auto-scored based on data completeness: {confidence_score:.2f}",
-                    ),
-                    flags=motion_flags,
-                )
-                motions.append(final_motion)
-                all_flags.extend(motion_flags)
+            final_motion = DraftMotion(
+                motion_type=motion_type,
+                title=draft.get("title", ""),
+                case_caption=draft.get("case_caption", ""),
+                court=draft.get("court", ""),
+                sections=[
+                    MotionSection(
+                        heading=s.get("heading", ""),
+                        content=s.get("content", ""),
+                        citations=s.get("citations", []),
+                    )
+                    for s in draft.get("sections", [])
+                ],
+                prayer_for_relief=draft.get("prayer_for_relief", ""),
+                filing_deadline=draft.get("filing_deadline"),
+                filing_deadline_basis=draft.get("filing_deadline_basis"),
+                confidence=confidence_score,
+                confidence_level=confidence_level.value,
+                confidence_reasoning=draft.get(
+                    "confidence_reasoning",
+                    f"Auto-scored based on data completeness: {confidence_score:.2f}",
+                ),
+                flags=motion_flags,
+            )
+            motions.append(final_motion)
+            all_flags.extend(motion_flags)
 
         # Record motions not generated
         skipped = self._get_skipped_motions(
@@ -412,36 +415,28 @@ class MotionDrafterAgent(BaseAgent):
         motion_type: MotionType,
         template: dict[str, Any],
         case_data: dict[str, Any],
-    ) -> dict[str, Any] | None:
-        """Call the LLM to generate a single motion draft."""
+    ) -> dict[str, Any]:
+        """Call the model to generate a single motion draft."""
         user_prompt = build_motion_user_prompt(
             motion_type=motion_type.value,
             template=template,
             case_data=case_data,
         )
 
-        try:
-            result = await call_llm(
+        # A failed call raises and fails the agent. It used to return None, which
+        # dropped the motion without listing it in motions_not_generated.
+        result = await call_model(
+            ModelCallRequest(
                 prompt=user_prompt,
-                system=MOTION_DRAFTER_SYSTEM_PROMPT,
-                max_tokens=4096,
+                system=SYSTEM.text,
+                max_tokens=_MAX_TOKENS,
+                response_model=MotionDraftResponse,
+                prompt_id="motion_drafter.draft",
+                prompt_version=compose_version(SYSTEM, DRAFT),
+                agent_id=self.agent_id,
             )
-            return result
-        except (json.JSONDecodeError, KeyError) as exc:
-            # Log only case_id and motion_type — no client data
-            logger.error(
-                "Failed to parse LLM response for motion_type=%s: %s",
-                motion_type.value,
-                type(exc).__name__,
-            )
-            return None
-        except Exception as exc:
-            logger.error(
-                "LLM call failed for motion_type=%s: %s",
-                motion_type.value,
-                type(exc).__name__,
-            )
-            return None
+        )
+        return result.data.model_dump()
 
     # ------------------------------------------------------------------
     # Confidence scoring

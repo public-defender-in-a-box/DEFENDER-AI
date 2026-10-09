@@ -10,15 +10,16 @@ import logging
 from typing import Any
 
 from src.agents.base_agent import BaseAgent
-from src.agents.tier2_attorney.plea_trial_prompts import (
-    PLEA_TRIAL_SYSTEM_PROMPT,
-    build_plea_trial_user_prompt,
-)
-from src.services.llm_service import call_llm
+from src.agents.tier2_attorney.plea_trial_models import PleaTrialResponse
+from src.agents.tier2_attorney.plea_trial_prompts import SYSTEM, build_plea_trial_user_prompt
+from src.services.model_gateway import ModelCallRequest, call_model
 
 STATUS = "REAL"
 
 logger = logging.getLogger(__name__)
+
+# Thinking tokens count toward max_tokens on current models (Phase 1 §2).
+_MAX_TOKENS = 24000
 
 # Default attorney assessment values when not provided
 _DEFAULT_ATTORNEY_ASSESSMENTS: dict[str, Any] = {
@@ -77,28 +78,24 @@ class PleaTrialAnalyst(BaseAgent):
         if not collateral:
             flags.append("MISSING_COLLATERAL_DATA")
 
-        # --- 3. Call LLM ---
-        try:
-            user_prompt = build_plea_trial_user_prompt(case_data)
-            llm_result = await call_llm(
-                user_prompt,
-                system=PLEA_TRIAL_SYSTEM_PROMPT,
-                max_tokens=4096,
+        # --- 3. Call the model ---
+        # A failed call raises and fails the agent. It used to return a zero-confidence
+        # "Analysis failed" output that the Orchestrator would merge.
+        user_prompt, prompt_version = build_plea_trial_user_prompt(case_data)
+        result = await call_model(
+            ModelCallRequest(
+                prompt=user_prompt,
+                system=SYSTEM.text,
+                max_tokens=_MAX_TOKENS,
+                response_model=PleaTrialResponse,
+                prompt_id="plea_trial_analyst.analysis",
+                prompt_version=prompt_version,
+                agent_id=self.agent_id,
             )
-        except Exception:
-            logger.error("LLM call failed for case %s", case_id)
-            self.log_action("plea_trial_llm_error", {"case_id": case_id})
-            error_output = self._build_error_output(flags)
-            return self.wrap_output(error_output, confidence=0.0)
+        )
 
-        # --- 4. Parse and validate ---
-        try:
-            parsed = self._parse_llm_response(llm_result, plea_offer)
-        except Exception:
-            logger.error("Failed to parse LLM response for case %s", case_id)
-            self.log_action("plea_trial_parse_error", {"case_id": case_id})
-            error_output = self._build_error_output(flags)
-            return self.wrap_output(error_output, confidence=0.0)
+        # --- 4. Assemble (the response model already validated every field) ---
+        parsed = self._parse_llm_response(result.data.model_dump(), plea_offer)
 
         # --- 5. Validate trial outcome probabilities ---
         trial_outcomes = parsed.get("trial_scenario", {}).get("outcomes", [])
@@ -457,48 +454,3 @@ class PleaTrialAnalyst(BaseAgent):
 
         parts.append(f"Final confidence: {confidence:.2f}.")
         return " ".join(parts)
-
-    # ------------------------------------------------------------------
-    # Error output
-    # ------------------------------------------------------------------
-
-    def _build_error_output(self, flags: list[str]) -> dict[str, Any]:
-        """Build a minimal output when the LLM call or parsing fails."""
-        return {
-            "plea_scenario": {
-                "offer_description": "Analysis failed",
-                "plea_charge": "",
-                "plea_charge_statute": "",
-                "original_charges": [],
-                "sentences": {
-                    "label": "Error",
-                    "probability": 0.0,
-                    "probability_reasoning": "LLM analysis failed",
-                    "incarceration_months": 0,
-                    "probation_months": 0,
-                    "fine_amount": 0,
-                    "criminal_record_impact": "Unable to assess",
-                },
-            },
-            "trial_scenario": {
-                "outcomes": [],
-                "expected_incarceration_months": 0,
-                "expected_probation_months": 0,
-                "trial_penalty_estimate": "Unable to assess",
-                "key_strengths": [],
-                "key_weaknesses": [],
-                "suppression_motion_impact": "Unable to assess",
-            },
-            "comparison_matrix": {"dimensions": []},
-            "risk_factors": [],
-            "confidence": 0.0,
-            "confidence_level": "LOW",
-            "confidence_reasoning": "Analysis failed due to LLM or parsing error",
-            "flags": flags + ["LOW_CONFIDENCE_ASSESSMENT"],
-            "warnings": ["Analysis could not be completed"],
-            "agent_name": "plea_trial_analyst",
-            "decision_support_warning": "DECISION SUPPORT ONLY — ATTORNEY AND CLIENT DECIDE",
-            "privilege_warning": "ATTORNEY-CLIENT PRIVILEGED MATERIAL",
-            "draft_warning": "DRAFT — ATTORNEY REVIEW REQUIRED",
-            "attorney_inputs_used": {},
-        }

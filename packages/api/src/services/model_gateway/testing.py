@@ -132,14 +132,17 @@ class FakeCallModel:
     request's ``response_model``), an exception instance to raise, or a function of the
     request returning a payload. ``by_prompt`` maps a ``prompt_id`` to a payload or a
     sequence of payloads consumed in order, for agents whose calls run concurrently.
+    ``respond_with`` answers any call nothing else covers.
     """
 
     def __init__(
         self,
         *responses: Canned,
         by_prompt: dict[str, Canned | Sequence[Canned]] | None = None,
+        respond_with: Callable[[ModelCallRequest[BaseModel]], JsonValue] | None = None,
     ) -> None:
         self._queue = list(responses)
+        self._respond_with = respond_with
         self._by_prompt: dict[str, list[Canned]] = {}
         for prompt_id, value in (by_prompt or {}).items():
             if isinstance(value, (list, tuple)):
@@ -154,6 +157,8 @@ class FakeCallModel:
             # A single canned payload for a prompt id answers every call to it.
             return queue.pop(0) if len(queue) > 1 else queue[0]
         if not self._queue:
+            if self._respond_with is not None:
+                return self._respond_with(req)
             raise AssertionError(f"FakeCallModel: no response queued for {req.prompt_id}")
         return self._queue.pop(0)
 

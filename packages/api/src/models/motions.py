@@ -101,3 +101,21 @@ class SentencingOutput(BaseModel):
     alternatives: list[dict] = []
     comparable_sentences: list[dict] = []
     memo_framework: str = ""
+
+
+class MotionDraftResponse(BaseModel):
+    """What the model returns for one motion (src/prompts/motion_drafter/system.v1.txt).
+
+    The Motion Drafter adds the motion type, its own confidence score and flags, and
+    the fixed warnings to build a ``DraftMotion``.
+    """
+
+    title: str
+    case_caption: str
+    court: str
+    sections: list[MotionSection]
+    prayer_for_relief: str
+    filing_deadline: Optional[str]
+    filing_deadline_basis: Optional[str]
+    flags: list[str]
+    confidence_reasoning: str

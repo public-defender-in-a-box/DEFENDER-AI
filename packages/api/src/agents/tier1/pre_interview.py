@@ -13,126 +13,20 @@ import logging
 from typing import Any
 
 from src.agents.base_agent import BaseAgent
-from src.services.llm_service import call_llm
+from src.models.responses.pre_interview import PreInterviewBrief
+from src.prompts import compose_version, load_prompt
+from src.services.model_gateway import ModelCallRequest, call_model
 
 STATUS = "PARTIAL"
 
 logger = logging.getLogger(__name__)
 
 
-_SYSTEM_PROMPT = (
-    "You are a pre-interview research conductor for a public defender's office "
-    "in Georgia. Your job is to analyze charge processing output and build a "
-    "comprehensive brief that will inform the client intake interview.\n\n"
-    "JURISDICTION KNOWLEDGE:\n"
-    "- Georgia State: O.C.G.A. Title 16 (Crimes), Title 17 (Criminal Procedure)\n"
-    "- Georgia First Offender Act: O.C.G.A. \u00a7 42-8-60\n"
-    "- Georgia recidivist statute: O.C.G.A. \u00a7 17-10-7\n"
-    "- Federal: Title 18 U.S.C., USSG, Speedy Trial Act\n"
-    "- Brady v. Maryland / Giglio v. United States\n\n"
-    "PRINCIPLES:\n"
-    "1. You prepare the defense team — you do NOT advise the client directly.\n"
-    "2. Flag every potential rights violation for investigation.\n"
-    "3. Identify every element the prosecution must prove and craft questions "
-    "that probe those elements.\n"
-    "4. Note collateral consequence risks early so intake can gather relevant info.\n"
-    "5. Assign confidence scores (0.0-1.0) to all assessments.\n\n"
-    "OUTPUT FORMAT: Always respond with valid JSON."
-)
-
-_PRE_INTERVIEW_PROMPT = """Based on the following charge processing output, prepare a comprehensive pre-interview research brief.
-
-CHARGE PROCESSING OUTPUT:
-{charge_data}
-
-Generate a JSON object with:
-
-{{
-  "charges_summary": "Plain-language summary of all charges, degrees, and potential penalties for the attorney",
-
-  "targeted_questions": [
-    {{
-      "question_id": "TQ-001",
-      "question": "The question to ask during intake",
-      "relevant_charge_id": "charge_1",
-      "relevant_element": "What element of the charge this probes",
-      "priority": "MUST_ASK | SHOULD_ASK | IF_TIME",
-      "rationale": "Why this question matters for the defense",
-      "phase": "personal_information | incident_narrative | arrest_and_custody | prior_history | priorities_and_concerns"
-    }}
-  ],
-
-  "preliminary_rights_flags": [
-    {{
-      "flag_id": "RF-001",
-      "type": "fourth_amendment | fifth_amendment | sixth_amendment | fourteenth_amendment | speedy_trial | brady | other",
-      "description": "What potential violation was identified from the documents",
-      "basis": "Specific facts from the charge processing output that suggest this",
-      "investigation_needed": "What the intake should probe to confirm or deny this flag",
-      "severity": "high | medium | low",
-      "confidence": 0.0-1.0
-    }}
-  ],
-
-  "known_facts_from_documents": [
-    {{
-      "fact_id": "KF-001",
-      "fact": "A fact established from the charging documents",
-      "source": "Which document/page this comes from",
-      "category": "timeline | location | persons | evidence | procedure | statements",
-      "verify_with_client": true/false,
-      "verification_question": "Question to ask client to verify this fact (if applicable)",
-      "confidence": 0.0-1.0
-    }}
-  ],
-
-  "collateral_consequence_alerts": [
-    {{
-      "alert_id": "CC-001",
-      "category": "immigration | employment | housing | family | financial | professional_license",
-      "description": "What collateral consequence risk exists based on these charges",
-      "relevant_charge": "charge_1",
-      "intake_question": "What to ask the client to assess this risk",
-      "severity": "high | medium | low"
-    }}
-  ],
-
-  "legal_brief": {{
-    "key_legal_issues": ["List of key legal issues identified from the charges"],
-    "elements_to_prove": [
-      {{
-        "charge_id": "charge_1",
-        "offense": "Name of offense",
-        "elements": ["Element 1", "Element 2"],
-        "weakest_element": "Which element appears hardest for prosecution to prove and why"
-      }}
-    ],
-    "potential_defenses": ["Defenses suggested by the charging documents alone"],
-    "diversion_eligibility": {{
-      "first_offender_act": "Assessment based on charges",
-      "pretrial_diversion": "Assessment",
-      "drug_court": "Assessment if applicable",
-      "notes": "Any qualifying or disqualifying factors"
-    }},
-    "procedural_deadlines": ["Any deadlines identified from the charges"],
-    "research_requests": [
-      {{
-        "request_id": "RR-001",
-        "type": "statute_lookup | case_law | sentencing_data | local_practice",
-        "description": "What research the statute/case-law agents should do",
-        "priority": "high | medium | low",
-        "relevant_charge": "charge_1"
-      }}
-    ]
-  }}
-}}
-
-IMPORTANT:
-- Generate MUST_ASK questions for every element the prosecution must prove
-- Flag any Miranda, search/seizure, or right-to-counsel issues from the arrest narrative
-- Identify collateral consequences BEFORE intake so the right questions get asked
-- Include research requests for any statutory ambiguities or novel legal issues
-- Note facts that should be verified with the client (discrepancies are defense gold)"""
+# Prompts: src/prompts/pre_interview_research/
+_SYSTEM = load_prompt("pre_interview_research.system", "v1")
+_BRIEF = load_prompt("pre_interview_research.brief", "v1")
+# Thinking tokens count toward max_tokens on current models (Phase 1 §2).
+_MAX_TOKENS = 16000
 
 
 class PreInterviewResearchAgent(BaseAgent):
@@ -161,27 +55,22 @@ class PreInterviewResearchAgent(BaseAgent):
         if len(charge_str) > 80_000:
             charge_str = charge_str[:80_000] + "\n... [TRUNCATED]"
 
-        prompt = _PRE_INTERVIEW_PROMPT.format(charge_data=charge_str)
+        prompt = _BRIEF.text.format(charge_data=charge_str)
 
-        try:
-            result = await call_llm(prompt, system=_SYSTEM_PROMPT, max_tokens=8192)
-        except Exception:
-            logger.exception("Pre-interview research generation failed")
-            result = {
-                "charges_summary": "Error generating summary — review charge processing output directly.",
-                "targeted_questions": [],
-                "preliminary_rights_flags": [],
-                "known_facts_from_documents": [],
-                "collateral_consequence_alerts": [],
-                "legal_brief": {
-                    "key_legal_issues": [],
-                    "elements_to_prove": [],
-                    "potential_defenses": [],
-                    "diversion_eligibility": {},
-                    "procedural_deadlines": [],
-                    "research_requests": [],
-                },
-            }
+        # A failed call raises. It used to return an "Error generating summary" brief
+        # with every list empty, which the Orchestrator merged as a success.
+        call = await call_model(
+            ModelCallRequest(
+                prompt=prompt,
+                system=_SYSTEM.text,
+                max_tokens=_MAX_TOKENS,
+                response_model=PreInterviewBrief,
+                prompt_id="pre_interview_research.brief",
+                prompt_version=compose_version(_SYSTEM, _BRIEF),
+                agent_id=self.agent_id,
+            )
+        )
+        result = call.data.model_dump()
 
         # Compute confidence from the quality of charge processing input
         # and the completeness of the generated brief

@@ -1,0 +1,21 @@
+Draft a {title_template} for the following case.
+
+TEMPLATE STRUCTURE (follow these sections):
+{sections_desc}
+
+GEORGIA-SPECIFIC LEGAL NOTES:
+{georgia_notes}
+
+CASE DATA:
+{case_data}
+
+INSTRUCTIONS:
+1. Follow the section structure exactly.
+2. Use ONLY facts from the case data — do not fabricate facts.
+3. Tag every citation as [VERIFIED] or [UNVERIFIED] based on the verification_status in the case data.
+4. If a citation is not present in the provided legal research, mark it [UNVERIFIED — EXISTENCE NOT CONFIRMED].
+5. Flag any discrepancies between client account and officer account.
+6. Note any missing facts that would strengthen the motion.
+7. Calculate the filing deadline if possible.
+
+Return valid JSON matching the required schema.
