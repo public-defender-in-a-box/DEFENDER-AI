@@ -9,7 +9,7 @@ def test_case_state_creation():
     """Test that CaseState initializes with correct defaults."""
     state = CaseState(id="test_001")
     assert state.stage == PipelineStage.CREATED
-    assert state.jurisdiction == "IL"
+    assert state.jurisdiction == "GA"
     assert state.charge_processing is None
 
 

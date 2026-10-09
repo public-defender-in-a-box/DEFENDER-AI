@@ -40,6 +40,8 @@ from src.models.ethics import (
     UPLViolationDetail,
 )
 
+STATUS = "REAL"
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -474,9 +476,7 @@ class EthicsMonitorAgent(BaseAgent):
         # trigger false-positive CRITICAL flags. Agent-generated summaries,
         # instructions, recommended_action fields, etc. are still scanned.
         if agent_id in CLIENT_FACING_AGENTS and isinstance(raw_data, dict):
-            filtered = {
-                k: v for k, v in raw_data.items() if k not in CLIENT_VERBATIM_SUBFIELDS
-            }
+            filtered = {k: v for k, v in raw_data.items() if k not in CLIENT_VERBATIM_SUBFIELDS}
             scan_str = str(filtered)
             scan_lower = scan_str.lower()
         else:

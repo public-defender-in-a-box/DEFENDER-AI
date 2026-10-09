@@ -18,7 +18,7 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -r requirements.txt
-      - run: pytest tests/ -v
+      - run: pytest -v  # honors testpaths in pyproject.toml (includes sentencing_agent/tests)
 
   python-lint:
     runs-on: ubuntu-latest
@@ -30,9 +30,19 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install black==24.10.0 ruff
+      - run: pip install black==24.10.0 ruff==0.16.10
       - run: black --check src/ tests/
       - run: ruff check src/
+
+  inventory:
+    # docs/INVENTORY.md is generated from the tree; fail if it was not regenerated.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python scripts/inventory.py --check
 
   frontend-lint:
     runs-on: ubuntu-latest

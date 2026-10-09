@@ -9,6 +9,8 @@ from typing import Any
 from src.agents.base_agent import BaseAgent
 from src.services.llm_service import call_llm
 
+STATUS = "STUB"
+
 
 class CitationVerifierAgent(BaseAgent):
     agent_id = "citation_verifier"

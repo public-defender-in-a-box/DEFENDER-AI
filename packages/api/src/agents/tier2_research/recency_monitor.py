@@ -8,6 +8,8 @@ from typing import Any
 
 from src.agents.base_agent import BaseAgent
 
+STATUS = "STUB"
+
 
 class RecencyMonitorAgent(BaseAgent):
     agent_id = "recency_monitor"

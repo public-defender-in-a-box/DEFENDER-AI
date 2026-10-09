@@ -43,6 +43,7 @@ _TOTAL_PHASES = len(INTERVIEW_PHASES)
 # Session state
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class IntakeSession:
     case_id: str
@@ -63,6 +64,7 @@ _sessions: dict[str, IntakeSession] = {}
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _msg(
     msg_type: str,
@@ -146,9 +148,9 @@ def _inject_targeted_questions(
             "question_text": q_text,
             "question_type": "open_ended",
             "priority": (
-                "required" if priority == "MUST_ASK"
-                else "recommended" if priority == "SHOULD_ASK"
-                else "optional"
+                "required"
+                if priority == "MUST_ASK"
+                else "recommended" if priority == "SHOULD_ASK" else "optional"
             ),
             "rationale": tq.get("rationale")
             or tq.get("relevant_element")
@@ -218,6 +220,7 @@ Return JSON: {{"combined_message": "short ack. {next_question}"}}"""
 # REST validation endpoint (used by frontend landing page)
 # ---------------------------------------------------------------------------
 
+
 @router.get("/intake/{case_id}/validate")
 async def validate_intake_session(case_id: str) -> dict[str, Any]:
     """Check if a case is ready for intake interview."""
@@ -264,24 +267,22 @@ async def finalize_stuck_interview(case_id: str) -> dict[str, Any]:
         responses = session.responses
 
     conductor = IntakeConductorAgent()
-    result = await conductor.run({
-        "charge_data": charge_data,
-        "matter_id": case_id,
-        "responses": responses,
-        "pre_interview_research": pre_interview_data or {},
-    })
+    result = await conductor.run(
+        {
+            "charge_data": charge_data,
+            "matter_id": case_id,
+            "responses": responses,
+            "pre_interview_research": pre_interview_data or {},
+        }
+    )
 
     merge_result = await orch.receive_agent_output("intake_conductor", result)
 
     # Run Case Prep best-effort; don't fail the endpoint if it errors.
     case_prep_decision: str | None = None
     try:
-        case_prep_result = await CasePrepAgent().run(
-            {"case_state": orch.get_case_state_snapshot()}
-        )
-        case_prep_merge = await orch.receive_agent_output(
-            "case_prep_conductor", case_prep_result
-        )
+        case_prep_result = await CasePrepAgent().run({"case_state": orch.get_case_state_snapshot()})
+        case_prep_merge = await orch.receive_agent_output("case_prep_conductor", case_prep_result)
         case_prep_decision = case_prep_merge.get("decision")
     except Exception:
         logger.exception("CasePrepAgent failed during manual finalize for %s", case_id)
@@ -298,6 +299,7 @@ async def finalize_stuck_interview(case_id: str) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # WebSocket endpoint
 # ---------------------------------------------------------------------------
+
 
 @router.websocket("/ws/intake/{session_id}")
 async def intake_websocket(websocket: WebSocket, session_id: str) -> None:
@@ -319,7 +321,10 @@ async def intake_websocket(websocket: WebSocket, session_id: str) -> None:
     allowed_stages = {PipelineStage.PRE_INTERVIEW_COMPLETE, PipelineStage.INTAKE_IN_PROGRESS}
     if orch.case_state.stage not in allowed_stages:
         await websocket.send_json(
-            _msg("error", f"This case is not ready for intake (stage: {orch.case_state.stage.value}).")
+            _msg(
+                "error",
+                f"This case is not ready for intake (stage: {orch.case_state.stage.value}).",
+            )
         )
         await websocket.close(code=4003)
         return
@@ -335,9 +340,7 @@ async def intake_websocket(websocket: WebSocket, session_id: str) -> None:
     existing = _sessions.get(session_id)
     if existing and not existing.completed:
         session = existing
-        await websocket.send_json(
-            _msg("system", "Welcome back. Let's continue where we left off.")
-        )
+        await websocket.send_json(_msg("system", "Welcome back. Let's continue where we left off."))
         await websocket.send_json(_progress(session))
 
         # Re-send the current question
@@ -379,7 +382,9 @@ async def intake_websocket(websocket: WebSocket, session_id: str) -> None:
             await _start_phase(websocket, session)
         except Exception:
             logger.exception("Failed to start first phase")
-            await websocket.send_json(_msg("error", "Failed to initialize interview. Please try again."))
+            await websocket.send_json(
+                _msg("error", "Failed to initialize interview. Please try again.")
+            )
             await websocket.close(code=1011)
             return
 
@@ -430,9 +435,7 @@ async def _start_phase(websocket: WebSocket, session: IntakeSession) -> None:
     # If we still have nothing, fall back to defaults + injected targeted
     # questions instead of silently skipping the phase.
     if not questions:
-        logger.warning(
-            "No questions generated for phase %s; falling back to defaults", phase
-        )
+        logger.warning("No questions generated for phase %s; falling back to defaults", phase)
         defaults = list(_DEFAULT_QUESTIONS.get(phase, []))
         if targeted:
             defaults = _inject_targeted_questions(defaults, targeted, phase)
@@ -457,9 +460,7 @@ async def _start_phase(websocket: WebSocket, session: IntakeSession) -> None:
 
     if not session.question_queue:
         # Truly nothing to ask (no defaults either) — advance to next phase.
-        logger.warning(
-            "No questions and no defaults for phase %s, skipping", phase
-        )
+        logger.warning("No questions and no defaults for phase %s, skipping", phase)
         session.phase_index += 1
         if session.phase_index < _TOTAL_PHASES:
             await _start_phase(websocket, session)
@@ -487,11 +488,13 @@ async def _handle_client_message(
     question_text = current_q["question_text"]
 
     # Record the response
-    session.responses[phase].append({
-        "question_id": question_id,
-        "question_text": question_text,
-        "client_response": client_text,
-    })
+    session.responses[phase].append(
+        {
+            "question_id": question_id,
+            "question_text": question_text,
+            "client_response": client_text,
+        }
+    )
 
     # Process response in background (extract facts, flags)
     asyncio.create_task(
@@ -541,7 +544,10 @@ async def _handle_client_message(
             except Exception:
                 logger.exception("Failed to finalize interview for %s", session.case_id)
                 await websocket.send_json(
-                    _msg("error", "There was an issue finalizing the interview, but your responses have been saved.")
+                    _msg(
+                        "error",
+                        "There was an issue finalizing the interview, but your responses have been saved.",
+                    )
                 )
 
 
@@ -578,8 +584,11 @@ async def _finalize_interview(
     does not appear frozen during the ~1-2 minute LLM-heavy batch run.
     """
     session.completed = True
-    logger.info("Starting finalization for case %s with %d phases of responses",
-                session.case_id, len(session.responses))
+    logger.info(
+        "Starting finalization for case %s with %d phases of responses",
+        session.case_id,
+        len(session.responses),
+    )
 
     async def _ping(text: str) -> None:
         try:
@@ -594,14 +603,19 @@ async def _finalize_interview(
 
     conductor = IntakeConductorAgent()
     try:
-        result = await conductor.run({
-            "charge_data": session.charge_data,
-            "matter_id": session.case_id,
-            "responses": session.responses,
-            "pre_interview_research": session.pre_interview_data or {},
-        })
-        logger.info("IntakeConductorAgent.run() completed for %s — keys: %s",
-                     session.case_id, list(result.keys()) if isinstance(result, dict) else type(result))
+        result = await conductor.run(
+            {
+                "charge_data": session.charge_data,
+                "matter_id": session.case_id,
+                "responses": session.responses,
+                "pre_interview_research": session.pre_interview_data or {},
+            }
+        )
+        logger.info(
+            "IntakeConductorAgent.run() completed for %s — keys: %s",
+            session.case_id,
+            list(result.keys()) if isinstance(result, dict) else type(result),
+        )
     except Exception:
         logger.exception("IntakeConductorAgent.run() FAILED for %s", session.case_id)
         raise
@@ -632,9 +646,7 @@ async def _finalize_interview(
     # counts as successful — we just log and tell the client their info is
     # saved.
     try:
-        case_prep_result = await CasePrepAgent().run(
-            {"case_state": orch.get_case_state_snapshot()}
-        )
+        case_prep_result = await CasePrepAgent().run({"case_state": orch.get_case_state_snapshot()})
         await orch.receive_agent_output("case_prep_conductor", case_prep_result)
         logger.info("CasePrepAgent completed for %s", session.case_id)
         await websocket.send_json(

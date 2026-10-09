@@ -15,6 +15,8 @@ class PipelineStage(str, Enum):
     CHARGES_PROCESSED = "CHARGES_PROCESSED"
     PRE_INTERVIEW_RESEARCH = "PRE_INTERVIEW_RESEARCH"
     PRE_INTERVIEW_COMPLETE = "PRE_INTERVIEW_COMPLETE"
+    LEGAL_RESEARCH_IN_PROGRESS = "LEGAL_RESEARCH_IN_PROGRESS"
+    LEGAL_RESEARCH_COMPLETE = "LEGAL_RESEARCH_COMPLETE"
     INTAKE_IN_PROGRESS = "INTAKE_IN_PROGRESS"
     INTAKE_COMPLETE = "INTAKE_COMPLETE"
     CASE_PREP_IN_PROGRESS = "CASE_PREP_IN_PROGRESS"
@@ -37,6 +39,9 @@ class VerificationStatus(str, Enum):
     UNCONFIRMED = "UNCONFIRMED"
     OVERRULED = "OVERRULED"
     SUPERSEDED = "SUPERSEDED"
+    DISTINGUISHED = "DISTINGUISHED"
+    HOLDING_MISMATCH = "HOLDING_MISMATCH"
+    CITATION_ERROR = "CITATION_ERROR"
 
 
 class ReviewStatus(str, Enum):
@@ -76,7 +81,7 @@ class CaseState(BaseModel):
     id: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
-    jurisdiction: str = "IL"
+    jurisdiction: str = "GA"
     case_number: str | None = None
 
     # Pipeline
@@ -94,7 +99,9 @@ class CaseState(BaseModel):
     case_prep_memo: dict[str, Any] | None = None
     statute_analysis: dict[str, Any] | None = None
     case_law_research: dict[str, Any] | None = None
+    constitutional_research: dict[str, Any] | None = None
     citation_verification: dict[str, Any] | None = None
+    combined_research: dict[str, Any] | None = None
     fact_gathering: dict[str, Any] | None = None
     rights_violation_analysis: dict[str, Any] | None = None
     collateral_consequences: dict[str, Any] | None = None

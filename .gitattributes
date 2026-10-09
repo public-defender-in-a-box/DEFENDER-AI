@@ -1,0 +1,3 @@
+# Normalize line endings to LF in the repository. Prevents the CRLF churn seen in
+# Windows / OneDrive working copies (see docs/RECONCILIATION_2026-10-04.md).
+* text=auto eol=lf

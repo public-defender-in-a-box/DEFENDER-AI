@@ -52,7 +52,7 @@ class PersonOfInterest(BaseModel):
 class ChargeProcessingInput(BaseModel):
     document_text: str
     document_type: str  # COMPLAINT, INDICTMENT, INFORMATION, ARREST_REPORT
-    jurisdiction: str = "IL"
+    jurisdiction: str = "GA"
 
 
 class ChargeProcessingOutput(BaseModel):
